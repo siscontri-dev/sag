@@ -6,20 +6,21 @@ import { Badge } from "@/components/ui/badge"
 import { Edit, Eye } from "lucide-react"
 import Link from "next/link"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { themeColors } from "@/lib/theme-config"
 
 export default function SacrificiosTable({ sacrificios = [] }) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border shadow-sm overflow-hidden">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-gray-50">
           <TableRow>
-            <TableHead>Número</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Propietario</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Kilos</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead className="font-semibold">Número</TableHead>
+            <TableHead className="font-semibold">Fecha</TableHead>
+            <TableHead className="font-semibold">Propietario</TableHead>
+            <TableHead className="font-semibold">Estado</TableHead>
+            <TableHead className="font-semibold">Kilos</TableHead>
+            <TableHead className="font-semibold">Total</TableHead>
+            <TableHead className="text-right font-semibold">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -30,20 +31,28 @@ export default function SacrificiosTable({ sacrificios = [] }) {
               </TableCell>
             </TableRow>
           ) : (
-            sacrificios.map((sacrificio) => (
-              <TableRow key={sacrificio.id}>
+            sacrificios.map((sacrificio, index) => (
+              <TableRow key={sacrificio.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <TableCell className="font-medium">{sacrificio.numero_documento}</TableCell>
                 <TableCell>{formatDate(sacrificio.fecha_documento)}</TableCell>
                 <TableCell>{sacrificio.dueno_anterior_nombre || "N/A"}</TableCell>
                 <TableCell>
                   <Badge
-                    variant={
-                      sacrificio.estado === "confirmado"
-                        ? "default"
-                        : sacrificio.estado === "anulado"
-                          ? "destructive"
-                          : "outline"
-                    }
+                    className="px-2 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor:
+                        sacrificio.estado === "confirmado"
+                          ? themeColors.estado.confirmado.bg
+                          : sacrificio.estado === "anulado"
+                            ? themeColors.estado.anulado.bg
+                            : themeColors.estado.borrador.bg,
+                      color:
+                        sacrificio.estado === "confirmado"
+                          ? themeColors.estado.confirmado.text
+                          : sacrificio.estado === "anulado"
+                            ? themeColors.estado.anulado.text
+                            : themeColors.estado.borrador.text,
+                    }}
                   >
                     {sacrificio.estado === "confirmado"
                       ? "Confirmado"
@@ -60,15 +69,15 @@ export default function SacrificiosTable({ sacrificios = [] }) {
                     : "0"}{" "}
                   kg
                 </TableCell>
-                <TableCell>{formatCurrency(sacrificio.total)}</TableCell>
+                <TableCell className="font-medium">{formatCurrency(sacrificio.total)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                       <Link href={`/sacrificios/ver/${sacrificio.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                       <Link href={`/sacrificios/editar/${sacrificio.id}`}>
                         <Edit className="h-4 w-4" />
                       </Link>

@@ -5,6 +5,7 @@ import SacrificiosTable from "./sacrificios-table"
 import { getTransactions } from "@/lib/data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { themeColors } from "@/lib/theme-config"
 
 export default async function SacrificiosPage({
   searchParams,
@@ -27,17 +28,25 @@ export default async function SacrificiosPage({
 
   const totalValor = sacrificios.reduce((sum, s) => sum + (s.total || 0), 0)
 
+  // Determinar colores basados en el tipo
+  const colors =
+    tipo === "bovino"
+      ? themeColors.bovino
+      : tipo === "porcino"
+        ? themeColors.porcino
+        : { light: "#F9FAFB", medium: "#F3F4F6", dark: "#E5E7EB", text: "#111827" }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
           Sacrificios {tipo && `(${tipo === "bovino" ? "Bovinos" : "Porcinos"})`}
         </h1>
         <div className="flex gap-2">
           <Button variant="outline" size="icon">
             <FileDown className="h-4 w-4" />
           </Button>
-          <Button asChild>
+          <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
             <Link href={`/sacrificios/nuevo${tipo ? `?tipo=${tipo}` : ""}`}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Nuevo Sacrificio
@@ -46,40 +55,58 @@ export default async function SacrificiosPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="shadow-sm overflow-hidden">
+          <div className="h-1" style={{ backgroundColor: colors.dark }}></div>
+          <CardHeader style={{ backgroundColor: colors.light }}>
             <CardTitle>Resumen</CardTitle>
             <CardDescription>Estadísticas de sacrificios</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
-            <div className="flex flex-col items-center p-4 bg-muted/50 rounded-lg">
-              <span className="text-2xl font-bold">{sacrificios.length}</span>
+          <CardContent className="grid grid-cols-3 gap-4 p-6">
+            <div className="flex flex-col items-center p-4 rounded-lg" style={{ backgroundColor: colors.light }}>
+              <span className="text-2xl font-bold" style={{ color: colors.text }}>
+                {sacrificios.length}
+              </span>
               <span className="text-sm text-muted-foreground">Total</span>
             </div>
-            <div className="flex flex-col items-center p-4 bg-yellow-100 rounded-lg">
-              <span className="text-2xl font-bold">{borradores.length}</span>
-              <span className="text-sm text-yellow-800">Borradores</span>
+            <div
+              className="flex flex-col items-center p-4 rounded-lg"
+              style={{ backgroundColor: themeColors.estado.borrador.bg }}
+            >
+              <span className="text-2xl font-bold" style={{ color: themeColors.estado.borrador.text }}>
+                {borradores.length}
+              </span>
+              <span className="text-sm" style={{ color: themeColors.estado.borrador.text }}>
+                Borradores
+              </span>
             </div>
-            <div className="flex flex-col items-center p-4 bg-green-100 rounded-lg">
-              <span className="text-2xl font-bold">{confirmados.length}</span>
-              <span className="text-sm text-green-800">Confirmados</span>
+            <div
+              className="flex flex-col items-center p-4 rounded-lg"
+              style={{ backgroundColor: themeColors.estado.confirmado.bg }}
+            >
+              <span className="text-2xl font-bold" style={{ color: themeColors.estado.confirmado.text }}>
+                {confirmados.length}
+              </span>
+              <span className="text-sm" style={{ color: themeColors.estado.confirmado.text }}>
+                Confirmados
+              </span>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="shadow-sm overflow-hidden">
+          <div className="h-1" style={{ backgroundColor: colors.dark }}></div>
+          <CardHeader style={{ backgroundColor: colors.light }}>
             <CardTitle>Totales</CardTitle>
             <CardDescription>Valores acumulados</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col items-center p-4 bg-blue-100 rounded-lg">
-              <span className="text-2xl font-bold">{totalKilos.toLocaleString("es-CO")} kg</span>
+          <CardContent className="grid grid-cols-2 gap-4 p-6">
+            <div className="flex flex-col items-center p-4 rounded-lg bg-blue-50">
+              <span className="text-2xl font-bold text-blue-800">{totalKilos.toLocaleString("es-CO")} kg</span>
               <span className="text-sm text-blue-800">Peso Total</span>
             </div>
-            <div className="flex flex-col items-center p-4 bg-green-100 rounded-lg">
-              <span className="text-2xl font-bold">${totalValor.toLocaleString("es-CO")}</span>
+            <div className="flex flex-col items-center p-4 rounded-lg bg-green-50">
+              <span className="text-2xl font-bold text-green-800">${totalValor.toLocaleString("es-CO")}</span>
               <span className="text-sm text-green-800">Valor Total</span>
             </div>
           </CardContent>
@@ -87,7 +114,7 @@ export default async function SacrificiosPage({
       </div>
 
       <Tabs defaultValue="todos" className="w-full">
-        <TabsList>
+        <TabsList className="mb-4">
           <TabsTrigger value="todos">Todos</TabsTrigger>
           <TabsTrigger value="borradores">Borradores</TabsTrigger>
           <TabsTrigger value="confirmados">Confirmados</TabsTrigger>

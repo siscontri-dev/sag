@@ -6,20 +6,21 @@ import { Badge } from "@/components/ui/badge"
 import { Edit, Eye } from "lucide-react"
 import Link from "next/link"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { themeColors } from "@/lib/theme-config"
 
 export default function GuiasTable({ guias = [] }) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border shadow-sm overflow-hidden">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-gray-50">
           <TableRow>
-            <TableHead>Número</TableHead>
-            <TableHead>Fecha</TableHead>
-            <TableHead>Dueño Anterior</TableHead>
-            <TableHead>Dueño Nuevo</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead className="text-right">Acciones</TableHead>
+            <TableHead className="font-semibold">Número</TableHead>
+            <TableHead className="font-semibold">Fecha</TableHead>
+            <TableHead className="font-semibold">Dueño Anterior</TableHead>
+            <TableHead className="font-semibold">Dueño Nuevo</TableHead>
+            <TableHead className="font-semibold">Estado</TableHead>
+            <TableHead className="font-semibold">Total</TableHead>
+            <TableHead className="text-right font-semibold">Acciones</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -30,30 +31,42 @@ export default function GuiasTable({ guias = [] }) {
               </TableCell>
             </TableRow>
           ) : (
-            guias.map((guia) => (
-              <TableRow key={guia.id}>
+            guias.map((guia, index) => (
+              <TableRow key={guia.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                 <TableCell className="font-medium">{guia.numero_documento}</TableCell>
                 <TableCell>{formatDate(guia.fecha_documento)}</TableCell>
                 <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
                 <TableCell>{guia.dueno_nuevo_nombre || "N/A"}</TableCell>
                 <TableCell>
                   <Badge
-                    variant={
-                      guia.estado === "confirmado" ? "default" : guia.estado === "anulado" ? "destructive" : "outline"
-                    }
+                    className="px-2 py-1 rounded-full text-xs font-medium"
+                    style={{
+                      backgroundColor:
+                        guia.estado === "confirmado"
+                          ? themeColors.estado.confirmado.bg
+                          : guia.estado === "anulado"
+                            ? themeColors.estado.anulado.bg
+                            : themeColors.estado.borrador.bg,
+                      color:
+                        guia.estado === "confirmado"
+                          ? themeColors.estado.confirmado.text
+                          : guia.estado === "anulado"
+                            ? themeColors.estado.anulado.text
+                            : themeColors.estado.borrador.text,
+                    }}
                   >
                     {guia.estado === "confirmado" ? "Confirmado" : guia.estado === "anulado" ? "Anulado" : "Borrador"}
                   </Badge>
                 </TableCell>
-                <TableCell>{formatCurrency(guia.total)}</TableCell>
+                <TableCell className="font-medium">{formatCurrency(guia.total)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                       <Link href={`/guias/ver/${guia.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button variant="ghost" size="icon" asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                       <Link href={`/guias/editar/${guia.id}`}>
                         <Edit className="h-4 w-4" />
                       </Link>

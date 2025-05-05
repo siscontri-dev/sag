@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 
 export default function ContactsTable({ contacts }) {
   const { toast } = useToast()
@@ -57,16 +58,16 @@ export default function ContactsTable({ contacts }) {
 
   return (
     <>
-      <div className="rounded-md border">
+      <div className="rounded-lg border shadow-sm overflow-hidden">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-gray-50">
             <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>NIT/Cédula</TableHead>
-              <TableHead>Teléfono</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Ubicación</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead className="font-semibold">Nombre</TableHead>
+              <TableHead className="font-semibold">NIT/Cédula</TableHead>
+              <TableHead className="font-semibold">Teléfono</TableHead>
+              <TableHead className="font-semibold">Tipo</TableHead>
+              <TableHead className="font-semibold">Ubicación</TableHead>
+              <TableHead className="text-right font-semibold">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -77,30 +78,43 @@ export default function ContactsTable({ contacts }) {
                 </TableCell>
               </TableRow>
             ) : (
-              contacts.map((contact) => (
-                <TableRow key={contact.id}>
+              contacts.map((contact, index) => (
+                <TableRow key={contact.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                   <TableCell className="font-medium">
                     {contact.primer_nombre} {contact.primer_apellido}
                   </TableCell>
                   <TableCell>{contact.nit}</TableCell>
                   <TableCell>{contact.telefono || "N/A"}</TableCell>
                   <TableCell>
-                    {contact.type === 1 ? "Dueño Anterior" : contact.type === 2 ? "Dueño Nuevo" : "Ambos"}
+                    <Badge
+                      className="px-2 py-1 rounded-full text-xs font-medium"
+                      style={{
+                        backgroundColor: contact.type === 1 ? "#E6F7FF" : contact.type === 2 ? "#FFF7E6" : "#F6FFED",
+                        color: contact.type === 1 ? "#0050B3" : contact.type === 2 ? "#AD6800" : "#389E0D",
+                      }}
+                    >
+                      {contact.type === 1 ? "Dueño Anterior" : contact.type === 2 ? "Dueño Nuevo" : "Ambos"}
+                    </Badge>
                   </TableCell>
                   <TableCell>{contact.location_id || "N/A"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                         <Link href={`/contactos/ver/${contact.id}`}>
                           <Eye className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="ghost" size="icon" asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
                         <Link href={`/contactos/editar/${contact.id}`}>
                           <Edit className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setContactToDelete(contact)}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-full"
+                        onClick={() => setContactToDelete(contact)}
+                      >
                         <Trash className="h-4 w-4" />
                       </Button>
                     </div>

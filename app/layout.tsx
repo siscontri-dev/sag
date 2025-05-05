@@ -1,20 +1,38 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type React from "react"
+import "./globals.css"
+import { Inter } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
 
-export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+const inter = Inter({ subsets: ["latin"] })
+
+export const metadata = {
+  title: "Bovinos y Porcinos",
+  description: "Sistema de gestión para bovinos y porcinos",
+    generator: 'v0.dev'
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.className} bg-gray-50`}>
+        <ThemeProvider attribute="class" defaultTheme="light">
+          <div className="min-h-screen flex flex-col">
+            <header className="bg-white border-b border-gray-200 py-4">
+              <div className="container mx-auto px-4 max-w-7xl">
+                <h1 className="text-2xl font-bold text-gray-800">Bovinos y Porcinos</h1>
+              </div>
+            </header>
+            <main className="flex-1 py-8">
+              <div className="container mx-auto px-4 max-w-7xl">{children}</div>
+            </main>
+            <footer className="bg-white border-t border-gray-200 py-4 mt-8">
+              <div className="container mx-auto px-4 max-w-7xl text-center text-sm text-gray-500">
+                © {new Date().getFullYear()} Bovinos y Porcinos. Todos los derechos reservados.
+              </div>
+            </footer>
+          </div>
+        </ThemeProvider>
+      </body>
     </html>
   )
 }

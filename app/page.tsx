@@ -8,16 +8,16 @@ export default async function Home() {
   const stats = await getTransactionStats()
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Contactos</CardTitle>
-            <Users className="w-4 h-4 text-muted-foreground" />
+            <Users className="w-4 h-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.contactCount}</div>
@@ -28,10 +28,10 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Guías ICA</CardTitle>
-            <FileText className="w-4 h-4 text-muted-foreground" />
+            <FileText className="w-4 h-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.guiasCount}</div>
@@ -42,10 +42,10 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Sacrificios</CardTitle>
-            <Truck className="w-4 h-4 text-muted-foreground" />
+            <Truck className="w-4 h-4 text-amber-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.sacrificiosCount}</div>
@@ -56,10 +56,10 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Total Kg</CardTitle>
-            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            <BarChart3 className="w-4 h-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalKilos.toLocaleString("es-CO")}</div>
@@ -68,37 +68,59 @@ export default async function Home() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestión de Bovinos</CardTitle>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+          <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+            <CardTitle className="text-blue-800">Gestión de Bovinos</CardTitle>
             <CardDescription>Administración de ganado vacuno</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-between items-center">
-            <Cow className="w-12 h-12 text-primary" />
-            <div className="space-x-2">
-              <Button asChild variant="outline" size="sm">
+          <CardContent className="flex justify-between items-center p-6">
+            <Cow className="w-16 h-16 text-blue-500" />
+            <div className="space-x-3">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
                 <Link href="/guias?tipo=bovino">Ingresos</Link>
               </Button>
-              <Button asChild variant="outline" size="sm">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
                 <Link href="/sacrificios?tipo=bovino">Sacrificios</Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestión de Porcinos</CardTitle>
+        <Card className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
+          <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100">
+            <CardTitle className="text-amber-800">Gestión de Porcinos</CardTitle>
             <CardDescription>Administración de ganado porcino</CardDescription>
           </CardHeader>
-          <CardContent className="flex justify-between items-center">
-            <PiggyBank className="w-12 h-12 text-primary" />
-            <div className="space-x-2">
-              <Button asChild variant="outline" size="sm">
+          <CardContent className="flex justify-between items-center p-6">
+            <PiggyBank className="w-16 h-16 text-amber-500" />
+            <div className="space-x-3">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+              >
                 <Link href="/guias?tipo=porcino">Ingresos</Link>
               </Button>
-              <Button asChild variant="outline" size="sm">
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+              >
                 <Link href="/sacrificios?tipo=porcino">Sacrificios</Link>
               </Button>
             </div>
@@ -106,7 +128,7 @@ export default async function Home() {
         </Card>
       </div>
 
-      <Card>
+      <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Actividad Reciente</CardTitle>
@@ -118,8 +140,13 @@ export default async function Home() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {stats.recentTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between border-b pb-2">
+            {stats.recentTransactions.map((transaction, index) => (
+              <div
+                key={transaction.id}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  index % 2 === 0 ? "bg-gray-50" : "bg-white"
+                } hover:bg-gray-100 transition-colors`}
+              >
                 <div>
                   <p className="font-medium">{transaction.numero_documento}</p>
                   <p className="text-sm text-muted-foreground">
