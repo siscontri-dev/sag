@@ -161,6 +161,30 @@ export async function getTransactionStats() {
       WHERE activo = TRUE AND type = 'exit'
     `
 
+    // Obtener conteo de guías por ubicación (bovinos - location_id = 1)
+    const guiasBovinosResult = await sql`
+      SELECT COUNT(*) as count FROM transactions 
+      WHERE activo = TRUE AND type = 'entry' AND business_location_id = 1
+    `
+
+    // Obtener conteo de guías por ubicación (porcinos - location_id = 2)
+    const guiasPortinosResult = await sql`
+      SELECT COUNT(*) as count FROM transactions 
+      WHERE activo = TRUE AND type = 'entry' AND business_location_id = 2
+    `
+
+    // Obtener conteo de sacrificios por ubicación (bovinos - location_id = 1)
+    const sacrificiosBovinosResult = await sql`
+      SELECT COUNT(*) as count FROM transactions 
+      WHERE activo = TRUE AND type = 'exit' AND business_location_id = 1
+    `
+
+    // Obtener conteo de sacrificios por ubicación (porcinos - location_id = 2)
+    const sacrificiosPortinosResult = await sql`
+      SELECT COUNT(*) as count FROM transactions 
+      WHERE activo = TRUE AND type = 'exit' AND business_location_id = 2
+    `
+
     // Obtener total de kilos procesados
     const kilosResult = await sql`
       SELECT SUM(quantity) as total FROM transaction_lines
@@ -191,6 +215,10 @@ export async function getTransactionStats() {
       contactCount: Number.parseInt(contactsResult.rows[0].count) || 0,
       guiasCount: Number.parseInt(guiasResult.rows[0].count) || 0,
       sacrificiosCount: Number.parseInt(sacrificiosResult.rows[0].count) || 0,
+      guiasBovinos: Number.parseInt(guiasBovinosResult.rows[0].count) || 0,
+      guiasPorcinos: Number.parseInt(guiasPortinosResult.rows[0].count) || 0,
+      sacrificiosBovinos: Number.parseInt(sacrificiosBovinosResult.rows[0].count) || 0,
+      sacrificiosPorcinos: Number.parseInt(sacrificiosPortinosResult.rows[0].count) || 0,
       totalKilos: Number.parseFloat(kilosResult.rows[0]?.total || "0"),
       recentTransactions: recentTransactionsResult.rows || [],
     }
@@ -200,6 +228,10 @@ export async function getTransactionStats() {
       contactCount: 0,
       guiasCount: 0,
       sacrificiosCount: 0,
+      guiasBovinos: 0,
+      guiasPorcinos: 0,
+      sacrificiosBovinos: 0,
+      sacrificiosPorcinos: 0,
       totalKilos: 0,
       recentTransactions: [],
     }

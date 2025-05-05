@@ -77,23 +77,30 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
             <Cow className="w-16 h-16 text-blue-500" />
-            <div className="space-x-3">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              >
-                <Link href="/guias?tipo=bovino">Ingresos</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-              >
-                <Link href="/sacrificios?tipo=bovino">Sacrificios</Link>
-              </Button>
+            <div className="space-y-3">
+              <div className="space-x-3">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Link href="/guias?tipo=bovino">Guías ICA</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Link href="/sacrificios?tipo=bovino">Sacrificios</Link>
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  Guías: {stats.guiasBovinos || 0} | Sacrificios: {stats.sacrificiosBovinos || 0}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -106,23 +113,30 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
             <PiggyBank className="w-16 h-16 text-amber-500" />
-            <div className="space-x-3">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
-              >
-                <Link href="/guias?tipo=porcino">Ingresos</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
-              >
-                <Link href="/sacrificios?tipo=porcino">Sacrificios</Link>
-              </Button>
+            <div className="space-y-3">
+              <div className="space-x-3">
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                >
+                  <Link href="/guias?tipo=porcino">Guías ICA</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                >
+                  <Link href="/sacrificios?tipo=porcino">Sacrificios</Link>
+                </Button>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  Guías: {stats.guiasPorcinos || 0} | Sacrificios: {stats.sacrificiosPorcinos || 0}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

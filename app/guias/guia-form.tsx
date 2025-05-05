@@ -39,7 +39,7 @@ export default function GuiaForm({
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     id_dueno_nuevo: guia?.id_dueno_nuevo?.toString() || "",
     business_location_id: locationId.toString(),
-    estado: guia?.estado || "borrador",
+    estado: guia?.estado || "confirmado", // Cambiado de "borrador" a "confirmado"
   })
 
   // Estado para las líneas de la guía
