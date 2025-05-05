@@ -61,37 +61,21 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
   const [errorMunicipios, setErrorMunicipios] = useState("")
   const [apiResponse, setApiResponse] = useState(null)
 
-  // Función para cargar municipios usando exclusivamente la API
+  // Función para cargar municipios usando la API
   const fetchMunicipiosFromAPI = async (departamentoId) => {
     setLoadingMunicipios(true)
     setErrorMunicipios("")
-    setApiResponse(null)
 
     try {
-      console.log(`Solicitando municipios para departamento ID: ${departamentoId} vía API`)
-
       const response = await fetch(`/api/municipios/${departamentoId}`)
       const data = await response.json()
-
-      // Guardar la respuesta completa para diagnóstico
-      setApiResponse(data)
 
       if (!response.ok) {
         throw new Error(data.error || `Error HTTP: ${response.status}`)
       }
 
-      if (!data.municipios || !Array.isArray(data.municipios)) {
-        throw new Error("Formato de respuesta inválido")
-      }
-
-      console.log(`Municipios recibidos: ${data.municipios.length}`)
-
-      if (data.municipios.length === 0) {
-        setErrorMunicipios(`No se encontraron municipios para este departamento (ID: ${departamentoId})`)
-      }
-
-      setMunicipios(data.municipios)
-      return data.municipios
+      setMunicipios(data.municipios || [])
+      return data.municipios || []
     } catch (error) {
       console.error("Error al cargar municipios:", error)
       setErrorMunicipios(`Error al cargar municipios: ${error.message}`)
@@ -439,16 +423,6 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                       <AlertTitle>Error</AlertTitle>
                       <AlertDescription>{errorMunicipios}</AlertDescription>
                     </Alert>
-                  )}
-
-                  {/* Información de diagnóstico */}
-                  {apiResponse && (
-                    <div className="mt-2 p-2 text-xs bg-gray-100 rounded-md">
-                      <details>
-                        <summary className="cursor-pointer font-medium">Información de diagnóstico</summary>
-                        <pre className="mt-2 whitespace-pre-wrap">{JSON.stringify(apiResponse, null, 2)}</pre>
-                      </details>
-                    </div>
                   )}
                 </div>
                 <div className="flex items-center space-x-2">
