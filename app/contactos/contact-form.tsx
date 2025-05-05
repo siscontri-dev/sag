@@ -13,8 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PlusCircle, Trash, Loader2 } from "lucide-react"
-import { getMunicipiosByDepartamento } from "@/lib/data"
+import { PlusCircle, Trash, Loader2, AlertCircle } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function ContactForm({ departamentos = [], contact = null, ubicaciones = [] }) {
   const { toast } = useToast()
@@ -59,68 +59,56 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
   const [ubicacionesNuevas, setUbicacionesNuevas] = useState([])
   const [ubicacionesEliminadas, setUbicacionesEliminadas] = useState([])
   const [errorMunicipios, setErrorMunicipios] = useState("")
+  const [apiResponse, setApiResponse] = useState(null)
 
-  // Añadir una función alternativa para cargar municipios usando la API
+  // Función para cargar municipios usando exclusivamente la API
   const fetchMunicipiosFromAPI = async (departamentoId) => {
+    setLoadingMunicipios(true)
+    setErrorMunicipios("")
+    setApiResponse(null)
+
     try {
+      console.log(`Solicitando municipios para departamento ID: ${departamentoId} vía API`)
+
       const response = await fetch(`/api/municipios/${departamentoId}`)
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`)
-      }
       const data = await response.json()
-      return data.municipios || []
+
+      // Guardar la respuesta completa para diagnóstico
+      setApiResponse(data)
+
+      if (!response.ok) {
+        throw new Error(data.error || `Error HTTP: ${response.status}`)
+      }
+
+      if (!data.municipios || !Array.isArray(data.municipios)) {
+        throw new Error("Formato de respuesta inválido")
+      }
+
+      console.log(`Municipios recibidos: ${data.municipios.length}`)
+
+      if (data.municipios.length === 0) {
+        setErrorMunicipios(`No se encontraron municipios para este departamento (ID: ${departamentoId})`)
+      }
+
+      setMunicipios(data.municipios)
+      return data.municipios
     } catch (error) {
-      console.error("Error al cargar municipios desde API:", error)
-      throw error
+      console.error("Error al cargar municipios:", error)
+      setErrorMunicipios(`Error al cargar municipios: ${error.message}`)
+      setMunicipios([])
+      return []
+    } finally {
+      setLoadingMunicipios(false)
     }
   }
 
-  // Modificar el useEffect para usar la API como fallback
+  // Cargar municipios cuando cambia el departamento
   useEffect(() => {
     if (nuevaUbicacion.id_departamento) {
-      const fetchMunicipios = async () => {
-        setLoadingMunicipios(true)
-        setErrorMunicipios("")
-        try {
-          const departamentoId = Number(nuevaUbicacion.id_departamento)
-          console.log(`Solicitando municipios para departamento ID: ${departamentoId}`)
-
-          let data = []
-          try {
-            // Intentar con la función directa primero
-            data = await getMunicipiosByDepartamento(departamentoId)
-          } catch (directError) {
-            console.error("Error con método directo, intentando API:", directError)
-            try {
-              // Si falla, intentar con la API
-              data = await fetchMunicipiosFromAPI(departamentoId)
-            } catch (apiError) {
-              throw new Error(`No se pudieron cargar los municipios: ${apiError.message}`)
-            }
-          }
-
-          console.log(`Municipios recibidos: ${data ? data.length : "ninguno"}`)
-          if (data && Array.isArray(data)) {
-            if (data.length === 0) {
-              setErrorMunicipios("No se encontraron municipios para este departamento")
-            }
-            setMunicipios(data)
-          } else {
-            console.error("Formato de datos de municipios incorrecto:", data)
-            setErrorMunicipios("Error al cargar municipios: formato de datos incorrecto")
-            setMunicipios([])
-          }
-        } catch (error) {
-          console.error("Error al cargar municipios:", error)
-          setErrorMunicipios(`Error al cargar municipios: ${error.message || "Error desconocido"}`)
-          setMunicipios([])
-        } finally {
-          setLoadingMunicipios(false)
-        }
-      }
-      fetchMunicipios()
+      fetchMunicipiosFromAPI(Number(nuevaUbicacion.id_departamento))
     } else {
       setMunicipios([])
+      setApiResponse(null)
     }
   }, [nuevaUbicacion.id_departamento])
 
@@ -445,7 +433,23 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                       ))}
                     </SelectContent>
                   </Select>
-                  {errorMunicipios && <p className="text-sm text-red-500 mt-1">{errorMunicipios}</p>}
+                  {errorMunicipios && (
+                    <Alert variant="destructive" className="mt-2">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{errorMunicipios}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Información de diagnóstico */}
+                  {apiResponse && (
+                    <div className="mt-2 p-2 text-xs bg-gray-100 rounded-md">
+                      <details>
+                        <summary className="cursor-pointer font-medium">Información de diagnóstico</summary>
+                        <pre className="mt-2 whitespace-pre-wrap">{JSON.stringify(apiResponse, null, 2)}</pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
