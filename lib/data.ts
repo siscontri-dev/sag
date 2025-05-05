@@ -388,11 +388,21 @@ export async function getDepartamentos() {
 // Función para obtener municipios por departamento
 export async function getMunicipiosByDepartamento(departamentoId: number) {
   try {
+    console.log(`Obteniendo municipios para departamento ID: ${departamentoId}`)
+
+    if (!departamentoId || isNaN(departamentoId)) {
+      console.error(`ID de departamento inválido: ${departamentoId}`)
+      return []
+    }
+
     const result = await sql`
-      SELECT id, name as nombre, cod_dian FROM municipios 
+      SELECT id, name as nombre, cod_dian 
+      FROM municipios 
       WHERE id_departamento = ${departamentoId} AND activo = TRUE
       ORDER BY name
     `
+
+    console.log(`Municipios encontrados: ${result.rows.length}`)
     return result.rows
   } catch (error) {
     console.error(`Error al obtener municipios para departamento ${departamentoId}:`, error)

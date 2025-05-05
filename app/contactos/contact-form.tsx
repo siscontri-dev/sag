@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { PlusCircle, Trash } from "lucide-react"
+import { PlusCircle, Trash, Loader2 } from "lucide-react"
 import { getMunicipiosByDepartamento } from "@/lib/data"
 import {
   AlertDialog,
@@ -54,16 +54,39 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
     es_principal: false,
   })
   const [municipios, setMunicipios] = useState([])
+  const [loadingMunicipios, setLoadingMunicipios] = useState(false)
   const [ubicacionToDelete, setUbicacionToDelete] = useState(null)
   const [ubicacionesNuevas, setUbicacionesNuevas] = useState([])
   const [ubicacionesEliminadas, setUbicacionesEliminadas] = useState([])
+  const [errorMunicipios, setErrorMunicipios] = useState("")
 
   // Cargar municipios cuando cambia el departamento
   useEffect(() => {
     if (nuevaUbicacion.id_departamento) {
       const fetchMunicipios = async () => {
-        const data = await getMunicipiosByDepartamento(Number(nuevaUbicacion.id_departamento))
-        setMunicipios(data)
+        setLoadingMunicipios(true)
+        setErrorMunicipios("")
+        try {
+          const departamentoId = Number(nuevaUbicacion.id_departamento)
+          console.log(`Solicitando municipios para departamento ID: ${departamentoId}`)
+
+          const data = await getMunicipiosByDepartamento(departamentoId)
+
+          console.log(`Municipios recibidos: ${data.length}`)
+          if (data && Array.isArray(data)) {
+            setMunicipios(data)
+          } else {
+            console.error("Formato de datos de municipios incorrecto:", data)
+            setErrorMunicipios("Error al cargar municipios: formato de datos incorrecto")
+            setMunicipios([])
+          }
+        } catch (error) {
+          console.error("Error al cargar municipios:", error)
+          setErrorMunicipios(`Error al cargar municipios: ${error.message || "Error desconocido"}`)
+          setMunicipios([])
+        } finally {
+          setLoadingMunicipios(false)
+        }
       }
       fetchMunicipios()
     } else {
@@ -87,6 +110,11 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
 
   const handleUbicacionSelectChange = (name, value) => {
     setNuevaUbicacion((prev) => ({ ...prev, [name]: value }))
+
+    // Si estamos cambiando el departamento, resetear el municipio
+    if (name === "id_departamento") {
+      setNuevaUbicacion((prev) => ({ ...prev, id_municipio: "" }))
+    }
   }
 
   const handleUbicacionCheckboxChange = (checked) => {
@@ -109,16 +137,28 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       return
     }
 
+    // Obtener nombres de departamento y municipio
+    const departamento = departamentos.find((d) => d.id.toString() === nuevaUbicacion.id_departamento)
+    const municipio = municipios.find((m) => m.id.toString() === nuevaUbicacion.id_municipio)
+
     // Añadir la nueva ubicación al estado
     const newUbicacion = {
       ...nuevaUbicacion,
       id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
-      departamento_nombre: departamentos.find((d) => d.id.toString() === nuevaUbicacion.id_departamento)?.nombre || "",
-      municipio_nombre: municipios.find((m) => m.id.toString() === nuevaUbicacion.id_municipio)?.nombre || "",
+      departamento_nombre: departamento?.nombre || "Departamento desconocido",
+      municipio_nombre: municipio?.nombre || "Municipio desconocido",
       es_nueva: true,
     }
 
-    setUbicacionesNuevas([...ubicacionesNuevas, newUbicacion])
+    // Guardar la ubicación en el estado
+    const nuevaUbicacionParaGuardar = {
+      ...nuevaUbicacion,
+      id_departamento: Number(nuevaUbicacion.id_departamento),
+      id_municipio: Number(nuevaUbicacion.id_municipio),
+      area_hectareas: nuevaUbicacion.area_hectareas ? Number(nuevaUbicacion.area_hectareas) : null,
+    }
+
+    setUbicacionesNuevas([...ubicacionesNuevas, nuevaUbicacionParaGuardar])
     setUbicacionesState([...ubicacionesState, newUbicacion])
 
     // Limpiar el formulario de nueva ubicación
@@ -129,6 +169,11 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       nombre_finca: "",
       area_hectareas: "",
       es_principal: false,
+    })
+
+    toast({
+      title: "Ubicación añadida",
+      description: "La ubicación se ha añadido correctamente a la lista",
     })
   }
 
@@ -143,6 +188,11 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       setUbicacionesState(ubicacionesState.filter((u) => u.id !== ubicacion.id))
     }
     setUbicacionToDelete(null)
+
+    toast({
+      title: "Ubicación eliminada",
+      description: "La ubicación se ha eliminado de la lista",
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -160,6 +210,12 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       formDataObj.append("ubicacionesNuevas", JSON.stringify(ubicacionesNuevas))
       formDataObj.append("ubicacionesEliminadas", JSON.stringify(ubicacionesEliminadas))
 
+      console.log("Enviando datos del formulario:", {
+        contacto: Object.fromEntries(formDataObj.entries()),
+        ubicacionesNuevas: ubicacionesNuevas,
+        ubicacionesEliminadas: ubicacionesEliminadas,
+      })
+
       // Enviar los datos al servidor usando la Server Action
       let result
       if (contact) {
@@ -167,6 +223,8 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       } else {
         result = await createContact(formDataObj)
       }
+
+      console.log("Resultado de la operación:", result)
 
       // Mostrar mensaje de éxito o error
       if (!result || !result.success) {
@@ -186,7 +244,7 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
       console.error("Error al guardar el contacto:", error)
       toast({
         title: "Error",
-        description: "Hubo un problema al guardar el contacto",
+        description: `Hubo un problema al guardar el contacto: ${error.message || "Error desconocido"}`,
         variant: "destructive",
       })
     } finally {
@@ -327,14 +385,27 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="id_municipio">Municipio</Label>
+                  <Label htmlFor="id_municipio">
+                    Municipio
+                    {loadingMunicipios && <Loader2 className="ml-2 h-4 w-4 inline animate-spin" />}
+                  </Label>
                   <Select
                     value={nuevaUbicacion.id_municipio}
                     onValueChange={(value) => handleUbicacionSelectChange("id_municipio", value)}
-                    disabled={!nuevaUbicacion.id_departamento || municipios.length === 0}
+                    disabled={!nuevaUbicacion.id_departamento || loadingMunicipios || municipios.length === 0}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleccione un municipio" />
+                      <SelectValue
+                        placeholder={
+                          loadingMunicipios
+                            ? "Cargando municipios..."
+                            : errorMunicipios
+                              ? "Error al cargar municipios"
+                              : municipios.length === 0 && nuevaUbicacion.id_departamento
+                                ? "No hay municipios disponibles"
+                                : "Seleccione un municipio"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {municipios.map((municipio) => (
@@ -344,6 +415,7 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                       ))}
                     </SelectContent>
                   </Select>
+                  {errorMunicipios && <p className="text-sm text-red-500 mt-1">{errorMunicipios}</p>}
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -354,7 +426,16 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                   <Label htmlFor="es_principal">Ubicación Principal</Label>
                 </div>
                 <div className="flex justify-end sm:col-span-2">
-                  <Button type="button" onClick={handleAddUbicacion}>
+                  <Button
+                    type="button"
+                    onClick={handleAddUbicacion}
+                    disabled={
+                      !nuevaUbicacion.nombre_finca ||
+                      !nuevaUbicacion.direccion ||
+                      !nuevaUbicacion.id_departamento ||
+                      !nuevaUbicacion.id_municipio
+                    }
+                  >
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Añadir Ubicación
                   </Button>
@@ -418,7 +499,16 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
           <Link href="/contactos">Cancelar</Link>
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Guardando..." : contact ? "Actualizar" : "Guardar"}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Guardando...
+            </>
+          ) : contact ? (
+            "Actualizar"
+          ) : (
+            "Guardar"
+          )}
         </Button>
       </div>
 

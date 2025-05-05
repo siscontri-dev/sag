@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache"
 
 export async function createContact(formData: FormData) {
   try {
+    console.log("Iniciando creación de contacto")
+
     // Extraer datos del formulario
     const primer_nombre = formData.get("primer_nombre") as string
     const segundo_nombre = (formData.get("segundo_nombre") as string) || null
@@ -18,7 +20,14 @@ export async function createContact(formData: FormData) {
 
     // Obtener ubicaciones nuevas
     const ubicacionesNuevasStr = formData.get("ubicacionesNuevas") as string
-    const ubicacionesNuevas = ubicacionesNuevasStr ? JSON.parse(ubicacionesNuevasStr) : []
+    let ubicacionesNuevas = []
+    try {
+      ubicacionesNuevas = ubicacionesNuevasStr ? JSON.parse(ubicacionesNuevasStr) : []
+      console.log(`Ubicaciones nuevas a crear: ${ubicacionesNuevas.length}`)
+    } catch (error) {
+      console.error("Error al parsear ubicacionesNuevas:", error)
+      return { success: false, message: "Error al procesar las ubicaciones nuevas" }
+    }
 
     // Valor fijo para business_id
     const business_id = 1
@@ -70,46 +79,63 @@ export async function createContact(formData: FormData) {
     `
 
     const contactId = result.rows[0].id
+    console.log(`Contacto creado con ID: ${contactId}`)
 
     // Insertar ubicaciones nuevas
     for (const ubicacion of ubicacionesNuevas) {
-      await sql`
-        INSERT INTO ubication_contact (
-          id_contact,
-          direccion,
-          id_departamento,
-          id_municipio,
-          nombre_finca,
-          area_hectareas,
-          es_principal,
-          activo
-        ) 
-        VALUES (
-          ${contactId},
-          ${ubicacion.direccion},
-          ${Number.parseInt(ubicacion.id_departamento)},
-          ${Number.parseInt(ubicacion.id_municipio)},
-          ${ubicacion.nombre_finca},
-          ${ubicacion.area_hectareas ? Number.parseFloat(ubicacion.area_hectareas) : null},
-          ${ubicacion.es_principal},
-          TRUE
-        )
-      `
+      try {
+        console.log(`Insertando ubicación: ${JSON.stringify(ubicacion)}`)
+
+        // Asegurarse de que los valores numéricos sean números
+        const id_departamento = Number(ubicacion.id_departamento)
+        const id_municipio = Number(ubicacion.id_municipio)
+        const area_hectareas = ubicacion.area_hectareas ? Number(ubicacion.area_hectareas) : null
+        const es_principal = Boolean(ubicacion.es_principal)
+
+        await sql`
+          INSERT INTO ubication_contact (
+            id_contact,
+            direccion,
+            id_departamento,
+            id_municipio,
+            nombre_finca,
+            area_hectareas,
+            es_principal,
+            activo
+          ) 
+          VALUES (
+            ${contactId},
+            ${ubicacion.direccion},
+            ${id_departamento},
+            ${id_municipio},
+            ${ubicacion.nombre_finca},
+            ${area_hectareas},
+            ${es_principal},
+            TRUE
+          )
+        `
+        console.log(`Ubicación insertada correctamente para contacto ${contactId}`)
+      } catch (error) {
+        console.error(`Error al insertar ubicación para contacto ${contactId}:`, error)
+        // Continuamos con la siguiente ubicación en caso de error
+      }
     }
 
     // Revalidar la ruta para actualizar los datos
     revalidatePath("/contactos")
     revalidatePath(`/contactos/ver/${contactId}`)
 
-    return { success: true, message: "Contacto creado correctamente" }
+    return { success: true, message: "Contacto creado correctamente", contactId }
   } catch (error) {
     console.error("Error al crear contacto:", error)
-    return { success: false, message: `Error al guardar el contacto: ${error.message}` }
+    return { success: false, message: `Error al guardar el contacto: ${error.message || "Error desconocido"}` }
   }
 }
 
 export async function updateContact(id: number, formData: FormData) {
   try {
+    console.log(`Iniciando actualización de contacto ID: ${id}`)
+
     // Extraer datos del formulario
     const primer_nombre = formData.get("primer_nombre") as string
     const segundo_nombre = (formData.get("segundo_nombre") as string) || null
@@ -124,8 +150,18 @@ export async function updateContact(id: number, formData: FormData) {
     // Obtener ubicaciones nuevas y eliminadas
     const ubicacionesNuevasStr = formData.get("ubicacionesNuevas") as string
     const ubicacionesEliminadasStr = formData.get("ubicacionesEliminadas") as string
-    const ubicacionesNuevas = ubicacionesNuevasStr ? JSON.parse(ubicacionesNuevasStr) : []
-    const ubicacionesEliminadas = ubicacionesEliminadasStr ? JSON.parse(ubicacionesEliminadasStr) : []
+
+    let ubicacionesNuevas = []
+    let ubicacionesEliminadas = []
+
+    try {
+      ubicacionesNuevas = ubicacionesNuevasStr ? JSON.parse(ubicacionesNuevasStr) : []
+      ubicacionesEliminadas = ubicacionesEliminadasStr ? JSON.parse(ubicacionesEliminadasStr) : []
+      console.log(`Ubicaciones nuevas: ${ubicacionesNuevas.length}, eliminadas: ${ubicacionesEliminadas.length}`)
+    } catch (error) {
+      console.error("Error al parsear ubicaciones:", error)
+      return { success: false, message: "Error al procesar las ubicaciones" }
+    }
 
     // Valor fijo para business_id
     const business_id = 1
@@ -161,39 +197,62 @@ export async function updateContact(id: number, formData: FormData) {
       WHERE id = ${id}
     `
 
+    console.log(`Contacto actualizado con ID: ${id}`)
+
     // Insertar ubicaciones nuevas
     for (const ubicacion of ubicacionesNuevas) {
-      await sql`
-        INSERT INTO ubication_contact (
-          id_contact,
-          direccion,
-          id_departamento,
-          id_municipio,
-          nombre_finca,
-          area_hectareas,
-          es_principal,
-          activo
-        ) 
-        VALUES (
-          ${id},
-          ${ubicacion.direccion},
-          ${Number.parseInt(ubicacion.id_departamento)},
-          ${Number.parseInt(ubicacion.id_municipio)},
-          ${ubicacion.nombre_finca},
-          ${ubicacion.area_hectareas ? Number.parseFloat(ubicacion.area_hectareas) : null},
-          ${ubicacion.es_principal},
-          TRUE
-        )
-      `
+      try {
+        console.log(`Insertando ubicación: ${JSON.stringify(ubicacion)}`)
+
+        // Asegurarse de que los valores numéricos sean números
+        const id_departamento = Number(ubicacion.id_departamento)
+        const id_municipio = Number(ubicacion.id_municipio)
+        const area_hectareas = ubicacion.area_hectareas ? Number(ubicacion.area_hectareas) : null
+        const es_principal = Boolean(ubicacion.es_principal)
+
+        await sql`
+          INSERT INTO ubication_contact (
+            id_contact,
+            direccion,
+            id_departamento,
+            id_municipio,
+            nombre_finca,
+            area_hectareas,
+            es_principal,
+            activo
+          ) 
+          VALUES (
+            ${id},
+            ${ubicacion.direccion},
+            ${id_departamento},
+            ${id_municipio},
+            ${ubicacion.nombre_finca},
+            ${area_hectareas},
+            ${es_principal},
+            TRUE
+          )
+        `
+        console.log(`Ubicación insertada correctamente para contacto ${id}`)
+      } catch (error) {
+        console.error(`Error al insertar ubicación para contacto ${id}:`, error)
+        // Continuamos con la siguiente ubicación en caso de error
+      }
     }
 
     // Marcar como inactivas las ubicaciones eliminadas
     for (const ubicacionId of ubicacionesEliminadas) {
-      await sql`
-        UPDATE ubication_contact 
-        SET activo = FALSE
-        WHERE id = ${ubicacionId} AND id_contact = ${id}
-      `
+      try {
+        console.log(`Eliminando ubicación ID: ${ubicacionId}`)
+        await sql`
+          UPDATE ubication_contact 
+          SET activo = FALSE
+          WHERE id = ${ubicacionId} AND id_contact = ${id}
+        `
+        console.log(`Ubicación ${ubicacionId} marcada como inactiva`)
+      } catch (error) {
+        console.error(`Error al eliminar ubicación ${ubicacionId}:`, error)
+        // Continuamos con la siguiente ubicación en caso de error
+      }
     }
 
     // Revalidar la ruta para actualizar los datos
@@ -204,7 +263,7 @@ export async function updateContact(id: number, formData: FormData) {
     return { success: true, message: "Contacto actualizado correctamente" }
   } catch (error) {
     console.error("Error al actualizar contacto:", error)
-    return { success: false, message: `Error al actualizar el contacto: ${error.message}` }
+    return { success: false, message: `Error al actualizar el contacto: ${error.message || "Error desconocido"}` }
   }
 }
 
@@ -283,7 +342,7 @@ export async function createUbication(contactId: number, formData: FormData) {
     return { success: true, message: "Ubicación creada correctamente" }
   } catch (error) {
     console.error("Error al crear ubicación:", error)
-    return { success: false, message: `Error al guardar la ubicación: ${error.message}` }
+    return { success: false, message: `Error al guardar la ubicación: ${error.message || "Error desconocido"}` }
   }
 }
 
