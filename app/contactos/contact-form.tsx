@@ -60,7 +60,22 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
   const [ubicacionesEliminadas, setUbicacionesEliminadas] = useState([])
   const [errorMunicipios, setErrorMunicipios] = useState("")
 
-  // Cargar municipios cuando cambia el departamento
+  // Añadir una función alternativa para cargar municipios usando la API
+  const fetchMunicipiosFromAPI = async (departamentoId) => {
+    try {
+      const response = await fetch(`/api/municipios/${departamentoId}`)
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`)
+      }
+      const data = await response.json()
+      return data.municipios || []
+    } catch (error) {
+      console.error("Error al cargar municipios desde API:", error)
+      throw error
+    }
+  }
+
+  // Modificar el useEffect para usar la API como fallback
   useEffect(() => {
     if (nuevaUbicacion.id_departamento) {
       const fetchMunicipios = async () => {
@@ -70,10 +85,25 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
           const departamentoId = Number(nuevaUbicacion.id_departamento)
           console.log(`Solicitando municipios para departamento ID: ${departamentoId}`)
 
-          const data = await getMunicipiosByDepartamento(departamentoId)
+          let data = []
+          try {
+            // Intentar con la función directa primero
+            data = await getMunicipiosByDepartamento(departamentoId)
+          } catch (directError) {
+            console.error("Error con método directo, intentando API:", directError)
+            try {
+              // Si falla, intentar con la API
+              data = await fetchMunicipiosFromAPI(departamentoId)
+            } catch (apiError) {
+              throw new Error(`No se pudieron cargar los municipios: ${apiError.message}`)
+            }
+          }
 
-          console.log(`Municipios recibidos: ${data.length}`)
+          console.log(`Municipios recibidos: ${data ? data.length : "ninguno"}`)
           if (data && Array.isArray(data)) {
+            if (data.length === 0) {
+              setErrorMunicipios("No se encontraron municipios para este departamento")
+            }
             setMunicipios(data)
           } else {
             console.error("Formato de datos de municipios incorrecto:", data)

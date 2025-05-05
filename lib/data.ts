@@ -51,8 +51,8 @@ export async function getReportData() {
         COUNT(CASE WHEN t.type = 'entry' THEN 1 END) as total_guias,
         COUNT(CASE WHEN t.type = 'exit' THEN 1 END) as total_sacrificios,
         SUM(tl.quantity) as total_kilos,
-        SUM(CASE WHEN t.tipo_animal = 'bovino' THEN tl.quantity ELSE 0 END) as bovinos_kilos,
-        SUM(CASE WHEN t.tipo_animal = 'porcino' THEN tl.quantity ELSE 0 END) as porcinos_kilos,
+        0 as bovinos_kilos,
+        0 as porcinos_kilos,
         SUM(t.total) as total_valor
       FROM 
         transactions t
@@ -395,6 +395,43 @@ export async function getMunicipiosByDepartamento(departamentoId: number) {
       return []
     }
 
+    // Verificar si la tabla municipios existe
+    const tableCheck = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'municipios'
+      ) as exists
+    `
+
+    if (!tableCheck.rows[0].exists) {
+      console.error("La tabla municipios no existe en la base de datos")
+      return []
+    }
+
+    // Verificar la estructura de la tabla municipios
+    const columnCheck = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = 'municipios'
+    `
+
+    console.log(
+      "Columnas en tabla municipios:",
+      columnCheck.rows.map((r) => r.column_name),
+    )
+
+    // Verificar si hay municipios para este departamento
+    const countCheck = await sql`
+      SELECT COUNT(*) as count 
+      FROM municipios 
+      WHERE id_departamento = ${departamentoId}
+    `
+
+    console.log(`Número de municipios encontrados para departamento ${departamentoId}: ${countCheck.rows[0].count}`)
+
+    // Realizar la consulta principal
     const result = await sql`
       SELECT id, name as nombre, cod_dian 
       FROM municipios 
