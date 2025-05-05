@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, FileDown, Home } from "lucide-react" // Añadir importación de Home
+import { PlusCircle, Home } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
+import ExportButtons from "./export-buttons"
 import { getTransactions } from "@/lib/data"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -76,9 +77,6 @@ export default async function GuiasPage({
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon">
-            <FileDown className="h-4 w-4" />
-          </Button>
           <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
             <Link href={`/guias/nueva${tipo ? `?tipo=${tipo}` : ""}`}>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -186,15 +184,19 @@ export default async function GuiasPage({
           <TabsTrigger value="anuladas">Anuladas</TabsTrigger>
         </TabsList>
         <TabsContent value="todas">
+          <ExportButtons tipo={tipo} />
           <GuiasTable guias={guiasFiltradas} />
         </TabsContent>
         <TabsContent value="borradores">
+          <ExportButtons tipo={tipo} estado="borrador" />
           <GuiasTable guias={borradores} />
         </TabsContent>
         <TabsContent value="confirmadas">
+          <ExportButtons tipo={tipo} estado="confirmado" />
           <GuiasTable guias={confirmadas} />
         </TabsContent>
         <TabsContent value="anuladas">
+          <ExportButtons tipo={tipo} estado="anulado" />
           <GuiasTable guias={anuladas} />
         </TabsContent>
       </Tabs>

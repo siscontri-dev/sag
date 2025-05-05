@@ -14,6 +14,9 @@ interface GuiaData {
   estado: string
   type: string
   usuario_id: number
+  quantity_m: number
+  quantity_h: number
+  quantity_k: number
   lineas: LineaData[]
 }
 
@@ -22,9 +25,10 @@ interface LineaData {
   ticket: number
   product_id: number
   quantity: number
-  raza_id: number
-  color_id: number
+  raza_id: number | null
+  color_id: number | null
   valor: number
+  es_macho?: boolean
 }
 
 // Función para crear una nueva guía
@@ -46,7 +50,10 @@ export async function createGuia(data: GuiaData) {
         total,
         estado,
         type,
-        usuario_id
+        usuario_id,
+        quantity_m,
+        quantity_h,
+        quantity_k
       ) VALUES (
         ${data.numero_documento},
         ${data.fecha_documento},
@@ -56,7 +63,10 @@ export async function createGuia(data: GuiaData) {
         ${data.total},
         ${data.estado},
         ${data.type},
-        ${data.usuario_id}
+        ${data.usuario_id},
+        ${data.quantity_m || 0},
+        ${data.quantity_h || 0},
+        ${data.quantity_k || 0}
       )
       RETURNING id
     `
@@ -68,8 +78,13 @@ export async function createGuia(data: GuiaData) {
 
     const transactionId = transactionResult.rows[0].id
 
-    // Insertar las líneas de la transacción
+    // Insertar las líneas de la transacción (sin el campo es_macho)
     for (const linea of data.lineas) {
+      // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
+      // Si son nulos, usar valores predeterminados según el tipo de animal
+      const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
+      const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
+
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
@@ -84,8 +99,8 @@ export async function createGuia(data: GuiaData) {
           ${linea.ticket},
           ${linea.product_id},
           ${linea.quantity},
-          ${linea.raza_id},
-          ${linea.color_id},
+          ${raza_id},
+          ${color_id},
           ${linea.valor}
         )
       `
@@ -134,6 +149,9 @@ export async function updateGuia(id: number, data: GuiaData) {
         estado = ${data.estado},
         type = ${data.type},
         usuario_id = ${data.usuario_id},
+        quantity_m = ${data.quantity_m || 0},
+        quantity_h = ${data.quantity_h || 0},
+        quantity_k = ${data.quantity_k || 0},
         fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `
@@ -141,8 +159,12 @@ export async function updateGuia(id: number, data: GuiaData) {
     // Eliminar las líneas existentes
     await sql`DELETE FROM transaction_lines WHERE transaction_id = ${id}`
 
-    // Insertar las nuevas líneas
+    // Insertar las nuevas líneas (sin el campo es_macho)
     for (const linea of data.lineas) {
+      // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
+      const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
+      const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
+
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
@@ -157,8 +179,8 @@ export async function updateGuia(id: number, data: GuiaData) {
           ${linea.ticket},
           ${linea.product_id},
           ${linea.quantity},
-          ${linea.raza_id},
-          ${linea.color_id},
+          ${raza_id},
+          ${color_id},
           ${linea.valor}
         )
       `

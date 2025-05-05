@@ -18,15 +18,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="light">
           <div className="min-h-screen flex flex-col">
             <header className="bg-white border-b border-gray-200 py-4">
-              <div className="container mx-auto px-4 max-w-7xl">
+              <div className="container mx-auto px-2 max-w-[95%]">
                 <h1 className="text-2xl font-bold text-gray-800">Bovinos y Porcinos</h1>
               </div>
             </header>
             <main className="flex-1 py-8">
-              <div className="container mx-auto px-4 max-w-7xl">{children}</div>
+              <div className="container mx-auto px-2 max-w-[95%]">{children}</div>
             </main>
             <footer className="bg-white border-t border-gray-200 py-4 mt-8">
-              <div className="container mx-auto px-4 max-w-7xl text-center text-sm text-gray-500">
+              <div className="container mx-auto px-2 max-w-[95%] text-center text-sm text-gray-500">
                 © {new Date().getFullYear()} Bovinos y Porcinos. Todos los derechos reservados.
               </div>
             </footer>

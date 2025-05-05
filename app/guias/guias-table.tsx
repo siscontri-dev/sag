@@ -18,6 +18,9 @@ export default function GuiasTable({ guias = [] }) {
             <TableHead className="font-semibold">Fecha</TableHead>
             <TableHead className="font-semibold">Dueño Anterior</TableHead>
             <TableHead className="font-semibold">Dueño Nuevo</TableHead>
+            <TableHead className="font-semibold">Machos</TableHead>
+            <TableHead className="font-semibold">Hembras</TableHead>
+            <TableHead className="font-semibold">Kilos</TableHead>
             <TableHead className="font-semibold">Estado</TableHead>
             <TableHead className="font-semibold">Total</TableHead>
             <TableHead className="text-right font-semibold">Acciones</TableHead>
@@ -26,7 +29,7 @@ export default function GuiasTable({ guias = [] }) {
         <TableBody>
           {guias.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="h-24 text-center">
+              <TableCell colSpan={10} className="h-24 text-center">
                 No se encontraron guías.
               </TableCell>
             </TableRow>
@@ -37,6 +40,9 @@ export default function GuiasTable({ guias = [] }) {
                 <TableCell>{formatDate(guia.fecha_documento)}</TableCell>
                 <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
                 <TableCell>{guia.dueno_nuevo_nombre || "N/A"}</TableCell>
+                <TableCell>{guia.quantity_m || 0}</TableCell>
+                <TableCell>{guia.quantity_h || 0}</TableCell>
+                <TableCell>{guia.quantity_k ? `${guia.quantity_k.toLocaleString("es-CO")} kg` : "0 kg"}</TableCell>
                 <TableCell>
                   <Badge
                     className="px-2 py-1 rounded-full text-xs font-medium"

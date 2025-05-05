@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { BarChart3, Users, FileText, Truck, PiggyBank, MilkIcon as Cow } from "lucide-react"
+import { Users, FileText, Truck, PiggyBank, MilkIcon as Cow, Ticket } from "lucide-react"
 import { getTransactionStats } from "@/lib/data"
 
 export default async function Home() {
@@ -58,12 +58,15 @@ export default async function Home() {
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Total Kg</CardTitle>
-            <BarChart3 className="w-4 h-4 text-purple-500" />
+            <CardTitle className="text-sm font-medium">Tickets</CardTitle>
+            <Ticket className="w-4 h-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalKilos.toLocaleString("es-CO")}</div>
-            <p className="text-xs text-muted-foreground">Kilos procesados</p>
+            <div className="text-2xl font-bold">Gestión</div>
+            <p className="text-xs text-muted-foreground">Administración de tickets</p>
+            <Button asChild className="w-full mt-4" size="sm">
+              <Link href="/tickets">Gestionar</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -94,6 +97,22 @@ export default async function Home() {
                   className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 >
                   <Link href="/sacrificios?tipo=bovino">Sacrificios</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Link href="/reportes?tipo=bovino">Informes</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Link href="/tickets?tipo=bovino">Tickets</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -130,6 +149,22 @@ export default async function Home() {
                   className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                 >
                   <Link href="/sacrificios?tipo=porcino">Sacrificios</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                >
+                  <Link href="/reportes?tipo=porcino">Informes</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                >
+                  <Link href="/tickets?tipo=porcino">Tickets</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
