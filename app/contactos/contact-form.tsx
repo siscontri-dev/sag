@@ -1,0 +1,448 @@
+"use client"
+
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useState, useEffect } from "react"
+import Link from "next/link"
+import { createContact, updateContact } from "./actions"
+import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PlusCircle, Trash } from "lucide-react"
+import { getMunicipiosByDepartamento } from "@/lib/data"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+export default function ContactForm({ departamentos = [], contact = null, ubicaciones = [] }) {
+  const { toast } = useToast()
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activeTab, setActiveTab] = useState("informacion")
+  const [formData, setFormData] = useState({
+    primer_nombre: contact?.primer_nombre || "",
+    segundo_nombre: contact?.segundo_nombre || "",
+    primer_apellido: contact?.primer_apellido || "",
+    segundo_apellido: contact?.segundo_apellido || "",
+    nit: contact?.nit || "",
+    telefono: contact?.telefono || "",
+    email: contact?.email || "",
+    type: contact?.type?.toString() || "1",
+    business_location_id: contact?.business_location_id?.toString() || "1",
+  })
+
+  // Estado para las ubicaciones
+  const [ubicacionesState, setUbicacionesState] = useState(ubicaciones || [])
+  const [nuevaUbicacion, setNuevaUbicacion] = useState({
+    direccion: "",
+    id_departamento: "",
+    id_municipio: "",
+    nombre_finca: "",
+    area_hectareas: "",
+    es_principal: false,
+  })
+  const [municipios, setMunicipios] = useState([])
+  const [ubicacionToDelete, setUbicacionToDelete] = useState(null)
+  const [ubicacionesNuevas, setUbicacionesNuevas] = useState([])
+  const [ubicacionesEliminadas, setUbicacionesEliminadas] = useState([])
+
+  // Cargar municipios cuando cambia el departamento
+  useEffect(() => {
+    if (nuevaUbicacion.id_departamento) {
+      const fetchMunicipios = async () => {
+        const data = await getMunicipiosByDepartamento(Number(nuevaUbicacion.id_departamento))
+        setMunicipios(data)
+      }
+      fetchMunicipios()
+    } else {
+      setMunicipios([])
+    }
+  }, [nuevaUbicacion.id_departamento])
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleUbicacionChange = (e) => {
+    const { name, value } = e.target
+    setNuevaUbicacion((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleUbicacionSelectChange = (name, value) => {
+    setNuevaUbicacion((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleUbicacionCheckboxChange = (checked) => {
+    setNuevaUbicacion((prev) => ({ ...prev, es_principal: checked }))
+  }
+
+  const handleAddUbicacion = () => {
+    // Validar datos requeridos
+    if (
+      !nuevaUbicacion.direccion ||
+      !nuevaUbicacion.id_departamento ||
+      !nuevaUbicacion.id_municipio ||
+      !nuevaUbicacion.nombre_finca
+    ) {
+      toast({
+        title: "Error",
+        description: "Faltan campos requeridos en la ubicación",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Añadir la nueva ubicación al estado
+    const newUbicacion = {
+      ...nuevaUbicacion,
+      id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
+      departamento_nombre: departamentos.find((d) => d.id.toString() === nuevaUbicacion.id_departamento)?.nombre || "",
+      municipio_nombre: municipios.find((m) => m.id.toString() === nuevaUbicacion.id_municipio)?.nombre || "",
+      es_nueva: true,
+    }
+
+    setUbicacionesNuevas([...ubicacionesNuevas, newUbicacion])
+    setUbicacionesState([...ubicacionesState, newUbicacion])
+
+    // Limpiar el formulario de nueva ubicación
+    setNuevaUbicacion({
+      direccion: "",
+      id_departamento: "",
+      id_municipio: "",
+      nombre_finca: "",
+      area_hectareas: "",
+      es_principal: false,
+    })
+  }
+
+  const handleDeleteUbicacion = (ubicacion) => {
+    if (ubicacion.es_nueva) {
+      // Si es una ubicación nueva (no guardada en BD), simplemente la quitamos del estado
+      setUbicacionesState(ubicacionesState.filter((u) => u.id !== ubicacion.id))
+      setUbicacionesNuevas(ubicacionesNuevas.filter((u) => u.id !== ubicacion.id))
+    } else {
+      // Si es una ubicación existente, la marcamos para eliminar
+      setUbicacionesEliminadas([...ubicacionesEliminadas, ubicacion.id])
+      setUbicacionesState(ubicacionesState.filter((u) => u.id !== ubicacion.id))
+    }
+    setUbicacionToDelete(null)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      // Crear un objeto FormData con los datos del formulario
+      const formDataObj = new FormData()
+      Object.entries(formData).forEach(([key, value]) => {
+        formDataObj.append(key, value)
+      })
+
+      // Añadir las ubicaciones nuevas y eliminadas
+      formDataObj.append("ubicacionesNuevas", JSON.stringify(ubicacionesNuevas))
+      formDataObj.append("ubicacionesEliminadas", JSON.stringify(ubicacionesEliminadas))
+
+      // Enviar los datos al servidor usando la Server Action
+      let result
+      if (contact) {
+        result = await updateContact(contact.id, formDataObj)
+      } else {
+        result = await createContact(formDataObj)
+      }
+
+      // Mostrar mensaje de éxito o error
+      if (!result || !result.success) {
+        toast({
+          title: "Error",
+          description: result?.message || "Hubo un problema al guardar el contacto",
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Éxito",
+          description: contact ? "Contacto actualizado correctamente" : "Contacto creado correctamente",
+        })
+        router.push("/contactos")
+      }
+    } catch (error) {
+      console.error("Error al guardar el contacto:", error)
+      toast({
+        title: "Error",
+        description: "Hubo un problema al guardar el contacto",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="informacion">Información Personal</TabsTrigger>
+          <TabsTrigger value="ubicaciones">Ubicaciones</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="informacion" className="space-y-4 pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="primer_nombre">Primer Nombre</Label>
+              <Input
+                id="primer_nombre"
+                name="primer_nombre"
+                value={formData.primer_nombre}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segundo_nombre">Segundo Nombre</Label>
+              <Input
+                id="segundo_nombre"
+                name="segundo_nombre"
+                value={formData.segundo_nombre}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="primer_apellido">Primer Apellido</Label>
+              <Input
+                id="primer_apellido"
+                name="primer_apellido"
+                value={formData.primer_apellido}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="segundo_apellido">Segundo Apellido</Label>
+              <Input
+                id="segundo_apellido"
+                name="segundo_apellido"
+                value={formData.segundo_apellido}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nit">NIT/Cédula</Label>
+              <Input id="nit" name="nit" value={formData.nit} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="telefono">Teléfono</Label>
+              <Input id="telefono" name="telefono" value={formData.telefono} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="type">Tipo de Contacto</Label>
+              <Select value={formData.type} onValueChange={(value) => handleSelectChange("type", value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Dueño Anterior</SelectItem>
+                  <SelectItem value="2">Dueño Nuevo</SelectItem>
+                  <SelectItem value="3">Ambos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="ubicaciones" className="space-y-6 pt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Añadir Nueva Ubicación</CardTitle>
+              <CardDescription>Ingrese los datos de la ubicación</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="nombre_finca">Nombre de la Ubicación</Label>
+                  <Input
+                    id="nombre_finca"
+                    name="nombre_finca"
+                    value={nuevaUbicacion.nombre_finca}
+                    onChange={handleUbicacionChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="area_hectareas">Área (Hectáreas)</Label>
+                  <Input
+                    id="area_hectareas"
+                    name="area_hectareas"
+                    type="number"
+                    step="0.01"
+                    value={nuevaUbicacion.area_hectareas}
+                    onChange={handleUbicacionChange}
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Textarea
+                    id="direccion"
+                    name="direccion"
+                    value={nuevaUbicacion.direccion}
+                    onChange={handleUbicacionChange}
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="id_departamento">Departamento</Label>
+                  <Select
+                    value={nuevaUbicacion.id_departamento}
+                    onValueChange={(value) => handleUbicacionSelectChange("id_departamento", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departamentos.map((departamento) => (
+                        <SelectItem key={departamento.id} value={departamento.id.toString()}>
+                          {departamento.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="id_municipio">Municipio</Label>
+                  <Select
+                    value={nuevaUbicacion.id_municipio}
+                    onValueChange={(value) => handleUbicacionSelectChange("id_municipio", value)}
+                    disabled={!nuevaUbicacion.id_departamento || municipios.length === 0}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccione un municipio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {municipios.map((municipio) => (
+                        <SelectItem key={municipio.id} value={municipio.id.toString()}>
+                          {municipio.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="es_principal"
+                    checked={nuevaUbicacion.es_principal}
+                    onCheckedChange={handleUbicacionCheckboxChange}
+                  />
+                  <Label htmlFor="es_principal">Ubicación Principal</Label>
+                </div>
+                <div className="flex justify-end sm:col-span-2">
+                  <Button type="button" onClick={handleAddUbicacion}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Añadir Ubicación
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Ubicaciones Registradas</CardTitle>
+              <CardDescription>Ubicaciones asociadas a este contacto</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {ubicacionesState.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  No hay ubicaciones registradas para este contacto.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {ubicacionesState.map((ubicacion) => (
+                    <div key={ubicacion.id} className="border rounded-md p-4">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-medium">
+                          {ubicacion.nombre_finca}
+                          {ubicacion.es_principal && (
+                            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              Principal
+                            </span>
+                          )}
+                          {ubicacion.es_nueva && (
+                            <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                              Nueva
+                            </span>
+                          )}
+                        </h3>
+                        <Button variant="ghost" size="icon" onClick={() => setUbicacionToDelete(ubicacion)}>
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{ubicacion.direccion}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {ubicacion.municipio_nombre}, {ubicacion.departamento_nombre}
+                      </p>
+                      {ubicacion.area_hectareas && (
+                        <p className="text-sm mt-2">
+                          <span className="font-medium">Área:</span> {ubicacion.area_hectareas} hectáreas
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" asChild>
+          <Link href="/contactos">Cancelar</Link>
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Guardando..." : contact ? "Actualizar" : "Guardar"}
+        </Button>
+      </div>
+
+      <AlertDialog open={!!ubicacionToDelete} onOpenChange={(open) => !open && setUbicacionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de eliminar esta ubicación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {ubicacionToDelete?.es_nueva
+                ? "Esta ubicación se eliminará de la lista."
+                : "Esta ubicación será eliminada cuando guarde el contacto."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDeleteUbicacion(ubicacionToDelete)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </form>
+  )
+}
