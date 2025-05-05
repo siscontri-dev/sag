@@ -4,25 +4,32 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { themeColors } from "@/lib/theme-config"
 
 export default function GuiaForm({
-  locations = [],
   contacts = [],
   products = [],
-  tipoAnimal = undefined,
+  tipoAnimal = "bovino",
+  locationId = 1,
+  razas = [],
+  colores = [],
   guia = null,
 }) {
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const ticketInputRef = useRef(null)
+
+  // Colores según el tipo de animal
+  const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
+
   const [formData, setFormData] = useState({
     numero_documento: guia?.numero_documento || "",
     fecha_documento: guia?.fecha_documento
@@ -30,20 +37,31 @@ export default function GuiaForm({
       : new Date().toISOString().split("T")[0],
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     id_dueno_nuevo: guia?.id_dueno_nuevo?.toString() || "",
-    id_location: guia?.id_location?.toString() || "",
-    observaciones: guia?.observaciones || "",
-    tipo_animal: tipoAnimal || guia?.tipo_animal || "bovino",
-    estado: guia?.estado || "borrador",
+    business_location_id: locationId.toString(),
   })
 
   // Estado para las líneas de la guía
   const [lineas, setLineas] = useState(guia?.transaction_lines || [])
   const [nuevaLinea, setNuevaLinea] = useState({
+    ticket: "",
     product_id: "",
-    quantity: "",
-    price: "",
-    description: "",
+    kilos: "",
+    raza_id: tipoAnimal === "porcino" ? "1" : "",
+    color_id: tipoAnimal === "porcino" ? "6" : "",
   })
+
+  // Obtener el precio del ticket del producto seleccionado
+  const [precioTicket, setPrecioTicket] = useState(0)
+
+  // Efecto para actualizar el precio del ticket cuando cambia el producto
+  useEffect(() => {
+    if (nuevaLinea.product_id) {
+      const product = products.find((p) => p.id.toString() === nuevaLinea.product_id)
+      setPrecioTicket(product ? product.price_ticket : 0)
+    } else {
+      setPrecioTicket(0)
+    }
+  }, [nuevaLinea.product_id, products])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -65,7 +83,13 @@ export default function GuiaForm({
 
   const handleAddLinea = () => {
     // Validar datos requeridos
-    if (!nuevaLinea.product_id || !nuevaLinea.quantity || !nuevaLinea.price) {
+    if (
+      !nuevaLinea.ticket ||
+      !nuevaLinea.product_id ||
+      !nuevaLinea.kilos ||
+      !nuevaLinea.raza_id ||
+      !nuevaLinea.color_id
+    ) {
       toast({
         title: "Error",
         description: "Faltan campos requeridos en la línea",
@@ -74,25 +98,43 @@ export default function GuiaForm({
       return
     }
 
-    // Añadir la nueva línea al estado
+    // Obtener información del producto
     const product = products.find((p) => p.id.toString() === nuevaLinea.product_id)
+    const raza = razas.find((r) => r.id.toString() === nuevaLinea.raza_id)
+    const color = colores.find((c) => c.id.toString() === nuevaLinea.color_id)
+
+    // Añadir la nueva línea al estado
     const newLinea = {
       ...nuevaLinea,
       id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
-      product_name: product?.nombre || "Producto",
-      valor: Number(nuevaLinea.quantity) * Number(nuevaLinea.price),
+      product_name: product?.name || "Producto",
+      raza_name: raza?.nombre || "Raza",
+      color_name: color?.nombre || "Color",
+      price_ticket: precioTicket,
+      quantity: Number.parseFloat(nuevaLinea.kilos), // Para mantener compatibilidad con el modelo existente
+      valor: precioTicket, // Usar solo el precio del ticket como valor, no multiplicar por kilos
       es_nueva: true,
     }
 
     setLineas([...lineas, newLinea])
 
-    // Limpiar el formulario de nueva línea
+    // Limpiar el formulario de nueva línea, manteniendo los valores predeterminados para porcinos
+    // e incrementando automáticamente el número de ticket
+    const nextTicket = Number.parseInt(nuevaLinea.ticket) + 1 || ""
     setNuevaLinea({
+      ticket: nextTicket.toString(),
       product_id: "",
-      quantity: "",
-      price: "",
-      description: "",
+      kilos: "",
+      raza_id: tipoAnimal === "porcino" ? "1" : "",
+      color_id: tipoAnimal === "porcino" ? "6" : "",
     })
+
+    // Enfocar el campo de ticket para facilitar la entrada de datos
+    setTimeout(() => {
+      if (ticketInputRef.current) {
+        ticketInputRef.current.focus()
+      }
+    }, 0)
   }
 
   const handleDeleteLinea = (index) => {
@@ -111,6 +153,11 @@ export default function GuiaForm({
 
     try {
       // Aquí iría la lógica para guardar la guía
+      const dataToSend = {
+        ...formData,
+        business_location_id: Number(formData.business_location_id),
+        lineas: lineas,
+      }
       toast({
         title: "Éxito",
         description: guia ? "Guía actualizada correctamente" : "Guía creada correctamente",
@@ -128,21 +175,41 @@ export default function GuiaForm({
     }
   }
 
+  // Manejar tecla Enter para agregar línea
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleAddLinea()
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="numero_documento">Número de Guía</Label>
+      {/* Sección de información general - Reducida en tamaño y con colores pastel */}
+      <div
+        className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 rounded-lg"
+        style={{
+          backgroundColor: colors.light,
+          border: `1px solid ${colors.medium}`,
+        }}
+      >
+        <div className="space-y-1">
+          <Label htmlFor="numero_documento" className="text-sm">
+            Número de Guía
+          </Label>
           <Input
             id="numero_documento"
             name="numero_documento"
             value={formData.numero_documento}
             onChange={handleChange}
             required
+            className="h-8"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="fecha_documento">Fecha</Label>
+        <div className="space-y-1">
+          <Label htmlFor="fecha_documento" className="text-sm">
+            Fecha
+          </Label>
           <Input
             id="fecha_documento"
             name="fecha_documento"
@@ -150,16 +217,30 @@ export default function GuiaForm({
             value={formData.fecha_documento}
             onChange={handleChange}
             required
+            className="h-8"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="id_dueno_anterior">Dueño Anterior</Label>
+        <div className="space-y-1">
+          <Label htmlFor="business_location_id" className="text-sm">
+            Ubicación
+          </Label>
+          <Input
+            id="business_location_id"
+            value={tipoAnimal === "bovino" ? "Bovinos" : "Porcinos"}
+            disabled
+            className="h-8 bg-gray-50"
+          />
+        </div>
+        <div className="space-y-1 col-span-2 md:col-span-1">
+          <Label htmlFor="id_dueno_anterior" className="text-sm">
+            Dueño Anterior
+          </Label>
           <Select
             value={formData.id_dueno_anterior}
             onValueChange={(value) => handleSelectChange("id_dueno_anterior", value)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione un dueño anterior" />
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Seleccione dueño anterior" />
             </SelectTrigger>
             <SelectContent>
               {contacts
@@ -172,14 +253,16 @@ export default function GuiaForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="id_dueno_nuevo">Dueño Nuevo</Label>
+        <div className="space-y-1 col-span-2 md:col-span-1">
+          <Label htmlFor="id_dueno_nuevo" className="text-sm">
+            Dueño Nuevo
+          </Label>
           <Select
             value={formData.id_dueno_nuevo}
             onValueChange={(value) => handleSelectChange("id_dueno_nuevo", value)}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione un dueño nuevo" />
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Seleccione dueño nuevo" />
             </SelectTrigger>
             <SelectContent>
               {contacts
@@ -192,147 +275,157 @@ export default function GuiaForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="id_location">Ubicación</Label>
-          <Select value={formData.id_location} onValueChange={(value) => handleSelectChange("id_location", value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione una ubicación" />
-            </SelectTrigger>
-            <SelectContent>
-              {locations.map((location) => (
-                <SelectItem key={location.id} value={location.id.toString()}>
-                  {location.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="tipo_animal">Tipo de Animal</Label>
-          <Select
-            value={formData.tipo_animal}
-            onValueChange={(value) => handleSelectChange("tipo_animal", value)}
-            disabled={!!tipoAnimal}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione un tipo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="bovino">Bovino</SelectItem>
-              <SelectItem value="porcino">Porcino</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="observaciones">Observaciones</Label>
-          <Textarea
-            id="observaciones"
-            name="observaciones"
-            value={formData.observaciones}
-            onChange={handleChange}
-            rows={3}
-          />
-        </div>
       </div>
 
+      {/* Tabla de detalle de animales */}
       <Card>
-        <CardHeader>
-          <CardTitle>Detalle de Animales</CardTitle>
+        <CardHeader className="py-3">
+          <CardTitle className="text-lg" style={{ color: colors.text }}>
+            Detalle de Animales
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="product_id">Producto</Label>
-              <Select
-                value={nuevaLinea.product_id}
-                onValueChange={(value) => handleLineaSelectChange("product_id", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un producto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id.toString()}>
-                      {product.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Cantidad</Label>
-              <Input
-                id="quantity"
-                name="quantity"
-                type="number"
-                step="0.01"
-                value={nuevaLinea.quantity}
-                onChange={handleLineaChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="price">Precio Unitario</Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.01"
-                value={nuevaLinea.price}
-                onChange={handleLineaChange}
-              />
-            </div>
-            <div className="flex items-end">
-              <Button type="button" onClick={handleAddLinea} className="w-full">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir
-              </Button>
-            </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border p-2 text-left">Ticket</th>
+                  <th className="border p-2 text-left">Animal</th>
+                  <th className="border p-2 text-left">Kilos</th>
+                  <th className="border p-2 text-left">Raza</th>
+                  <th className="border p-2 text-left">Color</th>
+                  <th className="border p-2 text-left">Precio Ticket</th>
+                  <th className="border p-2 text-left">Valor</th>
+                  <th className="border p-2 text-left">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lineas.map((linea, index) => (
+                  <tr key={linea.id || index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="border p-2">{linea.ticket}</td>
+                    <td className="border p-2">{linea.product_name || `Producto #${linea.product_id}`}</td>
+                    <td className="border p-2">{linea.quantity || linea.kilos}</td>
+                    <td className="border p-2">{linea.raza_name || "N/A"}</td>
+                    <td className="border p-2">{linea.color_name || "N/A"}</td>
+                    <td className="border p-2">{formatCurrency(linea.price_ticket)}</td>
+                    <td className="border p-2">{formatCurrency(linea.valor)}</td>
+                    <td className="border p-2">
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteLinea(index)}>
+                        <Trash className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50">
+                  <td className="border p-2">
+                    <Input
+                      id="ticket"
+                      name="ticket"
+                      value={nuevaLinea.ticket}
+                      onChange={handleLineaChange}
+                      className="w-full"
+                      placeholder="Nº Ticket"
+                      onKeyDown={handleKeyDown}
+                      ref={ticketInputRef}
+                    />
+                  </td>
+                  <td className="border p-2">
+                    <Select
+                      value={nuevaLinea.product_id}
+                      onValueChange={(value) => handleLineaSelectChange("product_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {products.map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
+                            {product.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="border p-2">
+                    <Input
+                      id="kilos"
+                      name="kilos"
+                      type="number"
+                      step="0.01"
+                      value={nuevaLinea.kilos}
+                      onChange={handleLineaChange}
+                      className="w-full"
+                      placeholder="Kilos"
+                      onKeyDown={handleKeyDown}
+                    />
+                  </td>
+                  <td className="border p-2">
+                    <Select
+                      value={nuevaLinea.raza_id}
+                      onValueChange={(value) => handleLineaSelectChange("raza_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {razas.map((raza) => (
+                          <SelectItem key={raza.id} value={raza.id.toString()}>
+                            {raza.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="border p-2">
+                    <Select
+                      value={nuevaLinea.color_id}
+                      onValueChange={(value) => handleLineaSelectChange("color_id", value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {colores.map((color) => (
+                          <SelectItem key={color.id} value={color.id.toString()}>
+                            {color.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </td>
+                  <td className="border p-2">
+                    <Input value={formatCurrency(precioTicket)} disabled className="w-full bg-gray-50" />
+                  </td>
+                  <td className="border p-2">
+                    <Input value={formatCurrency(precioTicket)} disabled className="w-full bg-gray-50" />
+                  </td>
+                  <td className="border p-2">
+                    <Button
+                      type="button"
+                      onClick={handleAddLinea}
+                      className="w-full"
+                      style={{ backgroundColor: colors.medium, color: colors.text }}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Añadir
+                    </Button>
+                  </td>
+                </tr>
+                <tr className="font-bold" style={{ backgroundColor: colors.light }}>
+                  <td colSpan={6} className="border p-2 text-right" style={{ color: colors.text }}>
+                    Total:
+                  </td>
+                  <td className="border p-2" style={{ color: colors.text }}>
+                    {formatCurrency(calcularTotal())}
+                  </td>
+                  <td className="border p-2"></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div className="mt-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Precio</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lineas.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No hay líneas agregadas.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  lineas.map((linea, index) => (
-                    <TableRow key={linea.id || index}>
-                      <TableCell>{linea.product_name || `Producto #${linea.product_id}`}</TableCell>
-                      <TableCell>{linea.quantity}</TableCell>
-                      <TableCell>{formatCurrency(linea.price)}</TableCell>
-                      <TableCell>{formatCurrency(linea.valor)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteLinea(index)}>
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-                {lineas.length > 0 && (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-right font-bold">
-                      Total:
-                    </TableCell>
-                    <TableCell className="font-bold">{formatCurrency(calcularTotal())}</TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="mt-4 text-sm text-gray-500">
+            <p>Presione Enter para agregar una nueva línea rápidamente</p>
           </div>
         </CardContent>
       </Card>
@@ -341,39 +434,14 @@ export default function GuiaForm({
         <Button variant="outline" type="button" asChild>
           <Link href="/guias">Cancelar</Link>
         </Button>
-        <Button type="submit" disabled={isSubmitting || lineas.length === 0}>
+        <Button
+          type="submit"
+          disabled={isSubmitting || lineas.length === 0}
+          style={{ backgroundColor: colors.dark, color: colors.text }}
+        >
           {isSubmitting ? "Guardando..." : guia ? "Actualizar" : "Guardar"}
         </Button>
       </div>
     </form>
-  )
-}
-
-// Componente Table importado aquí para evitar errores
-function Table({ children }) {
-  return <table className="w-full">{children}</table>
-}
-
-function TableHeader({ children }) {
-  return <thead>{children}</thead>
-}
-
-function TableBody({ children }) {
-  return <tbody>{children}</tbody>
-}
-
-function TableRow({ children }) {
-  return <tr>{children}</tr>
-}
-
-function TableHead({ children, className }) {
-  return <th className={`p-2 text-left ${className}`}>{children}</th>
-}
-
-function TableCell({ children, className, colSpan }) {
-  return (
-    <td className={`p-2 ${className}`} colSpan={colSpan}>
-      {children}
-    </td>
   )
 }

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import GuiaForm from "../guia-form"
-import { getContacts, getLocations, getProducts } from "@/lib/data"
+import { getContacts, getProducts } from "@/lib/data"
+import { getRazasByTipoAndLocation, getColoresByTipoAndLocation } from "@/lib/catalogs"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,13 +11,24 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Home } from "lucide-react"
 
+// Modificar para usar business_location_id en lugar de id_location
 export default async function NuevaGuiaPage({
   searchParams,
 }: {
   searchParams: { tipo?: string }
 }) {
-  const tipo = searchParams.tipo || undefined
-  const [locations, contacts, products] = await Promise.all([getLocations(), getContacts(), getProducts(tipo)])
+  const tipo = searchParams.tipo || "bovino" // Default a bovino si no se especifica
+
+  // Determinar la ubicación basada en el tipo de animal
+  const locationId = tipo === "bovino" ? 1 : 2
+
+  // Obtener datos necesarios
+  const [contacts, products, razas, colores] = await Promise.all([
+    getContacts(),
+    getProducts(tipo, locationId),
+    getRazasByTipoAndLocation(tipo, locationId),
+    getColoresByTipoAndLocation(tipo, locationId),
+  ])
 
   return (
     <div className="space-y-6">
@@ -48,7 +60,14 @@ export default async function NuevaGuiaPage({
           <CardDescription>Ingrese los datos de la nueva guía de ingreso</CardDescription>
         </CardHeader>
         <CardContent>
-          <GuiaForm locations={locations} contacts={contacts} products={products} tipoAnimal={tipo} />
+          <GuiaForm
+            contacts={contacts}
+            products={products}
+            tipoAnimal={tipo}
+            locationId={locationId}
+            razas={razas}
+            colores={colores}
+          />
         </CardContent>
       </Card>
     </div>

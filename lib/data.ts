@@ -253,19 +253,28 @@ export async function getLocations() {
   }
 }
 
-// Función para obtener productos
-export async function getProducts(tipo = undefined) {
+// Modificar la función getProducts para filtrar por ubicación
+export async function getProducts(tipo = undefined, locationId = undefined) {
   try {
-    if (tipo) {
+    if (tipo && locationId) {
+      const result = await sql`
+        SELECT * FROM products 
+        WHERE activo = TRUE 
+        AND tipo_animal = ${tipo}
+        AND business_location_id = ${locationId}
+        ORDER BY name
+      `
+      return result.rows
+    } else if (tipo) {
       const result = await sql`
         SELECT * FROM products 
         WHERE activo = TRUE AND tipo_animal = ${tipo}
-        ORDER BY nombre
+        ORDER BY name
       `
       return result.rows
     } else {
       const result = await sql`
-        SELECT * FROM products WHERE activo = TRUE ORDER BY nombre
+        SELECT * FROM products WHERE activo = TRUE ORDER BY name
       `
       return result.rows
     }
@@ -275,10 +284,18 @@ export async function getProducts(tipo = undefined) {
   }
 }
 
-// Función para obtener transacciones
+// Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
 export async function getTransactions(type = undefined, tipoAnimal = undefined) {
   try {
-    if (type && tipoAnimal) {
+    // Convertir el tipo de animal a business_location_id
+    let locationId = undefined
+    if (tipoAnimal === "bovino") {
+      locationId = 1
+    } else if (tipoAnimal === "porcino") {
+      locationId = 2
+    }
+
+    if (type && locationId) {
       const result = await sql`
         SELECT 
           t.*,
@@ -289,7 +306,7 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
           LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
           LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
         WHERE 
-          t.activo = TRUE AND t.type = ${type} AND t.tipo_animal = ${tipoAnimal}
+          t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
         ORDER BY 
           t.fecha_documento DESC
       `

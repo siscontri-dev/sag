@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { themeColors } from "@/lib/theme-config"
 
+// Modificar la función para determinar el tipo de animal basado en business_location_id
 export default async function GuiasPage({
   searchParams,
 }: {
@@ -14,6 +15,11 @@ export default async function GuiasPage({
 }) {
   const tipo = searchParams.tipo || undefined
   const guias = await getTransactions("entry", tipo)
+
+  // Determinar el tipo de animal para cada guía basado en business_location_id
+  guias.forEach((guia) => {
+    guia.tipo_animal = guia.business_location_id === 1 ? "bovino" : "porcino"
+  })
 
   // Filtrar por estado
   const borradores = guias.filter((g) => g.estado === "borrador")
