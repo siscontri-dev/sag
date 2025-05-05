@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PlusCircle, Trash } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { themeColors } from "@/lib/theme-config"
+import { createGuia, updateGuia } from "./actions"
 
 export default function GuiaForm({
   contacts = [],
@@ -38,10 +39,19 @@ export default function GuiaForm({
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     id_dueno_nuevo: guia?.id_dueno_nuevo?.toString() || "",
     business_location_id: locationId.toString(),
+    estado: guia?.estado || "borrador",
   })
 
   // Estado para las líneas de la guía
-  const [lineas, setLineas] = useState(guia?.transaction_lines || [])
+  const [lineas, setLineas] = useState(
+    guia?.transaction_lines?.map((line) => ({
+      ...line,
+      product_name: products.find((p) => p.id === line.product_id)?.name || `Producto #${line.product_id}`,
+      raza_name: razas.find((r) => r.id === line.raza_id)?.nombre || "N/A",
+      color_name: colores.find((c) => c.id === line.color_id)?.nombre || "N/A",
+    })) || [],
+  )
+
   const [nuevaLinea, setNuevaLinea] = useState({
     ticket: "",
     product_id: "",
@@ -152,22 +162,49 @@ export default function GuiaForm({
     setIsSubmitting(true)
 
     try {
-      // Aquí iría la lógica para guardar la guía
+      // Preparar los datos para enviar
       const dataToSend = {
         ...formData,
         business_location_id: Number(formData.business_location_id),
-        lineas: lineas,
+        id_dueno_anterior: Number(formData.id_dueno_anterior),
+        id_dueno_nuevo: Number(formData.id_dueno_nuevo),
+        total: calcularTotal(),
+        estado: formData.estado || "borrador", // Usar el estado del formulario
+        type: "entry", // Tipo de transacción: guía (cambiado de "lead" a "entry")
+        usuario_id: 1, // Usuario fijo mientras se desarrolla el login
+        lineas: lineas.map((linea) => ({
+          ticket: Number(linea.ticket),
+          product_id: Number(linea.product_id),
+          quantity: Number(linea.kilos || linea.quantity),
+          raza_id: Number(linea.raza_id),
+          color_id: Number(linea.color_id),
+          valor: Number(linea.valor),
+        })),
       }
-      toast({
-        title: "Éxito",
-        description: guia ? "Guía actualizada correctamente" : "Guía creada correctamente",
-      })
-      router.push("/guias")
+
+      let result
+
+      // Llamar a la acción del servidor para guardar o actualizar
+      if (guia) {
+        result = await updateGuia(guia.id, dataToSend)
+      } else {
+        result = await createGuia(dataToSend)
+      }
+
+      if (result.success) {
+        toast({
+          title: "Éxito",
+          description: guia ? "Guía actualizada correctamente" : "Guía creada correctamente",
+        })
+        router.push("/guias")
+      } else {
+        throw new Error(result.message || "Error al guardar la guía")
+      }
     } catch (error) {
       console.error("Error al guardar la guía:", error)
       toast({
         title: "Error",
-        description: "Hubo un problema al guardar la guía",
+        description: error.message || "Hubo un problema al guardar la guía",
         variant: "destructive",
       })
     } finally {
@@ -275,6 +312,20 @@ export default function GuiaForm({
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-1">
+          <Label htmlFor="estado" className="text-sm">
+            Estado
+          </Label>
+          <Select value={formData.estado} onValueChange={(value) => handleSelectChange("estado", value)}>
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Seleccione estado" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="borrador">Borrador</SelectItem>
+              <SelectItem value="confirmado">Confirmado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Tabla de detalle de animales */}
@@ -289,14 +340,27 @@ export default function GuiaForm({
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border p-2 text-left">Ticket</th>
-                  <th className="border p-2 text-left">Animal</th>
-                  <th className="border p-2 text-left">Kilos</th>
-                  <th className="border p-2 text-left">Raza</th>
-                  <th className="border p-2 text-left">Color</th>
-                  <th className="border p-2 text-left">Precio Ticket</th>
-                  <th className="border p-2 text-left">Valor</th>
-                  <th className="border p-2 text-left">Acciones</th>
+                  <th className="border p-2 text-left" style={{ width: "10%" }}>
+                    Ticket
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "35%" }}>
+                    Animal
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "8%" }}>
+                    Kilos
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "15%" }}>
+                    Raza
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "15%" }}>
+                    Color
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "10%" }}>
+                    Precio Ticket
+                  </th>
+                  <th className="border p-2 text-left" style={{ width: "7%" }}>
+                    Acciones
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -307,8 +371,7 @@ export default function GuiaForm({
                     <td className="border p-2">{linea.quantity || linea.kilos}</td>
                     <td className="border p-2">{linea.raza_name || "N/A"}</td>
                     <td className="border p-2">{linea.color_name || "N/A"}</td>
-                    <td className="border p-2">{formatCurrency(linea.price_ticket)}</td>
-                    <td className="border p-2">{formatCurrency(linea.valor)}</td>
+                    <td className="border p-2">{formatCurrency(linea.price_ticket || linea.valor)}</td>
                     <td className="border p-2">
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteLinea(index)}>
                         <Trash className="h-4 w-4" />
@@ -397,9 +460,6 @@ export default function GuiaForm({
                     <Input value={formatCurrency(precioTicket)} disabled className="w-full bg-gray-50" />
                   </td>
                   <td className="border p-2">
-                    <Input value={formatCurrency(precioTicket)} disabled className="w-full bg-gray-50" />
-                  </td>
-                  <td className="border p-2">
                     <Button
                       type="button"
                       onClick={handleAddLinea}
@@ -412,7 +472,7 @@ export default function GuiaForm({
                   </td>
                 </tr>
                 <tr className="font-bold" style={{ backgroundColor: colors.light }}>
-                  <td colSpan={6} className="border p-2 text-right" style={{ color: colors.text }}>
+                  <td colSpan={5} className="border p-2 text-right" style={{ color: colors.text }}>
                     Total:
                   </td>
                   <td className="border p-2" style={{ color: colors.text }}>
