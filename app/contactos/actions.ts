@@ -312,7 +312,7 @@ export async function createUbication(contactId: number, formData: FormData) {
     }
 
     // Insertar en la base de datos
-    await sql`
+    const result = await sql`
       INSERT INTO ubication_contact (
         id_contact,
         direccion,
@@ -333,13 +333,16 @@ export async function createUbication(contactId: number, formData: FormData) {
         ${es_principal},
         TRUE
       )
+      RETURNING id
     `
+
+    const ubicationId = result.rows[0].id
 
     // Revalidar la ruta para actualizar los datos
     revalidatePath(`/contactos/ubicaciones/${contactId}`)
     revalidatePath(`/contactos/ver/${contactId}`)
 
-    return { success: true, message: "Ubicación creada correctamente" }
+    return { success: true, message: "Ubicación creada correctamente", id: ubicationId }
   } catch (error) {
     console.error("Error al crear ubicación:", error)
     return { success: false, message: `Error al guardar la ubicación: ${error.message || "Error desconocido"}` }

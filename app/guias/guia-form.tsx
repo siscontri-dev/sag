@@ -17,6 +17,10 @@ import { createGuia, updateGuia } from "./actions"
 import TicketPrinter from "@/components/ticket-printer"
 import BulkTicketPrinter from "@/components/bulk-ticket-printer"
 
+// Añadir importaciones necesarias para el modal de creación de fincas
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { createUbication } from "@/app/contactos/actions"
+
 export default function GuiaForm({
   contacts = [],
   products = [],
@@ -59,6 +63,23 @@ export default function GuiaForm({
     estado: guia?.estado || "confirmado",
   })
 
+  // Modificar el estado del formulario para incluir la finca seleccionada
+  // Añadir después de la declaración del estado formData
+  const [selectedFinca, setSelectedFinca] = useState("")
+  const [fincas, setFincas] = useState([])
+  const [showCreateFincaDialog, setShowCreateFincaDialog] = useState(false)
+  const [isLoadingFincas, setIsLoadingFincas] = useState(false)
+  const [newFincaData, setNewFincaData] = useState({
+    nombre_finca: "",
+    direccion: "",
+    id_departamento: "",
+    id_municipio: "",
+    es_principal: false,
+  })
+  const [departamentos, setDepartamentos] = useState([])
+  const [municipios, setMunicipios] = useState([])
+  const [isCreatingFinca, setIsCreatingFinca] = useState(false)
+
   // Estado para las líneas de la guía
   const [lineas, setLineas] = useState(
     guia?.transaction_lines?.map((line) => ({
@@ -91,6 +112,164 @@ export default function GuiaForm({
       setPrecioTicket(0)
     }
   }, [nuevaLinea.product_id, products])
+
+  // Añadir después de los useEffect existentes
+  // Efecto para cargar departamentos cuando se abre el modal
+  useEffect(() => {
+    if (showCreateFincaDialog) {
+      const fetchDepartamentos = async () => {
+        try {
+          const response = await fetch("/api/departamentos")
+          if (response.ok) {
+            const data = await response.json()
+            setDepartamentos(data)
+          }
+        } catch (error) {
+          console.error("Error al cargar departamentos:", error)
+        }
+      }
+      fetchDepartamentos()
+    }
+  }, [showCreateFincaDialog])
+
+  // Efecto para cargar municipios cuando cambia el departamento
+  useEffect(() => {
+    if (newFincaData.id_departamento) {
+      const fetchMunicipios = async () => {
+        try {
+          const response = await fetch(`/api/municipios/${newFincaData.id_departamento}`)
+          if (response.ok) {
+            const data = await response.json()
+            // Asegurarnos de que estamos accediendo al array de municipios correctamente
+            console.log("Respuesta de municipios:", data)
+            setMunicipios(data.municipios || [])
+          }
+        } catch (error) {
+          console.error("Error al cargar municipios:", error)
+          setMunicipios([])
+        }
+      }
+      fetchMunicipios()
+    } else {
+      setMunicipios([])
+    }
+  }, [newFincaData.id_departamento])
+
+  // Efecto para cargar las fincas cuando cambia el dueño anterior
+  useEffect(() => {
+    if (formData.id_dueno_anterior) {
+      const fetchFincas = async () => {
+        setIsLoadingFincas(true)
+        try {
+          const response = await fetch(`/api/contactos/${formData.id_dueno_anterior}/ubicaciones`)
+          if (response.ok) {
+            const data = await response.json()
+            setFincas(data)
+            // Si hay fincas, seleccionar la primera por defecto
+            if (data.length > 0) {
+              setSelectedFinca(data[0].id.toString())
+            } else {
+              setSelectedFinca("")
+            }
+          }
+        } catch (error) {
+          console.error("Error al cargar fincas:", error)
+          setFincas([])
+          setSelectedFinca("")
+        } finally {
+          setIsLoadingFincas(false)
+        }
+      }
+      fetchFincas()
+    } else {
+      setFincas([])
+      setSelectedFinca("")
+    }
+  }, [formData.id_dueno_anterior])
+
+  // Añadir función para manejar la creación de una nueva finca
+  const handleCreateFinca = async () => {
+    if (!newFincaData.nombre_finca || !newFincaData.id_departamento || !newFincaData.id_municipio) {
+      toast({
+        title: "Error",
+        description: "Por favor complete los campos obligatorios",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCreatingFinca(true)
+    try {
+      // Crear un FormData para enviar los datos
+      const fincaFormData = new FormData()
+      fincaFormData.append("nombre_finca", newFincaData.nombre_finca)
+      fincaFormData.append("direccion", newFincaData.direccion || "")
+      fincaFormData.append("id_departamento", newFincaData.id_departamento)
+      fincaFormData.append("id_municipio", newFincaData.id_municipio)
+      fincaFormData.append("es_principal", newFincaData.es_principal ? "true" : "false")
+
+      // Llamar a la función del servidor para crear la ubicación
+      const contactId = Number(formData.id_dueno_anterior)
+      const result = await createUbication(contactId, fincaFormData)
+
+      if (result.success) {
+        toast({
+          title: "Éxito",
+          description: "Finca creada correctamente",
+        })
+
+        // Recargar las fincas
+        const response = await fetch(`/api/contactos/${formData.id_dueno_anterior}/ubicaciones`)
+        if (response.ok) {
+          const data = await response.json()
+          setFincas(data)
+          // Seleccionar la finca recién creada
+          if (result.id) {
+            setSelectedFinca(result.id.toString())
+          }
+        }
+
+        // Cerrar el diálogo
+        setShowCreateFincaDialog(false)
+        // Limpiar el formulario
+        setNewFincaData({
+          nombre_finca: "",
+          direccion: "",
+          id_departamento: "",
+          id_municipio: "",
+          es_principal: false,
+        })
+      } else {
+        throw new Error(result.message || "Error al crear la finca")
+      }
+    } catch (error) {
+      console.error("Error al crear finca:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Hubo un problema al crear la finca",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingFinca(false)
+    }
+  }
+
+  // Añadir función para manejar cambios en el formulario de nueva finca
+  const handleNewFincaChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setNewFincaData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }))
+  }
+
+  // Añadir función para manejar cambios en selects del formulario de nueva finca
+  const handleNewFincaSelectChange = (name, value) => {
+    setNewFincaData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -468,6 +647,7 @@ export default function GuiaForm({
             className="h-8 bg-gray-50"
           />
         </div>
+
         <div className="space-y-1 col-span-2 md:col-span-1">
           <Label htmlFor="id_dueno_anterior" className="text-sm">
             Dueño Anterior
@@ -487,6 +667,49 @@ export default function GuiaForm({
                     {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
                   </SelectItem>
                 ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Selector de finca */}
+        <div className="space-y-1 col-span-2 md:col-span-1">
+          <div className="flex justify-between items-center">
+            <Label htmlFor="finca" className="text-sm">
+              Finca
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCreateFincaDialog(true)}
+              disabled={!formData.id_dueno_anterior}
+              className="h-6 px-2 text-xs"
+            >
+              <PlusCircle className="h-3 w-3 mr-1" />
+              Nueva
+            </Button>
+          </div>
+          <Select
+            value={selectedFinca}
+            onValueChange={setSelectedFinca}
+            disabled={isLoadingFincas || fincas.length === 0}
+          >
+            <SelectTrigger className="h-8">
+              {isLoadingFincas ? (
+                <div className="flex items-center">
+                  <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                  <span>Cargando fincas...</span>
+                </div>
+              ) : (
+                <SelectValue placeholder={fincas.length === 0 ? "No hay fincas disponibles" : "Seleccione una finca"} />
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              {fincas.map((finca) => (
+                <SelectItem key={finca.id} value={finca.id.toString()}>
+                  {finca.nombre_finca} - {finca.municipio_nombre}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -794,6 +1017,119 @@ export default function GuiaForm({
         onOpenChange={setShowPrintDialog}
         onComplete={handlePrintComplete}
       />
+
+      {/* Modal para crear una nueva finca */}
+      {/* Diálogo para crear una nueva finca */}
+      <Dialog open={showCreateFincaDialog} onOpenChange={setShowCreateFincaDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Finca</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="nombre_finca" className="text-sm">
+                  Nombre de la Finca *
+                </Label>
+                <Input
+                  id="nombre_finca"
+                  name="nombre_finca"
+                  value={newFincaData.nombre_finca}
+                  onChange={handleNewFincaChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="direccion" className="text-sm">
+                  Dirección
+                </Label>
+                <Input id="direccion" name="direccion" value={newFincaData.direccion} onChange={handleNewFincaChange} />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="id_departamento" className="text-sm">
+                  Departamento *
+                </Label>
+                <Select
+                  value={newFincaData.id_departamento}
+                  onValueChange={(value) => handleNewFincaSelectChange("id_departamento", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departamentos.map((depto) => (
+                      <SelectItem key={depto.id} value={depto.id.toString()}>
+                        {depto.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="id_municipio" className="text-sm">
+                  Municipio *
+                </Label>
+                <Select
+                  value={newFincaData.id_municipio}
+                  onValueChange={(value) => handleNewFincaSelectChange("id_municipio", value)}
+                  disabled={!newFincaData.id_departamento || municipios.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !newFincaData.id_departamento
+                          ? "Seleccione primero un departamento"
+                          : municipios.length === 0
+                            ? "Cargando municipios..."
+                            : "Seleccione municipio"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {municipios.map((muni) => (
+                      <SelectItem key={muni.id} value={muni.id.toString()}>
+                        {muni.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="es_principal"
+                  name="es_principal"
+                  checked={newFincaData.es_principal}
+                  onChange={handleNewFincaChange}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="es_principal" className="text-sm">
+                  Establecer como finca principal
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowCreateFincaDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateFinca} disabled={isCreatingFinca}>
+              {isCreatingFinca ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Finca"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </form>
   )
 }

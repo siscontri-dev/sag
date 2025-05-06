@@ -229,3 +229,87 @@ export async function exportarBoletinGanadoMayor(fechaInicio: string, fechaFin: 
     return { success: false, message: "Error al exportar boletín" }
   }
 }
+
+// Nueva función para obtener datos financieros completos
+export async function getFinancialData() {
+  noStore()
+  try {
+    // Obtener todas las transacciones con sus impuestos
+    const transactionsResult = await sql`
+      SELECT 
+        id,
+        type,
+        fecha_documento,
+        business_location_id,
+        total,
+        impuesto1, -- Deguello
+        impuesto2, -- Fondo
+        impuesto3, -- Matadero
+        quantity_m,
+        quantity_h,
+        quantity_k
+      FROM 
+        transactions
+      WHERE 
+        activo = TRUE
+      ORDER BY 
+        fecha_documento DESC
+    `
+
+    // Obtener estadísticas de impuestos por mes
+    const monthlyStatsResult = await sql`
+      SELECT 
+        DATE_TRUNC('month', fecha_documento) as mes,
+        SUM(CASE WHEN type = 'entry' THEN total ELSE 0 END) as total_guias,
+        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_sacrificios,
+        SUM(CASE WHEN type = 'exit' THEN impuesto1 ELSE 0 END) as total_deguello,
+        SUM(CASE WHEN type = 'exit' THEN impuesto2 ELSE 0 END) as total_fondo,
+        SUM(CASE WHEN type = 'exit' THEN impuesto3 ELSE 0 END) as total_matadero,
+        COUNT(CASE WHEN type = 'entry' THEN 1 END) as count_guias,
+        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_sacrificios
+      FROM 
+        transactions
+      WHERE 
+        activo = TRUE
+      GROUP BY 
+        DATE_TRUNC('month', fecha_documento)
+      ORDER BY 
+        mes DESC
+    `
+
+    // Obtener estadísticas por tipo de animal (bovino/porcino)
+    const animalTypeStatsResult = await sql`
+      SELECT 
+        business_location_id,
+        SUM(CASE WHEN type = 'entry' THEN total ELSE 0 END) as total_guias,
+        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_sacrificios,
+        SUM(CASE WHEN type = 'exit' THEN impuesto1 ELSE 0 END) as total_deguello,
+        SUM(CASE WHEN type = 'exit' THEN impuesto2 ELSE 0 END) as total_fondo,
+        SUM(CASE WHEN type = 'exit' THEN impuesto3 ELSE 0 END) as total_matadero,
+        COUNT(CASE WHEN type = 'entry' THEN 1 END) as count_guias,
+        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_sacrificios
+      FROM 
+        transactions
+      WHERE 
+        activo = TRUE
+      GROUP BY 
+        business_location_id
+    `
+
+    return {
+      transactions: transactionsResult.rows,
+      monthlyStats: monthlyStatsResult.rows.map((row) => ({
+        ...row,
+        mes: row.mes.toISOString().split("T")[0].substring(0, 7), // Formato YYYY-MM
+      })),
+      animalTypeStats: animalTypeStatsResult.rows,
+    }
+  } catch (error) {
+    console.error("Error al obtener datos financieros:", error)
+    return {
+      transactions: [],
+      monthlyStats: [],
+      animalTypeStats: [],
+    }
+  }
+}
