@@ -10,11 +10,22 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-export function DatePickerWithRange({ className }: React.HTMLAttributes<HTMLDivElement>) {
+interface DatePickerWithRangeProps {
+  className?: string
+  onRangeChange?: (start: Date, end: Date) => void
+}
+
+export function DatePickerWithRange({ className, onRangeChange }: DatePickerWithRangeProps) {
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
     to: new Date(),
   })
+
+  React.useEffect(() => {
+    if (date?.from && date?.to && onRangeChange) {
+      onRangeChange(date.from, date.to)
+    }
+  }, [date, onRangeChange])
 
   return (
     <div className={cn("grid gap-2", className)}>
@@ -53,3 +64,6 @@ export function DatePickerWithRange({ className }: React.HTMLAttributes<HTMLDivE
     </div>
   )
 }
+
+// Exportar el mismo componente con un nombre alternativo para compatibilidad
+export const DateRangePicker = DatePickerWithRange

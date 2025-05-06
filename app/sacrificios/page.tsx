@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, FileDown, Home } from "lucide-react" // Añadir importación de Home
+import { PlusCircle, Home } from "lucide-react"
 import Link from "next/link"
 import SacrificiosTable from "./sacrificios-table"
 import { getTransactions } from "@/lib/data"
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { themeColors } from "@/lib/theme-config"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import ExportButtons from "./export-buttons"
 
 export default async function SacrificiosPage({
   searchParams,
@@ -49,11 +50,7 @@ export default async function SacrificiosPage({
   const anulados = sacrificiosFiltrados.filter((s) => s.estado === "anulado")
 
   // Calcular totales
-  const totalKilos = sacrificiosFiltrados.reduce((sum, s) => {
-    const lines = s.transaction_lines || []
-    return sum + lines.reduce((lineSum, line) => lineSum + (line.quantity || 0), 0)
-  }, 0)
-
+  const totalKilos = sacrificiosFiltrados.reduce((sum, s) => sum + (s.quantity_k || 0), 0)
   const totalValor = sacrificiosFiltrados.reduce((sum, s) => sum + (s.total || 0), 0)
 
   // Determinar colores basados en el tipo
@@ -78,9 +75,6 @@ export default async function SacrificiosPage({
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="icon">
-            <FileDown className="h-4 w-4" />
-          </Button>
           <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
             <Link href={`/sacrificios/nuevo${tipo ? `?tipo=${tipo}` : ""}`}>
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -189,11 +183,15 @@ export default async function SacrificiosPage({
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 p-6">
             <div className="flex flex-col items-center p-4 rounded-lg bg-blue-50">
-              <span className="text-2xl font-bold text-blue-800">{totalKilos.toLocaleString("es-CO")} kg</span>
+              <span className="text-2xl font-bold text-blue-800">
+                {Math.round(totalKilos).toLocaleString("es-CO")} kg
+              </span>
               <span className="text-sm text-blue-800">Peso Total</span>
             </div>
             <div className="flex flex-col items-center p-4 rounded-lg bg-green-50">
-              <span className="text-2xl font-bold text-green-800">${totalValor.toLocaleString("es-CO")}</span>
+              <span className="text-2xl font-bold text-green-800">
+                {Math.round(totalValor).toLocaleString("es-CO")}
+              </span>
               <span className="text-sm text-green-800">Valor Total</span>
             </div>
           </CardContent>
@@ -220,6 +218,11 @@ export default async function SacrificiosPage({
           <SacrificiosTable sacrificios={anulados} />
         </TabsContent>
       </Tabs>
+
+      {/* Botones de exportación al final de la página */}
+      <div className="flex justify-end mt-6">
+        <ExportButtons tipo={tipo} />
+      </div>
     </div>
   )
 }

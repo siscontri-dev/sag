@@ -1,4 +1,5 @@
 import { sql } from "@vercel/postgres"
+import { unstable_noStore as noStore } from "next/cache"
 
 // Función para obtener datos de reportes
 export async function getReportData() {
@@ -516,6 +517,101 @@ export async function getUbicacionesByContacto(contactId: number) {
     return result.rows
   } catch (error) {
     console.error(`Error al obtener ubicaciones para contacto ${contactId}:`, error)
+    return []
+  }
+}
+
+// Función para obtener impuestos
+export async function getTaxes() {
+  noStore()
+  try {
+    const data = await sql`
+      SELECT 
+        t.*,
+        l.nombre as location_nombre,
+        CASE 
+          WHEN l.id = 1 THEN 'bovino'
+          WHEN l.id = 2 THEN 'porcino'
+          ELSE 'otro'
+        END as location_tipo
+      FROM 
+        taxes t
+        JOIN locations l ON t.location_id = l.id
+      WHERE 
+        t.activo = true
+      ORDER BY 
+        l.id, t.nombre
+    `
+    return data.rows
+  } catch (error) {
+    console.error("Error al obtener impuestos:", error)
+    return []
+  }
+}
+
+export async function getTaxById(id: string) {
+  noStore()
+  try {
+    const data = await sql`
+      SELECT 
+        t.*,
+        l.nombre as location_nombre,
+        CASE 
+          WHEN l.id = 1 THEN 'bovino'
+          WHEN l.id = 2 THEN 'porcino'
+          ELSE 'otro'
+        END as location_tipo
+      FROM 
+        taxes t
+        JOIN locations l ON t.location_id = l.id
+      WHERE 
+        t.id = ${id} AND t.activo = true
+    `
+    return data.rows[0]
+  } catch (error) {
+    console.error("Error al obtener impuesto:", error)
+    return null
+  }
+}
+
+// Función corregida para obtener impuestos por tipo
+export async function getTaxesByLocationType(tipo: string) {
+  noStore()
+  try {
+    // Mapear el tipo a un location_id
+    let locationId
+    if (tipo === "bovino") {
+      locationId = 1
+    } else if (tipo === "porcino") {
+      locationId = 2
+    } else {
+      console.error(`Tipo de ubicación inválido: ${tipo}`)
+      return []
+    }
+
+    // Consultar los impuestos para esta ubicación
+    const data = await sql`
+      SELECT 
+        t.*,
+        l.nombre as location_nombre,
+        CASE 
+          WHEN l.id = 1 THEN 'bovino'
+          WHEN l.id = 2 THEN 'porcino'
+          ELSE 'otro'
+        END as location_tipo
+      FROM 
+        taxes t
+        JOIN locations l ON t.location_id = l.id
+      WHERE 
+        t.location_id = ${locationId} AND t.activo = true
+      ORDER BY 
+        t.nombre
+    `
+
+    console.log(`Impuestos encontrados para tipo ${tipo} (location_id=${locationId}): ${data.rows.length}`)
+    return data.rows
+  } catch (error) {
+    console.error("Error al obtener impuestos por tipo:", error)
     return []
   }
 }

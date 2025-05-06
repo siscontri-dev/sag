@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Users, FileText, Truck, PiggyBank, MilkIcon as Cow, Ticket } from "lucide-react"
+import { Users, FileText, Truck, PiggyBank, MilkIcon as Cow, Ticket, DollarSign, BarChart } from "lucide-react"
 import { getTransactionStats } from "@/lib/data"
 
 export default async function Home() {
@@ -13,8 +13,8 @@ export default async function Home() {
         <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-6">
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Contactos</CardTitle>
             <Users className="w-4 h-4 text-blue-500" />
@@ -28,7 +28,7 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Guías ICA</CardTitle>
             <FileText className="w-4 h-4 text-green-500" />
@@ -42,7 +42,7 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Sacrificios</CardTitle>
             <Truck className="w-4 h-4 text-amber-500" />
@@ -56,7 +56,7 @@ export default async function Home() {
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow">
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
             <CardTitle className="text-sm font-medium">Tickets</CardTitle>
             <Ticket className="w-4 h-4 text-purple-500" />
@@ -66,6 +66,34 @@ export default async function Home() {
             <p className="text-xs text-muted-foreground">Administración de tickets</p>
             <Button asChild className="w-full mt-4" size="sm">
               <Link href="/tickets">Gestionar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Impuestos</CardTitle>
+            <DollarSign className="w-4 h-4 text-emerald-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">Gestión</div>
+            <p className="text-xs text-muted-foreground">Administración de impuestos</p>
+            <Button asChild className="w-full mt-4" size="sm">
+              <Link href="/impuestos">Gestionar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm hover:shadow-md transition-shadow h-full">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium">Informes</CardTitle>
+            <BarChart className="w-4 h-4 text-indigo-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">Reportes</div>
+            <p className="text-xs text-muted-foreground">Estadísticas y análisis</p>
+            <Button asChild className="w-full mt-4" size="sm">
+              <Link href="/informes">Gestionar</Link>
             </Button>
           </CardContent>
         </Card>
@@ -104,7 +132,7 @@ export default async function Home() {
                   size="sm"
                   className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 >
-                  <Link href="/reportes?tipo=bovino">Informes</Link>
+                  <Link href="/informes?tipo=bovino">Informes</Link>
                 </Button>
                 <Button
                   asChild
@@ -113,6 +141,14 @@ export default async function Home() {
                   className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
                 >
                   <Link href="/tickets?tipo=bovino">Tickets</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                >
+                  <Link href="/impuestos?tipo=bovino">Impuestos</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -156,7 +192,7 @@ export default async function Home() {
                   size="sm"
                   className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                 >
-                  <Link href="/reportes?tipo=porcino">Informes</Link>
+                  <Link href="/informes?tipo=porcino">Informes</Link>
                 </Button>
                 <Button
                   asChild
@@ -165,6 +201,14 @@ export default async function Home() {
                   className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
                 >
                   <Link href="/tickets?tipo=porcino">Tickets</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-200 hover:bg-amber-50 hover:text-amber-700"
+                >
+                  <Link href="/impuestos?tipo=porcino">Impuestos</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
