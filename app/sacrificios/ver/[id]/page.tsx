@@ -99,6 +99,12 @@ export default async function VerSacrificioPage({ params }: { params: { id: stri
               <dt className="text-sm font-medium text-muted-foreground">Propietario:</dt>
               <dd>{transaction.dueno_anterior_nombre}</dd>
 
+              <dt className="text-sm font-medium text-muted-foreground">Consignante:</dt>
+              <dd>{transaction.consignante || "N/A"}</dd>
+
+              <dt className="text-sm font-medium text-muted-foreground">Planilla:</dt>
+              <dd>{transaction.planilla || "N/A"}</dd>
+
               <dt className="text-sm font-medium text-muted-foreground">Total:</dt>
               <dd className="font-bold">{formatCurrency(transaction.total)}</dd>
 

@@ -3,6 +3,7 @@
 import { sql } from "@vercel/postgres"
 import { revalidatePath } from "next/cache"
 
+// Actualizar la función createSacrificio para incluir los nuevos campos
 export async function createSacrificio(data) {
   try {
     // Obtener los valores de los impuestos
@@ -28,7 +29,10 @@ export async function createSacrificio(data) {
         colors,
         impuesto1,
         impuesto2,
-        impuesto3
+        impuesto3,
+        consignante,
+        planilla,
+        observaciones
       ) VALUES (
         ${data.business_location_id},
         ${data.type},
@@ -45,7 +49,10 @@ export async function createSacrificio(data) {
         ${data.colors || ""},
         ${impuesto1},
         ${impuesto2},
-        ${impuesto3}
+        ${impuesto3},
+        ${data.consignante || null},
+        ${data.planilla || null},
+        ${data.observaciones || null}
       ) RETURNING id
     `
 
@@ -59,6 +66,7 @@ export async function createSacrificio(data) {
   }
 }
 
+// Actualizar la función updateSacrificio para incluir los nuevos campos
 export async function updateSacrificio(id, data) {
   try {
     // Obtener los valores de los impuestos
@@ -82,7 +90,10 @@ export async function updateSacrificio(id, data) {
         colors = ${data.colors || ""},
         impuesto1 = ${impuesto1},
         impuesto2 = ${impuesto2},
-        impuesto3 = ${impuesto3}
+        impuesto3 = ${impuesto3},
+        consignante = ${data.consignante || null},
+        planilla = ${data.planilla || null},
+        observaciones = ${data.observaciones || null}
       WHERE id = ${id}
     `
 

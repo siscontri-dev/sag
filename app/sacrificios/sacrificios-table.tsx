@@ -1,150 +1,126 @@
 "use client"
 
-import { useState } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { formatDate } from "@/lib/utils"
-import { Eye, FileEdit } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatCurrency } from "@/lib/utils"
+import { Search } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useState } from "react"
 
-export default function SacrificiosTable({ sacrificios = [] }) {
-  const router = useRouter()
-  const [sortConfig, setSortConfig] = useState({
-    key: "fecha_documento",
-    direction: "desc",
+export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovino" }) {
+  const [searchTerm, setSearchTerm] = useState("")
+
+  // Filtrar sacrificios por término de búsqueda
+  const filteredSacrificios = sacrificios.filter((sacrificio) => {
+    const searchString =
+      `${sacrificio.numero_documento} ${sacrificio.dueno_anterior_nombre} ${sacrificio.consignante || ""} ${sacrificio.planilla || ""}`.toLowerCase()
+    return searchString.includes(searchTerm.toLowerCase())
   })
-
-  // Función para ordenar los datos
-  const sortedSacrificios = [...sacrificios].sort((a, b) => {
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === "asc" ? -1 : 1
-    }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === "asc" ? 1 : -1
-    }
-    return 0
-  })
-
-  // Función para cambiar el ordenamiento
-  const requestSort = (key) => {
-    let direction = "asc"
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc"
-    }
-    setSortConfig({ key, direction })
-  }
-
-  // Función para ver el detalle de un sacrificio
-  const handleView = (id) => {
-    router.push(`/sacrificios/ver/${id}`)
-  }
-
-  // Función para formatear números sin decimales y con coma como separador de miles
-  const formatNumber = (value) => {
-    // Asegurarse de que el valor sea un número válido
-    const numValue = Number.parseFloat(value || 0)
-
-    // Verificar si es un número válido
-    if (isNaN(numValue)) return "0"
-
-    return Math.round(numValue)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-  }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="cursor-pointer" onClick={() => requestSort("numero_documento")}>
-              Número
-              {sortConfig.key === "numero_documento" && <span>{sortConfig.direction === "asc" ? " ↑" : " ↓"}</span>}
-            </TableHead>
-            <TableHead className="cursor-pointer" onClick={() => requestSort("fecha_documento")}>
-              Fecha
-              {sortConfig.key === "fecha_documento" && <span>{sortConfig.direction === "asc" ? " ↑" : " ↓"}</span>}
-            </TableHead>
-            <TableHead>Propietario</TableHead>
-            <TableHead className="text-center">Machos</TableHead>
-            <TableHead className="text-center">Hembras</TableHead>
-            <TableHead className="text-center">Total M+H</TableHead>
-            <TableHead className="text-center">Kilos</TableHead>
-            <TableHead className="text-right">Degüello</TableHead>
-            <TableHead className="text-right">Fondo</TableHead>
-            <TableHead className="text-right">Matadero</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-center">Acciones</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {sortedSacrificios.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={12} className="text-center py-4">
-                No hay sacrificios registrados
-              </TableCell>
-            </TableRow>
-          ) : (
-            sortedSacrificios.map((sacrificio) => {
-              // Asegurarse de que todos los valores numéricos sean números válidos
-              const quantityM = Number.parseInt(sacrificio.quantity_m || 0, 10)
-              const quantityH = Number.parseInt(sacrificio.quantity_h || 0, 10)
-              const quantityK = Number.parseInt(sacrificio.quantity_k || 0, 10)
-              const impuesto1 = Number.parseFloat(sacrificio.impuesto1 || 0)
-              const impuesto2 = Number.parseFloat(sacrificio.impuesto2 || 0)
-              const impuesto3 = Number.parseFloat(sacrificio.impuesto3 || 0)
-              const total = Number.parseFloat(sacrificio.total || 0)
-
-              return (
-                <TableRow key={sacrificio.id}>
-                  <TableCell className="font-medium">{sacrificio.numero_documento}</TableCell>
-                  <TableCell>{formatDate(sacrificio.fecha_documento)}</TableCell>
-                  <TableCell>{sacrificio.dueno_anterior_nombre}</TableCell>
-                  <TableCell className="text-center">{formatNumber(quantityM)}</TableCell>
-                  <TableCell className="text-center">{formatNumber(quantityH)}</TableCell>
-                  <TableCell className="text-center">{formatNumber(quantityM + quantityH)}</TableCell>
-                  <TableCell className="text-center">{formatNumber(quantityK)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(impuesto1)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(impuesto2)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(impuesto3)}</TableCell>
-                  <TableCell className="text-right">{formatNumber(total)}</TableCell>
-                  <TableCell>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs ${
-                        sacrificio.estado === "confirmado"
-                          ? "bg-green-100 text-green-800"
-                          : sacrificio.estado === "anulado"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {sacrificio.estado === "confirmado"
-                        ? "Confirmado"
-                        : sacrificio.estado === "anulado"
-                          ? "Anulado"
-                          : "Borrador"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-center gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleView(sacrificio.id)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/sacrificios/editar/${sacrificio.id}`}>
-                          <FileEdit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle>Sacrificios de {tipoAnimal === "bovino" ? "Bovinos" : "Porcinos"}</CardTitle>
+        <div className="flex items-center mt-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
+              placeholder="Buscar por número, dueño, consignante o planilla..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Guía</TableHead>
+                <TableHead>Consec</TableHead>
+                <TableHead>Planilla</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Dueño Anterior</TableHead>
+                <TableHead>Consignante</TableHead>
+                <TableHead>Recibos báscula</TableHead>
+                <TableHead>Machos</TableHead>
+                <TableHead>Hembras</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Kilos</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredSacrificios.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-center py-4">
+                    No hay sacrificios registrados
                   </TableCell>
                 </TableRow>
-              )
-            })
-          )}
-        </TableBody>
-      </Table>
-    </div>
+              ) : (
+                filteredSacrificios.map((sacrificio) => (
+                  <TableRow key={sacrificio.id}>
+                    <TableCell className="font-medium">{sacrificio.numero_documento}</TableCell>
+                    <TableCell>{sacrificio.consec || "-"}</TableCell>
+                    <TableCell>{sacrificio.planilla || "-"}</TableCell>
+                    <TableCell>
+                      {new Date(sacrificio.fecha_documento).toLocaleDateString("es-CO", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell>{sacrificio.dueno_anterior_nombre}</TableCell>
+                    <TableCell>{sacrificio.consignante || "-"}</TableCell>
+                    <TableCell>{sacrificio.observaciones || "-"}</TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_m}</TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_h}</TableCell>
+                    <TableCell className="text-center">
+                      {Number(sacrificio.quantity_m) + Number(sacrificio.quantity_h)}
+                    </TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_k}</TableCell>
+                    <TableCell>{formatCurrency(sacrificio.total)}</TableCell>
+                    <TableCell>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          sacrificio.estado === "confirmado"
+                            ? "bg-green-100 text-green-800"
+                            : sacrificio.estado === "anulado"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {sacrificio.estado === "confirmado"
+                          ? "Confirmado"
+                          : sacrificio.estado === "anulado"
+                            ? "Anulado"
+                            : "Borrador"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/sacrificios/ver/${sacrificio.id}`}>Ver</Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/sacrificios/editar/${sacrificio.id}`}>Editar</Link>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

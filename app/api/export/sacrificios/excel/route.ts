@@ -25,7 +25,9 @@ export async function GET(request) {
         t.impuesto3,
         t.total,
         t.estado,
-        t.colors
+        t.colors,
+        t.consignante,
+        t.planilla
       FROM transactions t
       LEFT JOIN contacts c1 ON t.id_dueno = c1.id
       LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
@@ -52,6 +54,7 @@ export async function GET(request) {
     // Añadir una hoja de trabajo
     const worksheet = workbook.addWorksheet("Sacrificios")
 
+    // Actualizar la exportación a Excel para incluir los nuevos campos
     // Definir las columnas
     worksheet.columns = [
       { header: "Número", key: "numero_documento", width: 15 },
@@ -60,6 +63,8 @@ export async function GET(request) {
       { header: "NIT Anterior", key: "dueno_anterior_nit", width: 15 },
       { header: "Dueño Nuevo", key: "dueno_nuevo_nombre", width: 25 },
       { header: "NIT Nuevo", key: "dueno_nuevo_nit", width: 15 },
+      { header: "Consignante", key: "consignante", width: 25 },
+      { header: "Planilla", key: "planilla", width: 15 },
       { header: "Machos", key: "quantity_m", width: 10 },
       { header: "Hembras", key: "quantity_h", width: 10 },
       { header: "Total M+H", key: "total_animales", width: 10 },

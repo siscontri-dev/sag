@@ -21,6 +21,8 @@ export default function SacrificioForm({
   locationId = 1,
   impuestos = [],
   sacrificio = null,
+  ultimoConsecutivo = 0,
+  ultimaPlanilla = 0,
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -32,8 +34,12 @@ export default function SacrificioForm({
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
+  // Generar automáticamente el número de documento y planilla
+  const nuevoConsecutivo = ultimoConsecutivo + 1
+  const nuevaPlanilla = ultimaPlanilla + 1
+
   const [formData, setFormData] = useState({
-    numero_documento: sacrificio?.numero_documento || "",
+    numero_documento: sacrificio?.numero_documento || nuevoConsecutivo.toString(),
     fecha_documento: sacrificio?.fecha_documento
       ? new Date(sacrificio.fecha_documento).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
@@ -45,6 +51,9 @@ export default function SacrificioForm({
     cantidad_hembras: sacrificio?.cantidad_hembras?.toString() || "0",
     total_kilos: sacrificio?.total_kilos?.toString() || "0",
     colors: sacrificio?.colors || "", // Cambiado a colors en lugar de colores
+    consignante: sacrificio?.consignante || "", // Nuevo campo
+    planilla: sacrificio?.planilla?.toString() || nuevaPlanilla.toString(), // Nuevo campo con valor automático
+    observaciones: sacrificio?.observaciones || "",
   })
 
   // Calcular totales
@@ -87,7 +96,13 @@ export default function SacrificioForm({
     const { name, value } = e.target
 
     // Para campos numéricos, solo permitir números
-    if (name === "cantidad_machos" || name === "cantidad_hembras" || name === "total_kilos") {
+    if (
+      name === "cantidad_machos" ||
+      name === "cantidad_hembras" ||
+      name === "total_kilos" ||
+      name === "planilla" ||
+      name === "numero_documento"
+    ) {
       // Reemplazar cualquier carácter que no sea número
       const numericValue = value.replace(/[^0-9]/g, "")
       setFormData((prev) => ({ ...prev, [name]: numericValue }))
@@ -124,6 +139,10 @@ export default function SacrificioForm({
         quantity_k: totalKilos, // Total de kilos
         quantity_m: cantidadMachos, // Cantidad de machos
         quantity_h: cantidadHembras, // Cantidad de hembras
+        consignante: formData.consignante, // Nuevo campo
+        planilla: Number(formData.planilla), // Nuevo campo
+        consec: Number(formData.numero_documento), // Nuevo campo para el consecutivo
+        observaciones: formData.observaciones, // Campo para recibos de báscula
         impuestos: todosImpuestosCalculados.map((imp) => ({
           impuesto_id: imp.id,
           valor: imp.valor,
@@ -176,7 +195,6 @@ export default function SacrificioForm({
             name="numero_documento"
             value={formData.numero_documento}
             onChange={handleChange}
-            required
             className="h-8"
           />
         </div>
@@ -258,6 +276,37 @@ export default function SacrificioForm({
               <SelectItem value="confirmado">Confirmado</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="consignante" className="text-sm">
+            Consignante
+          </Label>
+          <Input
+            id="consignante"
+            name="consignante"
+            value={formData.consignante}
+            onChange={handleChange}
+            className="h-8"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="planilla" className="text-sm">
+            Planilla
+          </Label>
+          <Input id="planilla" name="planilla" value={formData.planilla} onChange={handleChange} className="h-8" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="observaciones" className="text-sm">
+            Recibos de báscula
+          </Label>
+          <Input
+            id="observaciones"
+            name="observaciones"
+            value={formData.observaciones}
+            onChange={handleChange}
+            className="h-8"
+            placeholder="Ingrese recibos de báscula"
+          />
         </div>
       </div>
 
