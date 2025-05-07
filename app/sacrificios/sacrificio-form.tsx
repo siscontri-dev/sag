@@ -23,6 +23,7 @@ export default function SacrificioForm({
   sacrificio = null,
   ultimoConsecutivo = 0,
   ultimaPlanilla = 0,
+  consignantes = [], // Nuevo prop para recibir los consignantes
 }) {
   const { toast } = useToast()
   const router = useRouter()
@@ -35,8 +36,11 @@ export default function SacrificioForm({
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
   // Generar automáticamente el número de documento y planilla
-  const nuevoConsecutivo = ultimoConsecutivo + 1
-  const nuevaPlanilla = ultimaPlanilla + 1
+  const nuevoConsecutivo = Number(ultimoConsecutivo) + 1
+  const nuevaPlanilla = Number(ultimaPlanilla) + 1
+
+  console.log(`Nuevo consecutivo para ${tipoAnimal}: ${nuevoConsecutivo} (último: ${ultimoConsecutivo})`)
+  console.log(`Nueva planilla para ${tipoAnimal}: ${nuevaPlanilla} (última: ${ultimaPlanilla})`)
 
   const [formData, setFormData] = useState({
     numero_documento: sacrificio?.numero_documento || nuevoConsecutivo.toString(),
@@ -51,7 +55,7 @@ export default function SacrificioForm({
     cantidad_hembras: sacrificio?.cantidad_hembras?.toString() || "0",
     total_kilos: sacrificio?.total_kilos?.toString() || "0",
     colors: sacrificio?.colors || "", // Cambiado a colors en lugar de colores
-    consignante: sacrificio?.consignante || "", // Nuevo campo
+    consignante: sacrificio?.consignante || "", // Ahora será el ID del consignante
     planilla: sacrificio?.planilla?.toString() || nuevaPlanilla.toString(), // Nuevo campo con valor automático
     observaciones: sacrificio?.observaciones || "",
   })
@@ -139,9 +143,9 @@ export default function SacrificioForm({
         quantity_k: totalKilos, // Total de kilos
         quantity_m: cantidadMachos, // Cantidad de machos
         quantity_h: cantidadHembras, // Cantidad de hembras
-        consignante: formData.consignante, // Nuevo campo
+        consignante: formData.consignante, // Ahora es el ID del consignante
         planilla: Number(formData.planilla), // Nuevo campo
-        consec: Number(formData.numero_documento), // Nuevo campo para el consecutivo
+        consec: Number(formData.numero_documento), // Usar el número de documento como consec
         observaciones: formData.observaciones, // Campo para recibos de báscula
         impuestos: todosImpuestosCalculados.map((imp) => ({
           impuesto_id: imp.id,
@@ -235,11 +239,13 @@ export default function SacrificioForm({
               <SelectValue placeholder="Seleccione dueño" />
             </SelectTrigger>
             <SelectContent>
-              {contactosAnteriores.map((contact) => (
-                <SelectItem key={contact.id} value={contact.id.toString()}>
-                  {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                </SelectItem>
-              ))}
+              {contactosAnteriores
+                .filter((contact) => contact.type === 1 || contact.type === 3)
+                .map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id.toString()}>
+                    {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </div>
@@ -255,13 +261,49 @@ export default function SacrificioForm({
               <SelectValue placeholder="Seleccione dueño" />
             </SelectTrigger>
             <SelectContent>
-              {contactosNuevos.map((contact) => (
-                <SelectItem key={contact.id} value={contact.id.toString()}>
-                  {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                </SelectItem>
-              ))}
+              {contactosNuevos
+                .filter((contact) => contact.type === 2 || contact.type === 3)
+                .map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id.toString()}>
+                    <div className="flex items-center gap-2">
+                      {contact.imagen_url && (
+                        <img
+                          src={contact.imagen_url || "/placeholder.svg"}
+                          alt={contact.marca || "Logo"}
+                          className="h-5 w-5 object-contain"
+                          onError={(e) => (e.currentTarget.src = "/abstract-logo.png")}
+                        />
+                      )}
+                      {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
+                      {contact.marca && ` (${contact.marca})`}
+                    </div>
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
+          {formData.id_dueno_nuevo && (
+            <div className="mt-2">
+              {contactosNuevos
+                .filter((contact) => contact.type === 2 || contact.type === 3)
+                .find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url && (
+                <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-md">
+                  <img
+                    src={
+                      contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg"
+                    }
+                    alt="Logo de la marca"
+                    className="h-8 object-contain"
+                    onError={(e) => (e.currentTarget.src = "/abstract-logo.png")}
+                  />
+                  <span className="font-medium">
+                    {contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.marca || ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="space-y-1">
           <Label htmlFor="estado" className="text-sm">
@@ -281,13 +323,19 @@ export default function SacrificioForm({
           <Label htmlFor="consignante" className="text-sm">
             Consignante
           </Label>
-          <Input
-            id="consignante"
-            name="consignante"
-            value={formData.consignante}
-            onChange={handleChange}
-            className="h-8"
-          />
+          {/* Reemplazar el Input por un Select para los consignantes */}
+          <Select value={formData.consignante} onValueChange={(value) => handleSelectChange("consignante", value)}>
+            <SelectTrigger className="h-8">
+              <SelectValue placeholder="Seleccione consignante" />
+            </SelectTrigger>
+            <SelectContent>
+              {consignantes.map((consignante) => (
+                <SelectItem key={consignante.id} value={consignante.id.toString()}>
+                  {consignante.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <Label htmlFor="planilla" className="text-sm">
@@ -539,6 +587,7 @@ export default function SacrificioForm({
             otros: servicioMataderoCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0),
           },
           total: totalGeneral,
+          consignante: consignantes.find((c) => c.id.toString() === formData.consignante)?.nombre || "N/A",
         }}
       />
     </form>

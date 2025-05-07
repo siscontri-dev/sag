@@ -32,7 +32,8 @@ export async function createSacrificio(data) {
         impuesto3,
         consignante,
         planilla,
-        observaciones
+        observaciones,
+        consec
       ) VALUES (
         ${data.business_location_id},
         ${data.type},
@@ -52,7 +53,8 @@ export async function createSacrificio(data) {
         ${impuesto3},
         ${data.consignante || null},
         ${data.planilla || null},
-        ${data.observaciones || null}
+        ${data.observaciones || null},
+        ${data.consec}
       ) RETURNING id
     `
 
@@ -93,7 +95,8 @@ export async function updateSacrificio(id, data) {
         impuesto3 = ${impuesto3},
         consignante = ${data.consignante || null},
         planilla = ${data.planilla || null},
-        observaciones = ${data.observaciones || null}
+        observaciones = ${data.observaciones || null},
+        consec = ${data.consec}
       WHERE id = ${id}
     `
 

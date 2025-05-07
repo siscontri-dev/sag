@@ -17,6 +17,14 @@ export async function createContact(formData: FormData) {
     const email = (formData.get("email") as string) || null
     const type = Number.parseInt(formData.get("type") as string)
     const business_location_id = Number.parseInt(formData.get("business_location_id") as string) || 1
+    // En la función createContact, agregar los nuevos campos
+    const marca = (formData.get("marca") as string) || null
+    const imagen_url = (formData.get("imagen_url") as string) || null
+
+    // Validar campos específicos según el tipo de contacto
+    if ((type === 2 || type === 3) && (!marca || !imagen_url)) {
+      return { success: false, message: "Para Dueño Nuevo o Ambos, la marca y el logo son obligatorios" }
+    }
 
     // Obtener ubicaciones nuevas
     const ubicacionesNuevasStr = formData.get("ubicacionesNuevas") as string
@@ -48,6 +56,7 @@ export async function createContact(formData: FormData) {
     }
 
     // Insertar en la base de datos
+    // En la consulta SQL de inserción, agregar los nuevos campos
     const result = await sql`
       INSERT INTO contacts (
         primer_nombre, 
@@ -60,7 +69,9 @@ export async function createContact(formData: FormData) {
         type, 
         business_id,
         business_location_id,
-        activo
+        activo,
+        marca,
+        imagen_url
       ) 
       VALUES (
         ${primer_nombre}, 
@@ -73,7 +84,9 @@ export async function createContact(formData: FormData) {
         ${type}, 
         ${business_id},
         ${business_location_id},
-        TRUE
+        TRUE,
+        ${marca},
+        ${imagen_url}
       )
       RETURNING id
     `
@@ -147,6 +160,15 @@ export async function updateContact(id: number, formData: FormData) {
     const type = Number.parseInt(formData.get("type") as string)
     const business_location_id = Number.parseInt(formData.get("business_location_id") as string) || 1
 
+    // En la función updateContact, agregar los nuevos campos
+    const marca = (formData.get("marca") as string) || null
+    const imagen_url = (formData.get("imagen_url") as string) || null
+
+    // Validar campos específicos según el tipo de contacto
+    if ((type === 2 || type === 3) && (!marca || !imagen_url)) {
+      return { success: false, message: "Para Dueño Nuevo o Ambos, la marca y el logo son obligatorios" }
+    }
+
     // Obtener ubicaciones nuevas y eliminadas
     const ubicacionesNuevasStr = formData.get("ubicacionesNuevas") as string
     const ubicacionesEliminadasStr = formData.get("ubicacionesEliminadas") as string
@@ -182,6 +204,7 @@ export async function updateContact(id: number, formData: FormData) {
     }
 
     // Actualizar en la base de datos
+    // En la consulta SQL de actualización, agregar los nuevos campos
     await sql`
       UPDATE contacts 
       SET 
@@ -193,7 +216,9 @@ export async function updateContact(id: number, formData: FormData) {
         telefono = ${telefono}, 
         email = ${email}, 
         type = ${type},
-        business_location_id = ${business_location_id}
+        business_location_id = ${business_location_id},
+        marca = ${marca},
+        imagen_url = ${imagen_url}
       WHERE id = ${id}
     `
 

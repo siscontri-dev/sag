@@ -1,4 +1,4 @@
-import { getContacts, getTaxesByLocationType } from "@/lib/data"
+import { getContacts, getTaxesByLocationType, getConsignantesByLocationId } from "@/lib/data"
 import SacrificioForm from "../sacrificio-form"
 import { sql } from "@vercel/postgres"
 
@@ -18,21 +18,30 @@ export default async function NuevoSacrificioPage({ searchParams }) {
   // Obtener impuestos para este tipo de animal
   const impuestos = await getTaxesByLocationType(tipo)
 
-  // Obtener el último consecutivo y planilla para este tipo de animal
+  // Obtener consignantes para este location_id
+  const consignantes = await getConsignantesByLocationId(locationId)
+  console.log(`Consignantes obtenidos para ${tipo} (location_id=${locationId}): ${consignantes.length}`)
+
+  // Obtener el último consecutivo para esta ubicación específica
   const ultimoConsecutivoResult = await sql`
     SELECT MAX(consec) as ultimo_consec
     FROM transactions
     WHERE business_location_id = ${locationId} AND type = 'exit'
   `
 
+  // Obtener la última planilla para esta ubicación específica
   const ultimaPlanillaResult = await sql`
     SELECT MAX(planilla) as ultima_planilla
     FROM transactions
     WHERE business_location_id = ${locationId} AND type = 'exit'
   `
 
+  // Convertir a números y manejar valores nulos
   const ultimoConsecutivo = ultimoConsecutivoResult.rows[0]?.ultimo_consec || 0
   const ultimaPlanilla = ultimaPlanillaResult.rows[0]?.ultima_planilla || 0
+
+  console.log(`Último consecutivo para ${tipo} (location_id=${locationId}): ${ultimoConsecutivo}`)
+  console.log(`Última planilla para ${tipo} (location_id=${locationId}): ${ultimaPlanilla}`)
 
   return (
     <div className="container mx-auto py-6">
@@ -45,6 +54,7 @@ export default async function NuevoSacrificioPage({ searchParams }) {
         impuestos={impuestos}
         ultimoConsecutivo={ultimoConsecutivo}
         ultimaPlanilla={ultimaPlanilla}
+        consignantes={consignantes} // Pasar los consignantes al formulario
       />
     </div>
   )

@@ -66,6 +66,7 @@ export default function ContactsTable({ contacts }) {
               <TableHead className="font-semibold">NIT/Cédula</TableHead>
               <TableHead className="font-semibold">Teléfono</TableHead>
               <TableHead className="font-semibold">Tipo</TableHead>
+              <TableHead className="font-semibold">Marca</TableHead>
               <TableHead className="font-semibold">Ubicación</TableHead>
               <TableHead className="text-right font-semibold">Acciones</TableHead>
             </TableRow>
@@ -95,6 +96,23 @@ export default function ContactsTable({ contacts }) {
                     >
                       {contact.type === 1 ? "Dueño Anterior" : contact.type === 2 ? "Dueño Nuevo" : "Ambos"}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {contact.marca ? (
+                      <div className="flex items-center gap-2">
+                        {contact.imagen_url && (
+                          <img
+                            src={contact.imagen_url || "/placeholder.svg"}
+                            alt={contact.marca}
+                            className="h-6 w-6 object-contain"
+                            onError={(e) => (e.currentTarget.src = "/abstract-logo.png")}
+                          />
+                        )}
+                        {contact.marca}
+                      </div>
+                    ) : (
+                      "N/A"
+                    )}
                   </TableCell>
                   <TableCell>{contact.location_id || "N/A"}</TableCell>
                   <TableCell className="text-right">

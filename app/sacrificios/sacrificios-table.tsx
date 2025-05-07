@@ -9,13 +9,17 @@ import { Search } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
-export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovino" }) {
+export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovino", contactosNuevos = [] }) {
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Filtrar sacrificios por término de búsqueda
+  // Modificar la función de filtrado para incluir la marca
   const filteredSacrificios = sacrificios.filter((sacrificio) => {
+    // Obtener la marca del dueño nuevo si existe
+    const dueno_nuevo = contactosNuevos?.find((c) => c.id === sacrificio.id_dueno_nuevo)
+    const marca = dueno_nuevo?.marca || ""
+
     const searchString =
-      `${sacrificio.numero_documento} ${sacrificio.dueno_anterior_nombre} ${sacrificio.consignante || ""} ${sacrificio.planilla || ""}`.toLowerCase()
+      `${sacrificio.numero_documento} ${sacrificio.dueno_anterior_nombre} ${sacrificio.consignante || ""} ${sacrificio.planilla || ""} ${marca}`.toLowerCase()
     return searchString.includes(searchTerm.toLowerCase())
   })
 
@@ -28,7 +32,7 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
               type="search"
-              placeholder="Buscar por número, dueño, consignante o planilla..."
+              placeholder="Buscar por número, dueño, consignante, planilla o marca..."
               className="pl-8"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -47,6 +51,7 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
                 <TableHead>Fecha</TableHead>
                 <TableHead>Dueño Anterior</TableHead>
                 <TableHead>Consignante</TableHead>
+                <TableHead>Marca</TableHead>
                 <TableHead>Recibos báscula</TableHead>
                 <TableHead>Machos</TableHead>
                 <TableHead>Hembras</TableHead>
@@ -79,6 +84,29 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
                     </TableCell>
                     <TableCell>{sacrificio.dueno_anterior_nombre}</TableCell>
                     <TableCell>{sacrificio.consignante || "-"}</TableCell>
+                    <TableCell>
+                      {sacrificio.id_dueno_nuevo ? (
+                        <div className="flex items-center gap-2">
+                          {contactosNuevos?.find((c) => c.id === sacrificio.id_dueno_nuevo)?.imagen_url && (
+                            <img
+                              src={
+                                contactosNuevos.find((c) => c.id === sacrificio.id_dueno_nuevo)?.imagen_url ||
+                                "/placeholder.svg" ||
+                                "/placeholder.svg"
+                              }
+                              alt="Logo de marca"
+                              className="h-8 w-8 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = "/abstract-logo.png"
+                              }}
+                            />
+                          )}
+                          <span>{contactosNuevos?.find((c) => c.id === sacrificio.id_dueno_nuevo)?.marca || "-"}</span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
                     <TableCell>{sacrificio.observaciones || "-"}</TableCell>
                     <TableCell className="text-center">{sacrificio.quantity_m}</TableCell>
                     <TableCell className="text-center">{sacrificio.quantity_h}</TableCell>

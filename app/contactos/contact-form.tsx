@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlusCircle, Trash, Loader2, AlertCircle } from "lucide-react"
+import { ImageUpload } from "@/components/image-upload"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +42,8 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
     email: contact?.email || "",
     type: contact?.type?.toString() || "1",
     business_location_id: contact?.business_location_id?.toString() || "1",
+    marca: contact?.marca || "",
+    imagen_url: contact?.imagen_url || "",
   })
 
   // Estado para las ubicaciones
@@ -103,6 +106,10 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
 
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleImageChange = (imageUrl) => {
+    setFormData((prev) => ({ ...prev, imagen_url: imageUrl }))
   }
 
   const handleUbicacionChange = (e) => {
@@ -202,6 +209,17 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
     setIsSubmitting(true)
 
     try {
+      // Validar campos específicos según el tipo de contacto
+      if ((formData.type === "2" || formData.type === "3") && (!formData.marca || !formData.imagen_url)) {
+        toast({
+          title: "Error",
+          description: "Para Dueño Nuevo o Ambos, la marca y el logo son obligatorios",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+
       // Crear un objeto FormData con los datos del formulario
       const formDataObj = new FormData()
       Object.entries(formData).forEach(([key, value]) => {
@@ -252,6 +270,24 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const type = Number(formData.type)
+  const marca = {
+    label: "Marca",
+    required: type === 2 || type === 3,
+  }
+
+  const imagen_url = {
+    label: "Logo de la Marca",
+    required: type === 2 || type === 3,
+  }
+
+  const [errors, setErrors] = useState({})
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   return (
@@ -327,6 +363,34 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
                 </SelectContent>
               </Select>
             </div>
+            {type === 2 || type === 3 ? (
+              <>
+                <div className="col-span-2">
+                  <Label htmlFor="marca" className={marca.required ? "required" : ""}>
+                    {marca.label}
+                  </Label>
+                  <Input
+                    id="marca"
+                    name="marca"
+                    value={formData.marca || ""}
+                    onChange={handleInputChange}
+                    className={errors.marca ? "border-red-500" : ""}
+                    required={marca.required}
+                  />
+                  {errors.marca && <p className="text-red-500 text-sm mt-1">{errors.marca}</p>}
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="imagen_url" className={imagen_url.required ? "required" : ""}>
+                    {imagen_url.label}
+                  </Label>
+                  <ImageUpload
+                    value={formData.imagen_url || ""}
+                    onChange={(url) => setFormData({ ...formData, imagen_url: url })}
+                  />
+                  {errors.imagen_url && <p className="text-red-500 text-sm mt-1">{errors.imagen_url}</p>}
+                </div>
+              </>
+            ) : null}
           </div>
         </TabsContent>
 

@@ -28,19 +28,21 @@ export default async function EditarSacrificioPage({ params }) {
   // Obtener impuestos para este tipo de animal
   const impuestos = await getTaxesByLocationType(tipoAnimal)
 
-  // Obtener el último consecutivo y planilla para este tipo de animal
+  // Obtener el último consecutivo para esta ubicación específica
   const ultimoConsecutivoResult = await sql`
     SELECT MAX(consec) as ultimo_consec
     FROM transactions
     WHERE business_location_id = ${locationId} AND type = 'exit'
   `
 
+  // Obtener la última planilla para esta ubicación específica
   const ultimaPlanillaResult = await sql`
     SELECT MAX(planilla) as ultima_planilla
     FROM transactions
     WHERE business_location_id = ${locationId} AND type = 'exit'
   `
 
+  // Convertir a números y manejar valores nulos
   const ultimoConsecutivo = ultimoConsecutivoResult.rows[0]?.ultimo_consec || 0
   const ultimaPlanilla = ultimaPlanillaResult.rows[0]?.ultima_planilla || 0
 

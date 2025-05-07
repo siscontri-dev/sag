@@ -699,3 +699,37 @@ export async function getFinancialData() {
     }
   }
 }
+
+// Nueva función para obtener consignantes por location_id
+export async function getConsignantesByLocationId(locationId: number) {
+  noStore()
+  try {
+    console.log(`Obteniendo consignantes para location_id ${locationId}`)
+
+    // Verificar si la tabla consignantes existe
+    const tableCheck = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'consignantes'
+      ) as exists
+    `
+
+    if (!tableCheck.rows[0].exists) {
+      console.error("La tabla consignantes no existe en la base de datos")
+      return []
+    }
+
+    const result = await sql`
+      SELECT id, nombre
+      FROM consignantes
+      WHERE location_id = ${locationId} AND activo = TRUE
+      ORDER BY nombre
+    `
+    console.log(`Consignantes encontrados: ${result.rows.length}`)
+    return result.rows
+  } catch (error) {
+    console.error(`Error al obtener consignantes para location_id ${locationId}:`, error)
+    return []
+  }
+}
