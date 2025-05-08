@@ -66,7 +66,7 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
               {filteredSacrificios.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={14} className="text-center py-4">
-                    No hay sacrificios registrados
+                    No hay guías de degüello registradas
                   </TableCell>
                 </TableRow>
               ) : (
@@ -91,6 +91,7 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
                             <img
                               src={
                                 contactosNuevos.find((c) => c.id === sacrificio.id_dueno_nuevo)?.imagen_url ||
+                                "/placeholder.svg" ||
                                 "/placeholder.svg" ||
                                 "/placeholder.svg"
                               }

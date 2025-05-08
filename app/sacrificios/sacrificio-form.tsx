@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -13,7 +13,7 @@ import { formatCurrency } from "@/lib/utils"
 import { themeColors } from "@/lib/theme-config"
 import { createSacrificio } from "./actions"
 import PrintSacrificioDialog from "@/components/print-sacrificio-dialog"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2, X } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Importar los componentes necesarios para los diálogos
@@ -63,20 +63,25 @@ export default function SacrificioForm({
     area_hectareas: "",
     es_principal: true, // Por defecto, la primera ubicación es principal
   })
-  const [newUbicacionNuevoData, setNewUbicacionNuevoData] = useState({
-    nombre_finca: "",
-    direccion: "",
-    id_departamento: "",
-    id_municipio: "",
-    area_hectareas: "",
-    es_principal: false,
-  })
   const [isCreatingContact, setIsCreatingContact] = useState(false)
-  const [isCreatingUbicacionNuevo, setIsCreatingUbicacionNuevo] = useState(false)
   const [departamentos, setDepartamentos] = useState([])
   const [municipiosUbicacionNuevo, setMunicipiosUbicacionNuevo] = useState([])
   const [municipiosContacto, setMunicipiosContacto] = useState([])
   const [showCreateFincaDialog, setShowCreateFincaDialog] = useState(false)
+
+  // Estados para el buscador de contactos
+  const [searchDuenoAnterior, setSearchDuenoAnterior] = useState("")
+  const [searchDuenoNuevo, setSearchDuenoNuevo] = useState("")
+  const [showDropdownAnterior, setShowDropdownAnterior] = useState(false)
+  const [showDropdownNuevo, setShowDropdownNuevo] = useState(false)
+  const [filteredContactosAnteriores, setFilteredContactosAnteriores] = useState([])
+  const [filteredContactosNuevos, setFilteredContactosNuevos] = useState([])
+  const duenoAnteriorRef = useRef(null)
+  const duenoNuevoRef = useRef(null)
+
+  // Agregar nuevos estados para el índice seleccionado
+  const [selectedIndexAnterior, setSelectedIndexAnterior] = useState(-1)
+  const [selectedIndexNuevo, setSelectedIndexNuevo] = useState(-1)
 
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
@@ -116,6 +121,7 @@ export default function SacrificioForm({
   const [isLoadingFincas, setIsLoadingFincas] = useState(false)
   const [isLoadingUbicacionesNuevo, setIsLoadingUbicacionesNuevo] = useState(false)
   const [showNoUbicacionAlert, setShowNoUbicacionAlert] = useState(false)
+  const [isCreatingUbicacionNuevo, setIsCreatingUbicacionNuevo] = useState(false)
 
   // Calcular totales
   const cantidadMachos = Number.parseInt(formData.cantidad_machos) || 0
@@ -202,6 +208,16 @@ export default function SacrificioForm({
       setMunicipiosContacto([])
     }
   }, [newContactData.id_departamento])
+
+  // Modificar el estado de newUbicacionNuevoData para incluir marca e imagen_url
+  const [newUbicacionNuevoData, setNewUbicacionNuevoData] = useState({
+    nombre_finca: "",
+    direccion: "",
+    id_departamento: "",
+    id_municipio: "",
+    area_hectareas: "",
+    es_principal: false,
+  })
 
   // Efecto para cargar municipios cuando cambia el departamento en ubicación nuevo
   useEffect(() => {
@@ -415,6 +431,9 @@ export default function SacrificioForm({
           // Actualizar la lista de contactos anteriores
           contactosAnteriores.push(nuevoContacto)
           setFormData((prev) => ({ ...prev, id_dueno_anterior: result.contactId.toString() }))
+          setSearchDuenoAnterior(
+            `${nuevoContacto.primer_nombre} ${nuevoContacto.primer_apellido} - ${nuevoContacto.nit}`,
+          )
 
           // También agregar a la lista de contactos nuevos si es necesario
           if (nuevoContacto.type === 3) {
@@ -434,6 +453,9 @@ export default function SacrificioForm({
           // Actualizar la lista de contactos nuevos
           contactosNuevos.push(nuevoContacto)
           setFormData((prev) => ({ ...prev, id_dueno_nuevo: result.contactId.toString() }))
+          setSearchDuenoNuevo(
+            `${nuevoContacto.primer_nombre} ${nuevoContacto.primer_apellido} - ${nuevoContacto.nit}${nuevoContacto.marca ? ` (${nuevoContacto.marca})` : ""}`,
+          )
 
           // También agregar a la lista de contactos anteriores si es necesario
           if (nuevoContacto.type === 3) {
@@ -487,6 +509,14 @@ export default function SacrificioForm({
     }
   }
 
+  // Añadir función para manejar cambios en la imagen de la ubicación
+  // const handleNewUbicacionImageChange = (imageUrl) => {
+  //   setNewUbicacionNuevoData((prev) => ({
+  //   ...prev,
+  //   imagen_url: imageUrl,
+  //   }))
+  // }
+
   // Añadir función para manejar la creación de una nueva ubicación para el dueño nuevo
   const handleCreateUbicacionNuevo = async () => {
     if (
@@ -521,6 +551,8 @@ export default function SacrificioForm({
       ubicacionFormData.append("id_municipio", newUbicacionNuevoData.id_municipio)
       ubicacionFormData.append("area_hectareas", newUbicacionNuevoData.area_hectareas || "")
       ubicacionFormData.append("es_principal", newUbicacionNuevoData.es_principal ? "true" : "false")
+      // ubicacionFormData.append("marca", newUbicacionNuevoData.marca || "") // Añadir marca
+      // ubicacionFormData.append("imagen_url", newUbicacionNuevoData.imagen_url || "") // Añadir imagen_url
 
       // Llamar a la función del servidor para crear la ubicación
       const contactId = Number(formData.id_dueno_nuevo)
@@ -655,6 +687,86 @@ export default function SacrificioForm({
     }
   }
 
+  // Efecto para cerrar el dropdown cuando se hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (duenoAnteriorRef.current && !duenoAnteriorRef.current.contains(event.target)) {
+        setShowDropdownAnterior(false)
+      }
+      if (duenoNuevoRef.current && !duenoNuevoRef.current.contains(event.target)) {
+        setShowDropdownNuevo(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
+  // Inicializar los contactos filtrados
+  useEffect(() => {
+    setFilteredContactosAnteriores(contactosAnteriores.filter((contact) => contact.type === 1))
+  }, [contactosAnteriores])
+
+  useEffect(() => {
+    setFilteredContactosNuevos(contactosNuevos.filter((contact) => contact.type === 2 || contact.type === 3))
+  }, [contactosNuevos])
+
+  // 1. Primero, modificar los efectos para filtrar contactos por business_location_id
+  // Reemplazar estas líneas:
+  // useEffect(() => {
+  //   setFilteredContactosAnteriores(contactosAnteriores.filter((contact) => contact.type === 1))
+  // }, [contactosAnteriores])
+
+  // useEffect(() => {
+  //   setFilteredContactosNuevos(contactosNuevos.filter((contact) => contact.type === 2 || contact.type === 3))
+  // }, [contactosNuevos])
+
+  // Por estas líneas que incluyen el filtro por business_location_id:
+  // useEffect(() => {
+  //   setFilteredContactosAnteriores(
+  //     contactosAnteriores.filter(
+  //       (contact) => contact.type === 1 && contact.business_location_id === Number(formData.business_location_id),
+  //     ),
+  //   )
+  // }, [contactosAnteriores, formData.business_location_id])
+
+  // useEffect(() => {
+  //   setFilteredContactosNuevos(
+  //     contactosNuevos.filter(
+  //       (contact) =>
+  //         (contact.type === 2 || contact.type === 3) &&
+  //         contact.business_location_id === Number(formData.business_location_id),
+  //     ),
+  //   )
+  // }, [contactosNuevos, formData.business_location_id])
+
+  // Modificar los efectos para filtrar contactos correctamente según business_location_id
+  // Reemplazar los efectos actuales (aproximadamente líneas 371-383) con estos:
+
+  // Para filtrar contactos anteriores (propietarios)
+  useEffect(() => {
+    // Filtrar contactos según business_location_id
+    // Si estamos en bovinos (tipoAnimal === "bovino"), mostrar contactos con business_location_id = 2
+    // Si estamos en porcinos (tipoAnimal === "porcino"), mostrar contactos con business_location_id = 1
+    const locationIdToFilter = tipoAnimal === "bovino" ? 2 : 1
+
+    setFilteredContactosAnteriores(
+      contactosAnteriores.filter((contact) => contact.business_location_id === locationIdToFilter),
+    )
+  }, [contactosAnteriores, tipoAnimal])
+
+  // Para filtrar contactos nuevos
+  useEffect(() => {
+    // Filtrar contactos según business_location_id
+    // Si estamos en bovinos (tipoAnimal === "bovino"), mostrar contactos con business_location_id = 2
+    // Si estamos en porcinos (tipoAnimal === "porcino"), mostrar contactos con business_location_id = 1
+    const locationIdToFilter = tipoAnimal === "bovino" ? 2 : 1
+
+    setFilteredContactosNuevos(contactosNuevos.filter((contact) => contact.business_location_id === locationIdToFilter))
+  }, [contactosNuevos, tipoAnimal])
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Sección de información general */}
@@ -667,7 +779,7 @@ export default function SacrificioForm({
       >
         <div className="space-y-1">
           <Label htmlFor="numero_documento" className="text-sm">
-            Guía de Sacrificio
+            Guía de Degüello
           </Label>
           <Input
             id="numero_documento"
@@ -705,7 +817,7 @@ export default function SacrificioForm({
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <Label htmlFor="id_dueno_anterior" className="text-sm">
-              Dueño Anterior
+              Propietario
             </Label>
             <Button
               type="button"
@@ -721,23 +833,94 @@ export default function SacrificioForm({
               Nuevo
             </Button>
           </div>
-          <Select
-            value={formData.id_dueno_anterior}
-            onValueChange={(value) => handleSelectChange("id_dueno_anterior", value)}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue placeholder="Seleccione dueño" />
-            </SelectTrigger>
-            <SelectContent>
-              {contactosAnteriores
-                .filter((contact) => contact.type === 1 || contact.type === 3)
-                .map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id.toString()}>
-                    {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <div className="relative">
+            <Input
+              id="search_dueno_anterior"
+              placeholder="Buscar por nombre, apellido o NIT..."
+              value={searchDuenoAnterior}
+              autoComplete="off"
+              onChange={(e) => {
+                setSearchDuenoAnterior(e.target.value)
+                setShowDropdownAnterior(true)
+                setSelectedIndexAnterior(-1) // Resetear el índice seleccionado
+
+                // Filtrar contactos mientras se escribe
+                const searchTerm = e.target.value.toLowerCase()
+                const filtered = contactosAnteriores
+                  .filter((contact) => contact.type === 1)
+                  .filter(
+                    (contact) =>
+                      (contact.primer_nombre && contact.primer_nombre.toLowerCase().includes(searchTerm)) ||
+                      (contact.primer_apellido && contact.primer_apellido.toLowerCase().includes(searchTerm)) ||
+                      (contact.nit && contact.nit.toLowerCase().includes(searchTerm)),
+                  )
+                setFilteredContactosAnteriores(filtered)
+              }}
+              onFocus={() => setShowDropdownAnterior(true)}
+              onKeyDown={(e) => {
+                if (!showDropdownAnterior || filteredContactosAnteriores.length === 0) return
+
+                // Navegar con flechas
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setSelectedIndexAnterior((prevIndex) =>
+                    prevIndex < filteredContactosAnteriores.length - 1 ? prevIndex + 1 : prevIndex,
+                  )
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setSelectedIndexAnterior((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : 0))
+                } else if (e.key === "Enter" && selectedIndexAnterior >= 0) {
+                  e.preventDefault()
+                  const contacto = filteredContactosAnteriores[selectedIndexAnterior]
+                  setFormData((prev) => ({ ...prev, id_dueno_anterior: contacto.id.toString() }))
+                  setSearchDuenoAnterior(`${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`)
+                  setShowDropdownAnterior(false)
+                } else if (e.key === "Escape") {
+                  setShowDropdownAnterior(false)
+                }
+              }}
+              className="h-8"
+            />
+            {formData.id_dueno_anterior && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, id_dueno_anterior: "" }))
+                  setSearchDuenoAnterior("")
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+            {showDropdownAnterior && searchDuenoAnterior && (
+              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                {filteredContactosAnteriores.length > 0 ? (
+                  filteredContactosAnteriores.map((contacto, index) => (
+                    <div
+                      key={contacto.id}
+                      className={`px-3 py-2 hover:bg-gray-100 cursor-pointer ${
+                        index === selectedIndexAnterior ? "bg-gray-100" : ""
+                      }`}
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, id_dueno_anterior: contacto.id.toString() }))
+                        setSearchDuenoAnterior(
+                          `${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`,
+                        )
+                        setShowDropdownAnterior(false)
+                      }}
+                    >
+                      {contacto.primer_nombre} {contacto.primer_apellido} - {contacto.nit}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">No se encontraron resultados</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Selector de finca para dueño anterior */}
@@ -786,7 +969,7 @@ export default function SacrificioForm({
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <Label htmlFor="id_dueno_nuevo" className="text-sm">
-              Dueño Nuevo
+              Nuevo Propietario
             </Label>
             <Button
               type="button"
@@ -802,34 +985,108 @@ export default function SacrificioForm({
               Nuevo
             </Button>
           </div>
-          <Select
-            value={formData.id_dueno_nuevo}
-            onValueChange={(value) => handleSelectChange("id_dueno_nuevo", value)}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue placeholder="Seleccione dueño" />
-            </SelectTrigger>
-            <SelectContent>
-              {contactosNuevos
-                .filter((contact) => contact.type === 2 || contact.type === 3)
-                .map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id.toString()}>
-                    <div className="flex items-center gap-2">
-                      {contact.imagen_url && (
-                        <img
-                          src={contact.imagen_url || "/placeholder.svg"}
-                          alt={contact.marca || "Logo"}
-                          className="h-5 w-5 object-contain"
-                          onError={(e) => (e.currentTarget.src = "/abstract-logo.png")}
-                        />
-                      )}
-                      {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                      {contact.marca && ` (${contact.marca})`}
+          <div className="relative">
+            <Input
+              id="search_dueno_nuevo"
+              placeholder="Buscar por nombre, apellido, NIT o marca..."
+              value={searchDuenoNuevo}
+              autoComplete="off"
+              onChange={(e) => {
+                setSearchDuenoNuevo(e.target.value)
+                setShowDropdownNuevo(true)
+                setSelectedIndexNuevo(-1) // Resetear el índice seleccionado
+
+                // Filtrar contactos mientras se escribe
+                const searchTerm = e.target.value.toLowerCase()
+                const filtered = contactosNuevos
+                  .filter((contact) => contact.type === 2 || contact.type === 3)
+                  .filter(
+                    (contact) =>
+                      (contact.primer_nombre && contact.primer_nombre.toLowerCase().includes(searchTerm)) ||
+                      (contact.primer_apellido && contact.primer_apellido.toLowerCase().includes(searchTerm)) ||
+                      (contact.nit && contact.nit.toLowerCase().includes(searchTerm)) ||
+                      (contact.marca && contact.marca.toLowerCase().includes(searchTerm)),
+                  )
+                setFilteredContactosNuevos(filtered)
+              }}
+              onFocus={() => setShowDropdownNuevo(true)}
+              onKeyDown={(e) => {
+                if (!showDropdownNuevo || filteredContactosNuevos.length === 0) return
+
+                // Navegar con flechas
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setSelectedIndexNuevo((prevIndex) =>
+                    prevIndex < filteredContactosNuevos.length - 1 ? prevIndex + 1 : prevIndex,
+                  )
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setSelectedIndexNuevo((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : 0))
+                } else if (e.key === "Enter" && selectedIndexNuevo >= 0) {
+                  e.preventDefault()
+                  const contacto = filteredContactosNuevos[selectedIndexNuevo]
+                  setFormData((prev) => ({ ...prev, id_dueno_nuevo: contacto.id.toString() }))
+                  setSearchDuenoNuevo(
+                    `${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}${contacto.marca ? ` (${contacto.marca})` : ""}`,
+                  )
+                  setShowDropdownNuevo(false)
+                } else if (e.key === "Escape") {
+                  setShowDropdownNuevo(false)
+                }
+              }}
+              className="h-8"
+            />
+            {formData.id_dueno_nuevo && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, id_dueno_nuevo: "" }))
+                  setSearchDuenoNuevo("")
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+            {showDropdownNuevo && searchDuenoNuevo && (
+              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                {filteredContactosNuevos.length > 0 ? (
+                  filteredContactosNuevos.map((contacto, index) => (
+                    <div
+                      key={contacto.id}
+                      className={`px-3 py-2 hover:bg-gray-100 cursor-pointer ${
+                        index === selectedIndexNuevo ? "bg-gray-100" : ""
+                      }`}
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, id_dueno_nuevo: contacto.id.toString() }))
+                        setSearchDuenoNuevo(
+                          `${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}${contacto.marca ? ` (${contacto.marca})` : ""}`,
+                        )
+                        setShowDropdownNuevo(false)
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {contacto.imagen_url && (
+                          <img
+                            src={contacto.imagen_url || "/placeholder.svg"}
+                            alt={contacto.marca || "Logo"}
+                            className="h-5 w-5 object-contain"
+                            onError={(e) => (e.currentTarget.src = "/abstract-logo.png")}
+                          />
+                        )}
+                        {contacto.primer_nombre} {contacto.primer_apellido} - {contacto.nit}
+                        {contacto.marca && ` (${contacto.marca})`}
+                      </div>
                     </div>
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">No se encontraron resultados</div>
+                )}
+              </div>
+            )}
+          </div>
           {formData.id_dueno_nuevo && (
             <div className="mt-2">
               {contactosNuevos
@@ -839,6 +1096,11 @@ export default function SacrificioForm({
                   <img
                     src={
                       contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||
@@ -863,7 +1125,7 @@ export default function SacrificioForm({
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <Label htmlFor="ubicacion_nuevo" className="text-sm">
-              Ubicación Dueño Nuevo
+              Dirección Propietario
             </Label>
             <Button
               type="button"
@@ -971,7 +1233,7 @@ export default function SacrificioForm({
       <Card>
         <CardHeader className="py-3">
           <CardTitle className="text-lg" style={{ color: colors.text }}>
-            Información del Sacrificio
+            Información de la Guía de Degüello
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1046,7 +1308,7 @@ export default function SacrificioForm({
         <div className="h-1" style={{ backgroundColor: colors.dark }}></div>
         <CardHeader className="py-3" style={{ backgroundColor: colors.light }}>
           <CardTitle className="text-lg" style={{ color: colors.text }}>
-            Resumen del Sacrificio
+            Resumen de la Guía de Degüello
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4">
@@ -1204,7 +1466,7 @@ export default function SacrificioForm({
       <Dialog open={showCreateContactDialog} onOpenChange={setShowCreateContactDialog}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Crear Nuevo {contactType === "anterior" ? "Dueño Anterior" : "Dueño Nuevo"}</DialogTitle>
+            <DialogTitle>Crear Nuevo {contactType === "anterior" ? "Propietario" : "Nuevo Propietario"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-3">
@@ -1421,12 +1683,12 @@ export default function SacrificioForm({
 
       {/* Modal para crear una nueva ubicación para el dueño nuevo */}
       <Dialog open={showCreateUbicacionNuevoDialog} onOpenChange={setShowCreateUbicacionNuevoDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Crear Nueva Ubicación para Dueño Nuevo</DialogTitle>
+            <DialogTitle>Crear Nueva Ubicación para Nuevo Propietario</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="nombre_finca_nuevo" className="text-sm">
                   Nombre de la Finca *
@@ -1529,6 +1791,8 @@ export default function SacrificioForm({
                   Establecer como ubicación principal
                 </Label>
               </div>
+
+              {/* Añadir campos para marca e imagen */}
             </div>
           </div>
           <DialogFooter>

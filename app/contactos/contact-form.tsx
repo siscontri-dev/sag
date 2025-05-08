@@ -27,7 +27,13 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 
-export default function ContactForm({ departamentos = [], contact = null, ubicaciones = [] }) {
+// Modificar la inicialización del estado formData para usar el defaultBusinessLocationId
+export default function ContactForm({
+  departamentos = [],
+  contact = null,
+  ubicaciones = [],
+  defaultBusinessLocationId = null,
+}) {
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -40,7 +46,7 @@ export default function ContactForm({ departamentos = [], contact = null, ubicac
     telefono: contact?.telefono || "",
     email: contact?.email || "",
     type: contact?.type?.toString() || "1",
-    business_location_id: contact?.business_location_id?.toString() || "1",
+    business_location_id: contact?.business_location_id?.toString() || defaultBusinessLocationId?.toString() || "1",
     marca: contact?.marca || "",
     imagen_url: contact?.imagen_url || "",
   })

@@ -63,9 +63,9 @@
     "@vercel/postgres": "latest",
     "pdfkit": "latest",
     "xlsx": "latest",
-    "exceljs": "latest",
     "@vercel/blob": "latest",
-    "uuid": "latest"
+    "uuid": "latest",
+    "exceljs": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

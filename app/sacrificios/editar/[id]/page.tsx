@@ -66,7 +66,9 @@ export default async function EditarSacrificioPage({ params }) {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">Editar Sacrificio de {tipoAnimal === "bovino" ? "Bovino" : "Porcino"}</h1>
+      <h1 className="text-2xl font-bold mb-6">
+        Editar Guía de Degüello de {tipoAnimal === "bovino" ? "Bovino" : "Porcino"}
+      </h1>
       <SacrificioForm
         contactosAnteriores={contactos}
         contactosNuevos={contactos}

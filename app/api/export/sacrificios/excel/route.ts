@@ -126,7 +126,7 @@ export async function GET(request) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "Content-Disposition": `attachment; filename=sacrificios_${tipo || "todos"}_${
+        "Content-Disposition": `attachment; filename=guias_deguello_${tipo || "todos"}_${
           new Date().toISOString().split("T")[0]
         }.xlsx`,
       },

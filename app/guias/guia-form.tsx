@@ -9,7 +9,7 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, Trash, Loader2, Printer, AlertCircle } from "lucide-react"
+import { PlusCircle, Trash, Loader2, Printer, X } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { themeColors } from "@/lib/theme-config"
 import { createGuia, updateGuia } from "./actions"
@@ -20,7 +20,6 @@ import BulkTicketPrinter from "@/components/bulk-ticket-printer"
 // Añadir importaciones necesarias para el modal de creación de fincas
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { createUbication } from "@/app/contactos/actions"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 
 // Necesitamos agregar los estados y funciones para manejar la creación de contactos
 // Primero, asegúrate de que estas importaciones estén presentes:
@@ -64,14 +63,12 @@ export default function GuiaForm({
       ? new Date(guia.fecha_documento).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0],
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
-    id_dueno_nuevo: guia?.id_dueno_nuevo?.toString() || "",
     business_location_id: locationId.toString(),
     estado: guia?.estado || "confirmado",
   })
 
   // Modificar el estado del formulario para incluir las fincas seleccionadas
   const [selectedFinca, setSelectedFinca] = useState(guia?.ubication_contact_id?.toString() || "")
-  const [selectedUbicacionNuevo, setSelectedUbicacionNuevo] = useState(guia?.ubication_contact_id2?.toString() || "")
   const [fincas, setFincas] = useState([])
   const [ubicacionesNuevo, setUbicacionesNuevo] = useState([])
   const [showCreateFincaDialog, setShowCreateFincaDialog] = useState(false)
@@ -112,6 +109,7 @@ export default function GuiaForm({
     area_hectareas: "",
     es_principal: true, // Por defecto, la primera ubicación es principal
   })
+  // Modificar el estado de newUbicacionNuevoData para incluir marca e imagen_url
   const [newUbicacionNuevoData, setNewUbicacionNuevoData] = useState({
     nombre_finca: "",
     direccion: "",
@@ -124,6 +122,7 @@ export default function GuiaForm({
   const [isCreatingUbicacionNuevo, setIsCreatingUbicacionNuevo] = useState(false)
   const [municipiosUbicacionNuevo, setMunicipiosUbicacionNuevo] = useState([])
   const [municipiosContacto, setMunicipiosContacto] = useState([])
+  const [selectedUbicacionNuevo, setSelectedUbicacionNuevo] = useState("")
 
   // Estado para las líneas de la guía
   const [lineas, setLineas] = useState(
@@ -135,6 +134,15 @@ export default function GuiaForm({
       es_macho: line.es_macho || false,
     })) || [],
   )
+
+  // Estados para el buscador de contactos
+  const [searchDuenoAnterior, setSearchDuenoAnterior] = useState("")
+  const [showDropdownAnterior, setShowDropdownAnterior] = useState(false)
+  const [filteredContactosAnteriores, setFilteredContactosAnteriores] = useState([])
+  const duenoAnteriorRef = useRef(null)
+
+  // Agregar nuevos estados para el índice seleccionado
+  const [selectedIndexAnterior, setSelectedIndexAnterior] = useState(-1)
 
   const [nuevaLinea, setNuevaLinea] = useState({
     ticket: "",
@@ -228,6 +236,34 @@ export default function GuiaForm({
     }
   }, [newUbicacionNuevoData.id_departamento])
 
+  // Efecto para cerrar el dropdown cuando se hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (duenoAnteriorRef.current && !duenoAnteriorRef.current.contains(event.target)) {
+        setShowDropdownAnterior(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
+  // Inicializar los contactos filtrados
+  // Modificar los efectos para filtrar contactos correctamente según business_location_id
+  // Reemplazar los efectos actuales (aproximadamente líneas 371-383) con estos:
+
+  // Para filtrar contactos anteriores (propietarios)
+  useEffect(() => {
+    // Filtrar contactos según business_location_id
+    // Si estamos en bovinos (tipoAnimal === "bovino"), mostrar contactos con business_location_id = 2
+    // Si estamos en porcinos (tipoAnimal === "porcino"), mostrar contactos con business_location_id = 1
+    const locationIdToFilter = tipoAnimal === "bovino" ? 2 : 1
+
+    setFilteredContactosAnteriores(contacts.filter((contact) => contact.business_location_id === locationIdToFilter))
+  }, [contacts, tipoAnimal])
+
   // Función para cargar municipios
   const fetchMunicipios = async (departamentoId) => {
     try {
@@ -281,47 +317,6 @@ export default function GuiaForm({
       setSelectedFinca("")
     }
   }, [formData.id_dueno_anterior])
-
-  // Efecto para cargar las ubicaciones cuando cambia el dueño nuevo
-  useEffect(() => {
-    if (formData.id_dueno_nuevo) {
-      const fetchUbicaciones = async () => {
-        setIsLoadingUbicacionesNuevo(true)
-        setShowNoUbicacionAlert(false)
-        try {
-          const response = await fetch(`/api/contactos/${formData.id_dueno_nuevo}/ubicaciones`)
-          if (response.ok) {
-            const data = await response.json()
-            setUbicacionesNuevo(data)
-            // Si hay ubicaciones, seleccionar la predeterminada o la primera
-            if (data.length > 0) {
-              const predeterminada = data.find((u) => u.es_principal)
-              if (predeterminada) {
-                setSelectedUbicacionNuevo(predeterminada.id.toString())
-              } else {
-                setSelectedUbicacionNuevo(data[0].id.toString())
-              }
-            } else {
-              setSelectedUbicacionNuevo("")
-              setShowNoUbicacionAlert(true)
-            }
-          }
-        } catch (error) {
-          console.error("Error al cargar ubicaciones del dueño nuevo:", error)
-          setUbicacionesNuevo([])
-          setSelectedUbicacionNuevo("")
-          setShowNoUbicacionAlert(true)
-        } finally {
-          setIsLoadingUbicacionesNuevo(false)
-        }
-      }
-      fetchUbicaciones()
-    } else {
-      setUbicacionesNuevo([])
-      setSelectedUbicacionNuevo("")
-      setShowNoUbicacionAlert(false)
-    }
-  }, [formData.id_dueno_nuevo])
 
   // Función para manejar la creación de una nueva finca
   const handleCreateFinca = async () => {
@@ -513,9 +508,12 @@ export default function GuiaForm({
         // Actualizar la lista de contactos
         contacts.push(nuevoContacto)
 
-        // Seleccionar el contacto recién creado
+        // En la parte donde se actualiza el estado después de crear un contacto
         if (contactType === "anterior") {
           setFormData((prev) => ({ ...prev, id_dueno_anterior: result.contactId.toString() }))
+          setSearchDuenoAnterior(
+            `${nuevoContacto.primer_nombre} ${nuevoContacto.primer_apellido} - ${nuevoContacto.nit}`,
+          )
           // Cargar las fincas del nuevo contacto
           const response = await fetch(`/api/contactos/${result.contactId}/ubicaciones`)
           if (response.ok) {
@@ -523,17 +521,6 @@ export default function GuiaForm({
             setFincas(data)
             if (data.length > 0) {
               setSelectedFinca(data[0].id.toString())
-            }
-          }
-        } else {
-          setFormData((prev) => ({ ...prev, id_dueno_nuevo: result.contactId.toString() }))
-          // Cargar las ubicaciones del nuevo contacto
-          const response = await fetch(`/api/contactos/${result.contactId}/ubicaciones`)
-          if (response.ok) {
-            const data = await response.json()
-            setUbicacionesNuevo(data)
-            if (data.length > 0) {
-              setSelectedUbicacionNuevo(data[0].id.toString())
             }
           }
         }
@@ -575,6 +562,9 @@ export default function GuiaForm({
   }
 
   // Añadir función para manejar la creación de una nueva ubicación para el dueño nuevo
+  // Modificar la función handleCreateUbicacionNuevo para incluir marca e imagen_url
+
+  // Modificar la función handleCreateUbicacionNuevo para incluir marca e imagen_url
   const handleCreateUbicacionNuevo = async () => {
     if (
       !newUbicacionNuevoData.nombre_finca ||
@@ -658,10 +648,10 @@ export default function GuiaForm({
 
   // Añadir esta función para manejar la apertura del diálogo de creación de contactos
   const handleOpenCreateContactDialog = (type) => {
-    setContactType(type)
+    setContactType("anterior") // Solo permitimos "anterior"
     setNewContactData((prev) => ({
       ...prev,
-      type: type === "anterior" ? 1 : type === "nuevo" ? 2 : 3,
+      type: 1, // Siempre tipo 1 para dueño anterior
     }))
     setShowCreateContactDialog(true)
   }
@@ -782,6 +772,14 @@ export default function GuiaForm({
       kilos: "",
       raza_id: tipoAnimal === "porcino" ? "1" : "",
       color_id: tipoAnimal === "porcino" ? "6" : "",
+      es_macho: false,
+    })
+
+    // Resetear la validación
+    setValidationAttempted(false)
+    setValidationErrors({
+      ticket: false,
+      product_id: false,
       es_macho: false,
     })
 
@@ -913,7 +911,7 @@ export default function GuiaForm({
         ...formData,
         business_location_id: Number(formData.business_location_id),
         id_dueno_anterior: Number(formData.id_dueno_anterior),
-        id_dueno_nuevo: Number(formData.id_dueno_nuevo),
+        id_dueno_nuevo: null, // Ya no se usa
         total: totales.totalValor,
         estado: formData.estado || "confirmado",
         type: "entry",
@@ -922,7 +920,7 @@ export default function GuiaForm({
         quantity_h: totalHembras, // Cantidad de animales hembras
         quantity_k: totalKilos, // Total de kilos
         ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
-        ubication_contact_id2: selectedUbicacionNuevo ? Number(selectedUbicacionNuevo) : null, // Ubicación del dueño nuevo
+        ubication_contact_id2: null, // Ya no se usa
         lineas: lineas.map((linea) => ({
           ticket: Number(linea.ticket),
           product_id: Number(linea.product_id),
@@ -1047,7 +1045,7 @@ export default function GuiaForm({
         <div className="space-y-1 col-span-2 md:col-span-1">
           <div className="flex justify-between items-center">
             <Label htmlFor="id_dueno_anterior" className="text-sm">
-              Dueño Anterior
+              Propietario
             </Label>
             <Button
               type="button"
@@ -1060,23 +1058,94 @@ export default function GuiaForm({
               Nuevo
             </Button>
           </div>
-          <Select
-            value={formData.id_dueno_anterior}
-            onValueChange={(value) => handleSelectChange("id_dueno_anterior", value)}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue placeholder="Seleccione dueño anterior" />
-            </SelectTrigger>
-            <SelectContent>
-              {contacts
-                .filter((c) => c.type === 1 || c.type === 3)
-                .map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id.toString()}>
-                    {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
+          <div className="relative" ref={duenoAnteriorRef}>
+            <Input
+              id="search_dueno_anterior"
+              placeholder="Buscar por nombre, apellido o NIT..."
+              value={searchDuenoAnterior}
+              autoComplete="off"
+              onChange={(e) => {
+                setSearchDuenoAnterior(e.target.value)
+                setShowDropdownAnterior(true)
+                setSelectedIndexAnterior(-1) // Resetear el índice seleccionado
+
+                // Filtrar contactos mientras se escribe
+                const searchTerm = e.target.value.toLowerCase()
+                const filtered = contacts
+                  .filter((contact) => contact.type === 1)
+                  .filter(
+                    (contact) =>
+                      (contact.primer_nombre && contact.primer_nombre.toLowerCase().includes(searchTerm)) ||
+                      (contact.primer_apellido && contact.primer_apellido.toLowerCase().includes(searchTerm)) ||
+                      (contact.nit && contact.nit.toLowerCase().includes(searchTerm)),
+                  )
+                setFilteredContactosAnteriores(filtered)
+              }}
+              onFocus={() => setShowDropdownAnterior(true)}
+              onKeyDown={(e) => {
+                if (!showDropdownAnterior || filteredContactosAnteriores.length === 0) return
+
+                // Navegar con flechas
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setSelectedIndexAnterior((prevIndex) =>
+                    prevIndex < filteredContactosAnteriores.length - 1 ? prevIndex + 1 : prevIndex,
+                  )
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setSelectedIndexAnterior((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : 0))
+                } else if (e.key === "Enter" && selectedIndexAnterior >= 0) {
+                  e.preventDefault()
+                  const contacto = filteredContactosAnteriores[selectedIndexAnterior]
+                  setFormData((prev) => ({ ...prev, id_dueno_anterior: contacto.id.toString() }))
+                  setSearchDuenoAnterior(`${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`)
+                  setShowDropdownAnterior(false)
+                } else if (e.key === "Escape") {
+                  setShowDropdownAnterior(false)
+                }
+              }}
+              className="h-8"
+            />
+            {formData.id_dueno_anterior && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2 p-0"
+                onClick={() => {
+                  setFormData((prev) => ({ ...prev, id_dueno_anterior: "" }))
+                  setSearchDuenoAnterior("")
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+            {showDropdownAnterior && searchDuenoAnterior && (
+              <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200 max-h-60 overflow-auto">
+                {filteredContactosAnteriores.length > 0 ? (
+                  filteredContactosAnteriores.map((contacto, index) => (
+                    <div
+                      key={contacto.id}
+                      className={`px-3 py-2 hover:bg-gray-100 cursor-pointer ${
+                        index === selectedIndexAnterior ? "bg-gray-100" : ""
+                      }`}
+                      onClick={() => {
+                        setFormData((prev) => ({ ...prev, id_dueno_anterior: contacto.id.toString() }))
+                        setSearchDuenoAnterior(
+                          `${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`,
+                        )
+                        setShowDropdownAnterior(false)
+                      }}
+                    >
+                      {contacto.primer_nombre} {contacto.primer_apellido} - {contacto.nit}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-gray-500">No se encontraron resultados</div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Selector de finca */}
@@ -1120,96 +1189,6 @@ export default function GuiaForm({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        {/* Modificar el selector de dueño nuevo para agregar el botón + */}
-        <div className="space-y-1 col-span-2 md:col-span-1">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="id_dueno_nuevo" className="text-sm">
-              Dueño Nuevo
-            </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleOpenCreateContactDialog("nuevo")}
-              className="h-6 px-2 text-xs"
-            >
-              <PlusCircle className="h-3 w-3 mr-1" />
-              Nuevo
-            </Button>
-          </div>
-          <Select
-            value={formData.id_dueno_nuevo}
-            onValueChange={(value) => handleSelectChange("id_dueno_nuevo", value)}
-          >
-            <SelectTrigger className="h-8">
-              <SelectValue placeholder="Seleccione dueño nuevo" />
-            </SelectTrigger>
-            <SelectContent>
-              {contacts
-                .filter((c) => c.type === 2 || c.type === 3)
-                .map((contact) => (
-                  <SelectItem key={contact.id} value={contact.id.toString()}>
-                    {contact.primer_nombre} {contact.primer_apellido} - {contact.nit}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Modificar el selector de ubicación para dueño nuevo para agregar el botón + */}
-        <div className="space-y-1 col-span-2 md:col-span-1">
-          <div className="flex justify-between items-center">
-            <Label htmlFor="ubicacion_nuevo" className="text-sm">
-              Ubicación Dueño Nuevo
-            </Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCreateUbicacionNuevoDialog(true)}
-              disabled={!formData.id_dueno_nuevo}
-              className="h-6 px-2 text-xs"
-            >
-              <PlusCircle className="h-3 w-3 mr-1" />
-              Nueva
-            </Button>
-          </div>
-          <Select
-            value={selectedUbicacionNuevo}
-            onValueChange={setSelectedUbicacionNuevo}
-            disabled={isLoadingUbicacionesNuevo || ubicacionesNuevo.length === 0}
-          >
-            <SelectTrigger className="h-8">
-              {isLoadingUbicacionesNuevo ? (
-                <div className="flex items-center">
-                  <Loader2 className="h-3 w-3 animate-spin mr-2" />
-                  <span>Cargando ubicaciones...</span>
-                </div>
-              ) : (
-                <SelectValue
-                  placeholder={
-                    ubicacionesNuevo.length === 0 ? "No hay ubicaciones disponibles" : "Seleccione una ubicación"
-                  }
-                />
-              )}
-            </SelectTrigger>
-            <SelectContent>
-              {ubicacionesNuevo.map((ubicacion) => (
-                <SelectItem key={ubicacion.id} value={ubicacion.id.toString()}>
-                  {ubicacion.nombre_finca} - {ubicacion.municipio_nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {showNoUbicacionAlert && (
-            <Alert variant="destructive" className="mt-2 py-2">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                El dueño nuevo no tiene ubicaciones registradas. Se recomienda agregar una ubicación.
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
 
         <div className="space-y-1">
@@ -1314,7 +1293,7 @@ export default function GuiaForm({
                         value={nuevaLinea.ticket}
                         onChange={handleLineaChange}
                         className={`w-full ${validationAttempted && validationErrors.ticket ? "border-red-500" : ""}`}
-                        placeholder="Nº Ticket"
+                        placeholder="Nº Código"
                         onKeyDown={handleKeyDown}
                         ref={ticketInputRef}
                       />
@@ -1613,7 +1592,7 @@ export default function GuiaForm({
           <DialogHeader>
             <DialogTitle>
               Crear Nuevo{" "}
-              {contactType === "anterior" ? "Dueño Anterior" : contactType === "nuevo" ? "Dueño Nuevo" : "Contacto"}
+              {contactType === "anterior" ? "Propietario" : contactType === "nuevo" ? "Nuevo Propietario" : "Contacto"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -1829,136 +1808,6 @@ export default function GuiaForm({
                 </>
               ) : (
                 "Crear Contacto"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal para crear una nueva ubicación para el dueño nuevo */}
-      <Dialog open={showCreateUbicacionNuevoDialog} onOpenChange={setShowCreateUbicacionNuevoDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Crear Nueva Ubicación para Dueño Nuevo</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="nombre_finca_nuevo" className="text-sm">
-                  Nombre de la Finca *
-                </Label>
-                <Input
-                  id="nombre_finca_nuevo"
-                  name="nombre_finca"
-                  value={newUbicacionNuevoData.nombre_finca}
-                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, nombre_finca: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="direccion_nuevo" className="text-sm">
-                  Dirección
-                </Label>
-                <Input
-                  id="direccion_nuevo"
-                  name="direccion"
-                  value={newUbicacionNuevoData.direccion}
-                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, direccion: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="id_departamento_nuevo" className="text-sm">
-                  Departamento *
-                </Label>
-                <Select
-                  value={newUbicacionNuevoData.id_departamento}
-                  onValueChange={(value) => setNewUbicacionNuevoData((prev) => ({ ...prev, id_departamento: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione departamento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departamentos.map((depto) => (
-                      <SelectItem key={depto.id} value={depto.id.toString()}>
-                        {depto.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="id_municipio_nuevo" className="text-sm">
-                  Municipio *
-                </Label>
-                <Select
-                  value={newUbicacionNuevoData.id_municipio}
-                  onValueChange={(value) => setNewUbicacionNuevoData((prev) => ({ ...prev, id_municipio: value }))}
-                  disabled={!newUbicacionNuevoData.id_departamento || municipiosUbicacionNuevo.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        !newUbicacionNuevoData.id_departamento
-                          ? "Seleccione primero un departamento"
-                          : municipiosUbicacionNuevo.length === 0
-                            ? "Cargando municipios..."
-                            : "Seleccione municipio"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {municipiosUbicacionNuevo.map((muni) => (
-                      <SelectItem key={muni.id} value={muni.id.toString()}>
-                        {muni.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="area_hectareas_nuevo" className="text-sm">
-                  Área (Hectáreas)
-                </Label>
-                <Input
-                  id="area_hectareas_nuevo"
-                  name="area_hectareas"
-                  type="number"
-                  value={newUbicacionNuevoData.area_hectareas}
-                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, area_hectareas: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="es_principal_nuevo"
-                  name="es_principal"
-                  checked={newUbicacionNuevoData.es_principal}
-                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, es_principal: e.target.checked }))}
-                  className="h-4 w-4"
-                />
-                <Label htmlFor="es_principal_nuevo" className="text-sm">
-                  Establecer como ubicación principal
-                </Label>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setShowCreateUbicacionNuevoDialog(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleCreateUbicacionNuevo} disabled={isCreatingUbicacionNuevo}>
-              {isCreatingUbicacionNuevo ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creando...
-                </>
-              ) : (
-                "Crear Ubicación"
               )}
             </Button>
           </DialogFooter>

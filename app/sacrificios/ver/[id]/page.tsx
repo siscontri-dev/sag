@@ -39,17 +39,17 @@ export default async function VerSacrificioPage({ params }: { params: { id: stri
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/sacrificios">Sacrificios</BreadcrumbLink>
+            <BreadcrumbLink href="/sacrificios">Guías de Degüello</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink>Detalle de Sacrificio</BreadcrumbLink>
+            <BreadcrumbLink>Detalle de Guía de Degüello</BreadcrumbLink>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Sacrificio #{transaction.numero_documento}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Guía de Degüello #{transaction.numero_documento}</h1>
         <div className="flex gap-2">
           <Button variant="outline" size="icon" asChild>
             <Link href="/sacrificios">
@@ -153,7 +153,7 @@ export default async function VerSacrificioPage({ params }: { params: { id: stri
       <Card>
         <CardHeader>
           <CardTitle>Detalle de Animales</CardTitle>
-          <CardDescription>Líneas de sacrificio</CardDescription>
+          <CardDescription>Líneas de guía de degüello</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>

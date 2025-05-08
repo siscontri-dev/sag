@@ -118,7 +118,7 @@ export function FinancialDashboard({ initialData = null }) {
         valor: filteredTransactions.filter((t) => t.type === "entry").reduce((sum, t) => sum + Number(t.total || 0), 0),
       },
       {
-        name: "Sacrificios",
+        name: "Guías de Degüello",
         valor: filteredTransactions.filter((t) => t.type === "exit").reduce((sum, t) => sum + Number(t.total || 0), 0),
       },
     ]
@@ -220,7 +220,7 @@ export function FinancialDashboard({ initialData = null }) {
       // Preparar datos para cada tipo de comparación
       const comparisonCategories = [
         { name: "Guías", key: "total_guias" },
-        { name: "Sacrificios", key: "total_sacrificios" },
+        { name: "Guías de Degüello", key: "total_sacrificios" },
         { name: "Deguello", key: "total_deguello" },
       ]
 
@@ -268,7 +268,7 @@ export function FinancialDashboard({ initialData = null }) {
           Porcinos: animalTypeData.porcinos.guias,
         },
         {
-          name: "Sacrificios",
+          name: "Guías de Degüello",
           Bovinos: animalTypeData.bovinos.sacrificios,
           Porcinos: animalTypeData.porcinos.sacrificios,
         },
@@ -424,7 +424,7 @@ export function FinancialDashboard({ initialData = null }) {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Sacrificios</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Guías de Degüello</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(totalSacrificios)}</div>
@@ -537,8 +537,8 @@ export function FinancialDashboard({ initialData = null }) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card>
               <CardHeader>
-                <CardTitle>Guías vs Sacrificios</CardTitle>
-                <CardDescription>Comparación entre guías ICA y sacrificios</CardDescription>
+                <CardTitle>Guías vs Guías de Degüello</CardTitle>
+                <CardDescription>Comparación entre guías ICA y guías de degüello</CardDescription>
               </CardHeader>
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -620,7 +620,7 @@ export function FinancialDashboard({ initialData = null }) {
 
             <Card>
               <CardHeader>
-                <CardTitle>Desglose de Impuestos por Sacrificio</CardTitle>
+                <CardTitle>Desglose de Impuestos por Guía de Degüello</CardTitle>
                 <CardDescription>Comparación de los diferentes impuestos</CardDescription>
               </CardHeader>
               <CardContent className="h-80">
@@ -655,7 +655,7 @@ export function FinancialDashboard({ initialData = null }) {
                   <Tooltip formatter={(value) => formatCurrency(value)} />
                   <Legend />
                   <Line type="monotone" dataKey="guias" name="Guías ICA" stroke={COLORS.blue[1]} activeDot={{ r: 8 }} />
-                  <Line type="monotone" dataKey="sacrificios" name="Sacrificios" stroke={COLORS.amber[1]} />
+                  <Line type="monotone" dataKey="sacrificios" name="Guías de Degüello" stroke={COLORS.amber[1]} />
                   <Line type="monotone" dataKey="deguello" name="Deguello" stroke={COLORS.purple[1]} />
                   <Line type="monotone" dataKey="fondo" name="Fondo" stroke={COLORS.green[1]} />
                   <Line type="monotone" dataKey="matadero" name="Matadero" stroke={COLORS.red[1]} />

@@ -45,7 +45,7 @@ export default async function NuevoSacrificioPage({ searchParams }) {
 
   return (
     <div className="container mx-auto py-6">
-      <h1 className="text-2xl font-bold mb-6">Nuevo Sacrificio de {tipo === "bovino" ? "Bovino" : "Porcino"}</h1>
+      <h1 className="text-2xl font-bold mb-6">Nueva Guía de Degüello de {tipo === "bovino" ? "Bovino" : "Porcino"}</h1>
       <SacrificioForm
         contactosAnteriores={contactos}
         contactosNuevos={contactos}

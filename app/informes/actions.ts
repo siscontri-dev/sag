@@ -168,7 +168,7 @@ export async function getBoletinGanadoMayor(fechaInicio: string, fechaFin: strin
         transactions t
       WHERE 
         t.business_location_id = 1  -- Solo bovinos
-        AND t.type = 'exit'  -- Solo sacrificios
+        AND t.type = 'exit'  -- Solo guías de degüello
         AND t.activo = TRUE
         AND t.fecha_documento BETWEEN ${fechaInicio} AND ${fechaFin}
       ORDER BY 
@@ -261,12 +261,12 @@ export async function getFinancialData() {
       SELECT 
         DATE_TRUNC('month', fecha_documento) as mes,
         SUM(CASE WHEN type = 'entry' THEN total ELSE 0 END) as total_guias,
-        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_sacrificios,
+        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_guias_deguello,
         SUM(CASE WHEN type = 'exit' THEN impuesto1 ELSE 0 END) as total_deguello,
         SUM(CASE WHEN type = 'exit' THEN impuesto2 ELSE 0 END) as total_fondo,
         SUM(CASE WHEN type = 'exit' THEN impuesto3 ELSE 0 END) as total_matadero,
         COUNT(CASE WHEN type = 'entry' THEN 1 END) as count_guias,
-        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_sacrificios
+        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_guias_deguello
       FROM 
         transactions
       WHERE 
@@ -282,12 +282,12 @@ export async function getFinancialData() {
       SELECT 
         business_location_id,
         SUM(CASE WHEN type = 'entry' THEN total ELSE 0 END) as total_guias,
-        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_sacrificios,
+        SUM(CASE WHEN type = 'exit' THEN total ELSE 0 END) as total_guias_deguello,
         SUM(CASE WHEN type = 'exit' THEN impuesto1 ELSE 0 END) as total_deguello,
         SUM(CASE WHEN type = 'exit' THEN impuesto2 ELSE 0 END) as total_fondo,
         SUM(CASE WHEN type = 'exit' THEN impuesto3 ELSE 0 END) as total_matadero,
         COUNT(CASE WHEN type = 'entry' THEN 1 END) as count_guias,
-        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_sacrificios
+        COUNT(CASE WHEN type = 'exit' THEN 1 END) as count_guias_deguello
       FROM 
         transactions
       WHERE 

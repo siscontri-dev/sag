@@ -240,12 +240,21 @@ export async function getTransactionStats() {
 }
 
 // Función para obtener contactos
-export async function getContacts() {
+export async function getContacts(businessLocationId = null) {
   try {
-    const result = await sql`
-      SELECT * FROM contacts WHERE activo = TRUE ORDER BY primer_nombre, primer_apellido
-    `
-    return result.rows
+    if (businessLocationId) {
+      const result = await sql`
+        SELECT * FROM contacts 
+        WHERE activo = TRUE AND business_location_id = ${businessLocationId}
+        ORDER BY primer_nombre, primer_apellido
+      `
+      return result.rows
+    } else {
+      const result = await sql`
+        SELECT * FROM contacts WHERE activo = TRUE ORDER BY primer_nombre, primer_apellido
+      `
+      return result.rows
+    }
   } catch (error) {
     console.error("Error al obtener contactos:", error)
     return []

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Users, FileText, Truck, PiggyBank, MilkIcon as Cow, Ticket, DollarSign, BarChart } from "lucide-react"
+import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from "lucide-react"
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 
@@ -24,14 +24,23 @@ export default async function Home() {
             <CardDescription>Administración de ganado vacuno</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
-            <Cow className="w-16 h-16 text-blue-500" />
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium">Gestión de Bovinos</h3>
+                <p className="text-sm text-muted-foreground">Administra guías y sacrificios de bovinos</p>
+              </div>
+              <img src="/images/vaca.png" alt="Bovino" className="h-16 w-16" />
+            </div>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
                   <Link href="/guias?tipo=bovino">Guías ICA</Link>
                 </Button>
                 <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
-                  <Link href="/sacrificios?tipo=bovino">Sacrificios</Link>
+                  <Link href="/sacrificios?tipo=bovino">Guías de Degüello</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
+                  <Link href="/contactos?business_location_id=1">Contactos</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -57,7 +66,10 @@ export default async function Home() {
                   <Link href="/guias?tipo=porcino">Guías ICA</Link>
                 </Button>
                 <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">
-                  <Link href="/sacrificios?tipo=porcino">Sacrificios</Link>
+                  <Link href="/sacrificios?tipo=porcino">Guías de Degüello</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">
+                  <Link href="/contactos?business_location_id=2">Contactos</Link>
                 </Button>
               </div>
               <div className="text-sm text-muted-foreground">
@@ -80,9 +92,14 @@ export default async function Home() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.contactCount}</div>
             <p className="text-xs text-muted-foreground">Clientes y proveedores registrados</p>
-            <Button asChild className="w-full mt-3 bg-blue-500 hover:bg-blue-600 rounded-lg shadow-sm" size="sm">
-              <Link href="/contactos">Gestionar</Link>
-            </Button>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <Button asChild className="bg-blue-500 hover:bg-blue-600 rounded-lg shadow-sm" size="sm">
+                <Link href="/contactos?business_location_id=1">Bovinos</Link>
+              </Button>
+              <Button asChild className="bg-amber-500 hover:bg-amber-600 rounded-lg shadow-sm" size="sm">
+                <Link href="/contactos?business_location_id=2">Porcinos</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -102,7 +119,7 @@ export default async function Home() {
 
         <Card className="shadow-sm hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Sacrificios</CardTitle>
+            <CardTitle className="text-sm font-medium">Guías de Degüello</CardTitle>
             <Truck className="w-4 h-4 text-amber-500" />
           </CardHeader>
           <CardContent>

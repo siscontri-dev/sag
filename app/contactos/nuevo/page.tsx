@@ -1,49 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getDepartamentos } from "@/lib/data"
 import ContactForm from "../contact-form"
-import { getLocations, getDepartamentos } from "@/lib/data"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Home } from "lucide-react"
 
-export default async function NuevoContactoPage() {
-  const [locations, departamentos] = await Promise.all([getLocations(), getDepartamentos()])
+export default async function NuevoContactoPage({ searchParams }) {
+  const departamentos = await getDepartamentos()
+  const businessLocationId = searchParams?.business_location_id
+    ? Number.parseInt(searchParams.business_location_id)
+    : null
 
   return (
     <div className="space-y-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/">
-              <Home className="h-4 w-4" />
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink href="/contactos">Contactos</BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink>Nuevo Contacto</BreadcrumbLink>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      <h1 className="text-3xl font-bold tracking-tight">Nuevo Contacto</h1>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Información del Contacto</CardTitle>
-          <CardDescription>Ingrese los datos del nuevo contacto</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ContactForm locations={locations} departamentos={departamentos} />
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {businessLocationId === 1
+            ? "Nuevo Contacto de Bovinos"
+            : businessLocationId === 2
+              ? "Nuevo Contacto de Porcinos"
+              : "Nuevo Contacto"}
+        </h1>
+      </div>
+      <ContactForm departamentos={departamentos} defaultBusinessLocationId={businessLocationId} />
     </div>
   )
 }

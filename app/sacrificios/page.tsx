@@ -61,6 +61,8 @@ export default async function SacrificiosPage({
         ? themeColors.porcino
         : { light: "#F9FAFB", medium: "#F3F4F6", dark: "#E5E7EB", text: "#111827" }
 
+  const tipoAnimal = tipo
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -71,14 +73,14 @@ export default async function SacrificiosPage({
             </Link>
           </Button>
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
-            Sacrificios {tipo && `(${tipo === "bovino" ? "Bovinos" : "Porcinos"})`}
+            Guías de Degüello {tipo && `(${tipo === "bovino" ? "Bovinos" : "Porcinos"})`}
           </h1>
         </div>
         <div className="flex gap-2">
           <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
             <Link href={`/sacrificios/nuevo${tipo ? `?tipo=${tipo}` : ""}`}>
               <PlusCircle className="mr-2 h-4 w-4" />
-              Nuevo Sacrificio
+              Nueva Guía de Degüello
             </Link>
           </Button>
         </div>
@@ -206,16 +208,16 @@ export default async function SacrificiosPage({
           <TabsTrigger value="anulados">Anulados</TabsTrigger>
         </TabsList>
         <TabsContent value="todos">
-          <SacrificiosTable sacrificios={sacrificiosFiltrados} />
+          <SacrificiosTable sacrificios={sacrificiosFiltrados} tipoAnimal={tipoAnimal} />
         </TabsContent>
         <TabsContent value="borradores">
-          <SacrificiosTable sacrificios={borradores} />
+          <SacrificiosTable sacrificios={borradores} tipoAnimal={tipoAnimal} />
         </TabsContent>
         <TabsContent value="confirmados">
-          <SacrificiosTable sacrificios={confirmados} />
+          <SacrificiosTable sacrificios={confirmados} tipoAnimal={tipoAnimal} />
         </TabsContent>
         <TabsContent value="anulados">
-          <SacrificiosTable sacrificios={anulados} />
+          <SacrificiosTable sacrificios={anulados} tipoAnimal={tipoAnimal} />
         </TabsContent>
       </Tabs>
 
