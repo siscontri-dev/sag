@@ -9,7 +9,7 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, Trash, Loader2, Printer } from "lucide-react"
+import { PlusCircle, Trash, Loader2, Printer, AlertCircle } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { themeColors } from "@/lib/theme-config"
 import { createGuia, updateGuia } from "./actions"
@@ -20,6 +20,12 @@ import BulkTicketPrinter from "@/components/bulk-ticket-printer"
 // Añadir importaciones necesarias para el modal de creación de fincas
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { createUbication } from "@/app/contactos/actions"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+
+// Necesitamos agregar los estados y funciones para manejar la creación de contactos
+// Primero, asegúrate de que estas importaciones estén presentes:
+import { createContact } from "@/app/contactos/actions"
+import ImageUpload from "@/components/image-upload"
 
 export default function GuiaForm({
   contacts = [],
@@ -63,12 +69,14 @@ export default function GuiaForm({
     estado: guia?.estado || "confirmado",
   })
 
-  // Modificar el estado del formulario para incluir la finca seleccionada
-  // Añadir después de la declaración del estado formData
-  const [selectedFinca, setSelectedFinca] = useState("")
+  // Modificar el estado del formulario para incluir las fincas seleccionadas
+  const [selectedFinca, setSelectedFinca] = useState(guia?.ubication_contact_id?.toString() || "")
+  const [selectedUbicacionNuevo, setSelectedUbicacionNuevo] = useState(guia?.ubication_contact_id2?.toString() || "")
   const [fincas, setFincas] = useState([])
+  const [ubicacionesNuevo, setUbicacionesNuevo] = useState([])
   const [showCreateFincaDialog, setShowCreateFincaDialog] = useState(false)
   const [isLoadingFincas, setIsLoadingFincas] = useState(false)
+  const [isLoadingUbicacionesNuevo, setIsLoadingUbicacionesNuevo] = useState(false)
   const [newFincaData, setNewFincaData] = useState({
     nombre_finca: "",
     direccion: "",
@@ -79,6 +87,43 @@ export default function GuiaForm({
   const [departamentos, setDepartamentos] = useState([])
   const [municipios, setMunicipios] = useState([])
   const [isCreatingFinca, setIsCreatingFinca] = useState(false)
+  const [showNoUbicacionAlert, setShowNoUbicacionAlert] = useState(false)
+
+  // Añadir estos estados para el diálogo de creación de contactos
+  const [showCreateContactDialog, setShowCreateContactDialog] = useState(false)
+  const [contactType, setContactType] = useState(null) // "anterior" o "nuevo"
+  const [showCreateUbicacionNuevoDialog, setShowCreateUbicacionNuevoDialog] = useState(false)
+  const [newContactData, setNewContactData] = useState({
+    primer_nombre: "",
+    segundo_nombre: "",
+    primer_apellido: "",
+    segundo_apellido: "",
+    nit: "",
+    telefono: "",
+    email: "",
+    type: 1, // Por defecto, dueño anterior
+    marca: "",
+    imagen_url: "",
+    // Campos para ubicación
+    nombre_finca: "",
+    direccion: "",
+    id_departamento: "",
+    id_municipio: "",
+    area_hectareas: "",
+    es_principal: true, // Por defecto, la primera ubicación es principal
+  })
+  const [newUbicacionNuevoData, setNewUbicacionNuevoData] = useState({
+    nombre_finca: "",
+    direccion: "",
+    id_departamento: "",
+    id_municipio: "",
+    area_hectareas: "",
+    es_principal: false,
+  })
+  const [isCreatingContact, setIsCreatingContact] = useState(false)
+  const [isCreatingUbicacionNuevo, setIsCreatingUbicacionNuevo] = useState(false)
+  const [municipiosUbicacionNuevo, setMunicipiosUbicacionNuevo] = useState([])
+  const [municipiosContacto, setMunicipiosContacto] = useState([])
 
   // Estado para las líneas de la guía
   const [lineas, setLineas] = useState(
@@ -103,6 +148,9 @@ export default function GuiaForm({
   // Obtener el precio del ticket del producto seleccionado
   const [precioTicket, setPrecioTicket] = useState(0)
 
+  // Estado para generar ticket
+  const [isGeneratingTicket, setIsGeneratingTicket] = useState(false)
+
   // Efecto para actualizar el precio del ticket cuando cambia el producto
   useEffect(() => {
     if (nuevaLinea.product_id) {
@@ -113,10 +161,9 @@ export default function GuiaForm({
     }
   }, [nuevaLinea.product_id, products])
 
-  // Añadir después de los useEffect existentes
   // Efecto para cargar departamentos cuando se abre el modal
   useEffect(() => {
-    if (showCreateFincaDialog) {
+    if (showCreateFincaDialog || showCreateContactDialog || showCreateUbicacionNuevoDialog) {
       const fetchDepartamentos = async () => {
         try {
           const response = await fetch("/api/departamentos")
@@ -130,9 +177,9 @@ export default function GuiaForm({
       }
       fetchDepartamentos()
     }
-  }, [showCreateFincaDialog])
+  }, [showCreateFincaDialog, showCreateContactDialog, showCreateUbicacionNuevoDialog])
 
-  // Efecto para cargar municipios cuando cambia el departamento
+  // Efecto para cargar municipios cuando cambia el departamento en finca
   useEffect(() => {
     if (newFincaData.id_departamento) {
       const fetchMunicipios = async () => {
@@ -155,6 +202,49 @@ export default function GuiaForm({
     }
   }, [newFincaData.id_departamento])
 
+  // Efecto para cargar municipios cuando cambia el departamento en contacto
+  useEffect(() => {
+    if (newContactData.id_departamento) {
+      const loadMunicipios = async () => {
+        const municipiosData = await fetchMunicipios(newContactData.id_departamento)
+        setMunicipiosContacto(municipiosData)
+      }
+      loadMunicipios()
+    } else {
+      setMunicipiosContacto([])
+    }
+  }, [newContactData.id_departamento])
+
+  // Efecto para cargar municipios cuando cambia el departamento en ubicación nuevo
+  useEffect(() => {
+    if (newUbicacionNuevoData.id_departamento) {
+      const loadMunicipios = async () => {
+        const municipiosData = await fetchMunicipios(newUbicacionNuevoData.id_departamento)
+        setMunicipiosUbicacionNuevo(municipiosData)
+      }
+      loadMunicipios()
+    } else {
+      setMunicipiosUbicacionNuevo([])
+    }
+  }, [newUbicacionNuevoData.id_departamento])
+
+  // Función para cargar municipios
+  const fetchMunicipios = async (departamentoId) => {
+    try {
+      const response = await fetch(`/api/municipios/${departamentoId}`)
+      if (response.ok) {
+        const data = await response.json()
+        return data.municipios || []
+      } else {
+        console.error("Error al cargar municipios:", response.status)
+        return []
+      }
+    } catch (error) {
+      console.error("Error al cargar municipios:", error)
+      return []
+    }
+  }
+
   // Efecto para cargar las fincas cuando cambia el dueño anterior
   useEffect(() => {
     if (formData.id_dueno_anterior) {
@@ -165,9 +255,14 @@ export default function GuiaForm({
           if (response.ok) {
             const data = await response.json()
             setFincas(data)
-            // Si hay fincas, seleccionar la primera por defecto
+            // Si hay fincas, seleccionar la predeterminada o la primera
             if (data.length > 0) {
-              setSelectedFinca(data[0].id.toString())
+              const predeterminada = data.find((f) => f.es_principal)
+              if (predeterminada) {
+                setSelectedFinca(predeterminada.id.toString())
+              } else {
+                setSelectedFinca(data[0].id.toString())
+              }
             } else {
               setSelectedFinca("")
             }
@@ -187,7 +282,48 @@ export default function GuiaForm({
     }
   }, [formData.id_dueno_anterior])
 
-  // Añadir función para manejar la creación de una nueva finca
+  // Efecto para cargar las ubicaciones cuando cambia el dueño nuevo
+  useEffect(() => {
+    if (formData.id_dueno_nuevo) {
+      const fetchUbicaciones = async () => {
+        setIsLoadingUbicacionesNuevo(true)
+        setShowNoUbicacionAlert(false)
+        try {
+          const response = await fetch(`/api/contactos/${formData.id_dueno_nuevo}/ubicaciones`)
+          if (response.ok) {
+            const data = await response.json()
+            setUbicacionesNuevo(data)
+            // Si hay ubicaciones, seleccionar la predeterminada o la primera
+            if (data.length > 0) {
+              const predeterminada = data.find((u) => u.es_principal)
+              if (predeterminada) {
+                setSelectedUbicacionNuevo(predeterminada.id.toString())
+              } else {
+                setSelectedUbicacionNuevo(data[0].id.toString())
+              }
+            } else {
+              setSelectedUbicacionNuevo("")
+              setShowNoUbicacionAlert(true)
+            }
+          }
+        } catch (error) {
+          console.error("Error al cargar ubicaciones del dueño nuevo:", error)
+          setUbicacionesNuevo([])
+          setSelectedUbicacionNuevo("")
+          setShowNoUbicacionAlert(true)
+        } finally {
+          setIsLoadingUbicacionesNuevo(false)
+        }
+      }
+      fetchUbicaciones()
+    } else {
+      setUbicacionesNuevo([])
+      setSelectedUbicacionNuevo("")
+      setShowNoUbicacionAlert(false)
+    }
+  }, [formData.id_dueno_nuevo])
+
+  // Función para manejar la creación de una nueva finca
   const handleCreateFinca = async () => {
     if (!newFincaData.nombre_finca || !newFincaData.id_departamento || !newFincaData.id_municipio) {
       toast({
@@ -254,7 +390,7 @@ export default function GuiaForm({
     }
   }
 
-  // Añadir función para manejar cambios en el formulario de nueva finca
+  // Función para manejar cambios en el formulario de nueva finca
   const handleNewFincaChange = (e) => {
     const { name, value, type, checked } = e.target
     setNewFincaData((prev) => ({
@@ -263,12 +399,271 @@ export default function GuiaForm({
     }))
   }
 
-  // Añadir función para manejar cambios en selects del formulario de nueva finca
+  // Función para manejar cambios en selects del formulario de nueva finca
   const handleNewFincaSelectChange = (name, value) => {
     setNewFincaData((prev) => ({
       ...prev,
       [name]: value,
     }))
+  }
+
+  // Añadir esta función para manejar cambios en el formulario de nuevo contacto
+  const handleNewContactChange = (e) => {
+    const { name, value, type, checked } = e.target
+    setNewContactData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }))
+  }
+
+  // Función para manejar cambios en la imagen del contacto
+  const handleNewContactImageChange = (imageUrl) => {
+    setNewContactData((prev) => ({
+      ...prev,
+      imagen_url: imageUrl,
+    }))
+  }
+
+  // Función para manejar cambios en selects del formulario de nuevo contacto
+  const handleNewContactSelectChange = (name, value) => {
+    setNewContactData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  // Añadir esta función para manejar la creación de un nuevo contacto
+  const handleCreateContact = async () => {
+    if (!newContactData.primer_nombre || !newContactData.nit) {
+      toast({
+        title: "Error",
+        description: "Por favor complete los campos obligatorios",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Validar que se haya completado la información de ubicación
+    if (!newContactData.nombre_finca || !newContactData.id_departamento || !newContactData.id_municipio) {
+      toast({
+        title: "Error",
+        description: "Por favor complete la información de ubicación",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCreatingContact(true)
+    try {
+      // Crear un FormData para enviar los datos
+      const contactFormData = new FormData()
+      contactFormData.append("primer_nombre", newContactData.primer_nombre)
+      contactFormData.append("segundo_nombre", newContactData.segundo_nombre || "")
+      contactFormData.append("primer_apellido", newContactData.primer_apellido || "")
+      contactFormData.append("segundo_apellido", newContactData.segundo_apellido || "")
+      contactFormData.append("nit", newContactData.nit)
+      contactFormData.append("telefono", newContactData.telefono || "")
+      contactFormData.append("email", newContactData.email || "")
+      contactFormData.append("type", contactType === "anterior" ? "1" : contactType === "nuevo" ? "2" : "3")
+
+      // Si es dueño nuevo, agregar marca e imagen
+      if (contactType === "nuevo") {
+        contactFormData.append("marca", newContactData.marca || "")
+        contactFormData.append("imagen_url", newContactData.imagen_url || "")
+      }
+
+      // Añadir información de ubicación
+      const ubicacionesNuevas = [
+        {
+          nombre_finca: newContactData.nombre_finca,
+          direccion: newContactData.direccion || "",
+          id_departamento: Number(newContactData.id_departamento),
+          id_municipio: Number(newContactData.id_municipio),
+          area_hectareas: newContactData.area_hectareas ? Number(newContactData.area_hectareas) : null,
+          es_principal: newContactData.es_principal,
+        },
+      ]
+
+      contactFormData.append("ubicacionesNuevas", JSON.stringify(ubicacionesNuevas))
+
+      // Llamar a la función del servidor para crear el contacto
+      const result = await createContact(contactFormData)
+
+      if (result.success) {
+        toast({
+          title: "Éxito",
+          description: "Contacto creado correctamente",
+        })
+
+        // Crear un nuevo contacto para agregar a la lista
+        const nuevoContacto = {
+          id: result.contactId,
+          primer_nombre: newContactData.primer_nombre,
+          segundo_nombre: newContactData.segundo_nombre || "",
+          primer_apellido: newContactData.primer_apellido || "",
+          segundo_apellido: newContactData.segundo_apellido || "",
+          nit: newContactData.nit,
+          telefono: newContactData.telefono || "",
+          email: newContactData.email || "",
+          type: contactType === "anterior" ? 1 : contactType === "nuevo" ? 2 : 3,
+          marca: contactType === "nuevo" ? newContactData.marca || "" : "",
+          imagen_url: contactType === "nuevo" ? newContactData.imagen_url || "" : "",
+        }
+
+        // Actualizar la lista de contactos
+        contacts.push(nuevoContacto)
+
+        // Seleccionar el contacto recién creado
+        if (contactType === "anterior") {
+          setFormData((prev) => ({ ...prev, id_dueno_anterior: result.contactId.toString() }))
+          // Cargar las fincas del nuevo contacto
+          const response = await fetch(`/api/contactos/${result.contactId}/ubicaciones`)
+          if (response.ok) {
+            const data = await response.json()
+            setFincas(data)
+            if (data.length > 0) {
+              setSelectedFinca(data[0].id.toString())
+            }
+          }
+        } else {
+          setFormData((prev) => ({ ...prev, id_dueno_nuevo: result.contactId.toString() }))
+          // Cargar las ubicaciones del nuevo contacto
+          const response = await fetch(`/api/contactos/${result.contactId}/ubicaciones`)
+          if (response.ok) {
+            const data = await response.json()
+            setUbicacionesNuevo(data)
+            if (data.length > 0) {
+              setSelectedUbicacionNuevo(data[0].id.toString())
+            }
+          }
+        }
+
+        // Cerrar el diálogo
+        setShowCreateContactDialog(false)
+        // Limpiar el formulario
+        setNewContactData({
+          primer_nombre: "",
+          segundo_nombre: "",
+          primer_apellido: "",
+          segundo_apellido: "",
+          nit: "",
+          telefono: "",
+          email: "",
+          type: 1,
+          marca: "",
+          imagen_url: "",
+          nombre_finca: "",
+          direccion: "",
+          id_departamento: "",
+          id_municipio: "",
+          area_hectareas: "",
+          es_principal: true,
+        })
+      } else {
+        throw new Error(result.message || "Error al crear el contacto")
+      }
+    } catch (error) {
+      console.error("Error al crear contacto:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Hubo un problema al crear el contacto",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingContact(false)
+    }
+  }
+
+  // Añadir función para manejar la creación de una nueva ubicación para el dueño nuevo
+  const handleCreateUbicacionNuevo = async () => {
+    if (
+      !newUbicacionNuevoData.nombre_finca ||
+      !newUbicacionNuevoData.id_departamento ||
+      !newUbicacionNuevoData.id_municipio
+    ) {
+      toast({
+        title: "Error",
+        description: "Por favor complete los campos obligatorios",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!formData.id_dueno_nuevo) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un dueño nuevo primero",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCreatingUbicacionNuevo(true)
+    try {
+      // Crear un FormData para enviar los datos
+      const ubicacionFormData = new FormData()
+      ubicacionFormData.append("nombre_finca", newUbicacionNuevoData.nombre_finca)
+      ubicacionFormData.append("direccion", newUbicacionNuevoData.direccion || "")
+      ubicacionFormData.append("id_departamento", newUbicacionNuevoData.id_departamento)
+      ubicacionFormData.append("id_municipio", newUbicacionNuevoData.id_municipio)
+      ubicacionFormData.append("area_hectareas", newUbicacionNuevoData.area_hectareas || "")
+      ubicacionFormData.append("es_principal", newUbicacionNuevoData.es_principal ? "true" : "false")
+
+      // Llamar a la función del servidor para crear la ubicación
+      const contactId = Number(formData.id_dueno_nuevo)
+      const result = await createUbication(contactId, ubicacionFormData)
+
+      if (result.success) {
+        toast({
+          title: "Éxito",
+          description: "Ubicación creada correctamente",
+        })
+
+        // Recargar las ubicaciones del dueño nuevo
+        const response = await fetch(`/api/contactos/${formData.id_dueno_nuevo}/ubicaciones`)
+        if (response.ok) {
+          const data = await response.json()
+          setUbicacionesNuevo(data)
+          // Seleccionar la ubicación recién creada
+          if (result.id) {
+            setSelectedUbicacionNuevo(result.id.toString())
+          }
+        }
+
+        // Cerrar el diálogo
+        setShowCreateUbicacionNuevoDialog(false)
+        // Limpiar el formulario
+        setNewUbicacionNuevoData({
+          nombre_finca: "",
+          direccion: "",
+          id_departamento: "",
+          id_municipio: "",
+          area_hectareas: "",
+          es_principal: false,
+        })
+      } else {
+        throw new Error(result.message || "Error al crear la ubicación")
+      }
+    } catch (error) {
+      console.error("Error al crear ubicación:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Hubo un problema al crear la ubicación",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingUbicacionNuevo(false)
+    }
+  }
+
+  // Añadir esta función para manejar la apertura del diálogo de creación de contactos
+  const handleOpenCreateContactDialog = (type) => {
+    setContactType(type)
+    setNewContactData((prev) => ({
+      ...prev,
+      type: type === "anterior" ? 1 : type === "nuevo" ? 2 : 3,
+    }))
+    setShowCreateContactDialog(true)
   }
 
   const handleChange = (e) => {
@@ -444,8 +839,6 @@ export default function GuiaForm({
 
   const totales = calcularTotales()
 
-  const [isGeneratingTicket, setIsGeneratingTicket] = useState(false)
-
   const generateTicket = async () => {
     try {
       setIsGeneratingTicket(true)
@@ -528,6 +921,8 @@ export default function GuiaForm({
         quantity_m: totalMachos, // Cantidad de animales machos
         quantity_h: totalHembras, // Cantidad de animales hembras
         quantity_k: totalKilos, // Total de kilos
+        ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
+        ubication_contact_id2: selectedUbicacionNuevo ? Number(selectedUbicacionNuevo) : null, // Ubicación del dueño nuevo
         lineas: lineas.map((linea) => ({
           ticket: Number(linea.ticket),
           product_id: Number(linea.product_id),
@@ -648,10 +1043,23 @@ export default function GuiaForm({
           />
         </div>
 
+        {/* Modificar el selector de dueño anterior para agregar el botón + */}
         <div className="space-y-1 col-span-2 md:col-span-1">
-          <Label htmlFor="id_dueno_anterior" className="text-sm">
-            Dueño Anterior
-          </Label>
+          <div className="flex justify-between items-center">
+            <Label htmlFor="id_dueno_anterior" className="text-sm">
+              Dueño Anterior
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenCreateContactDialog("anterior")}
+              className="h-6 px-2 text-xs"
+            >
+              <PlusCircle className="h-3 w-3 mr-1" />
+              Nuevo
+            </Button>
+          </div>
           <Select
             value={formData.id_dueno_anterior}
             onValueChange={(value) => handleSelectChange("id_dueno_anterior", value)}
@@ -713,10 +1121,23 @@ export default function GuiaForm({
             </SelectContent>
           </Select>
         </div>
+        {/* Modificar el selector de dueño nuevo para agregar el botón + */}
         <div className="space-y-1 col-span-2 md:col-span-1">
-          <Label htmlFor="id_dueno_nuevo" className="text-sm">
-            Dueño Nuevo
-          </Label>
+          <div className="flex justify-between items-center">
+            <Label htmlFor="id_dueno_nuevo" className="text-sm">
+              Dueño Nuevo
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenCreateContactDialog("nuevo")}
+              className="h-6 px-2 text-xs"
+            >
+              <PlusCircle className="h-3 w-3 mr-1" />
+              Nuevo
+            </Button>
+          </div>
           <Select
             value={formData.id_dueno_nuevo}
             onValueChange={(value) => handleSelectChange("id_dueno_nuevo", value)}
@@ -735,6 +1156,62 @@ export default function GuiaForm({
             </SelectContent>
           </Select>
         </div>
+
+        {/* Modificar el selector de ubicación para dueño nuevo para agregar el botón + */}
+        <div className="space-y-1 col-span-2 md:col-span-1">
+          <div className="flex justify-between items-center">
+            <Label htmlFor="ubicacion_nuevo" className="text-sm">
+              Ubicación Dueño Nuevo
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCreateUbicacionNuevoDialog(true)}
+              disabled={!formData.id_dueno_nuevo}
+              className="h-6 px-2 text-xs"
+            >
+              <PlusCircle className="h-3 w-3 mr-1" />
+              Nueva
+            </Button>
+          </div>
+          <Select
+            value={selectedUbicacionNuevo}
+            onValueChange={setSelectedUbicacionNuevo}
+            disabled={isLoadingUbicacionesNuevo || ubicacionesNuevo.length === 0}
+          >
+            <SelectTrigger className="h-8">
+              {isLoadingUbicacionesNuevo ? (
+                <div className="flex items-center">
+                  <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                  <span>Cargando ubicaciones...</span>
+                </div>
+              ) : (
+                <SelectValue
+                  placeholder={
+                    ubicacionesNuevo.length === 0 ? "No hay ubicaciones disponibles" : "Seleccione una ubicación"
+                  }
+                />
+              )}
+            </SelectTrigger>
+            <SelectContent>
+              {ubicacionesNuevo.map((ubicacion) => (
+                <SelectItem key={ubicacion.id} value={ubicacion.id.toString()}>
+                  {ubicacion.nombre_finca} - {ubicacion.municipio_nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {showNoUbicacionAlert && (
+            <Alert variant="destructive" className="mt-2 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                El dueño nuevo no tiene ubicaciones registradas. Se recomienda agregar una ubicación.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
         <div className="space-y-1">
           <Label htmlFor="estado" className="text-sm">
             Estado
@@ -1019,7 +1496,6 @@ export default function GuiaForm({
       />
 
       {/* Modal para crear una nueva finca */}
-      {/* Diálogo para crear una nueva finca */}
       <Dialog open={showCreateFincaDialog} onOpenChange={setShowCreateFincaDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -1125,6 +1601,364 @@ export default function GuiaForm({
                 </>
               ) : (
                 "Crear Finca"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para crear un nuevo contacto */}
+      <Dialog open={showCreateContactDialog} onOpenChange={setShowCreateContactDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              Crear Nuevo{" "}
+              {contactType === "anterior" ? "Dueño Anterior" : contactType === "nuevo" ? "Dueño Nuevo" : "Contacto"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="primer_nombre" className="text-sm">
+                  Primer Nombre *
+                </Label>
+                <Input
+                  id="primer_nombre"
+                  name="primer_nombre"
+                  value={newContactData.primer_nombre}
+                  onChange={handleNewContactChange}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="segundo_nombre" className="text-sm">
+                  Segundo Nombre
+                </Label>
+                <Input
+                  id="segundo_nombre"
+                  name="segundo_nombre"
+                  value={newContactData.segundo_nombre}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="primer_apellido" className="text-sm">
+                  Primer Apellido
+                </Label>
+                <Input
+                  id="primer_apellido"
+                  name="primer_apellido"
+                  value={newContactData.primer_apellido}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="segundo_apellido" className="text-sm">
+                  Segundo Apellido
+                </Label>
+                <Input
+                  id="segundo_apellido"
+                  name="segundo_apellido"
+                  value={newContactData.segundo_apellido}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="nit" className="text-sm">
+                  NIT/Cédula *
+                </Label>
+                <Input id="nit" name="nit" value={newContactData.nit} onChange={handleNewContactChange} required />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="telefono" className="text-sm">
+                  Teléfono
+                </Label>
+                <Input
+                  id="telefono"
+                  name="telefono"
+                  value={newContactData.telefono}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label htmlFor="email" className="text-sm">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={newContactData.email}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+
+              {contactType === "nuevo" && (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor="marca" className="text-sm">
+                      Marca
+                    </Label>
+                    <Input id="marca" name="marca" value={newContactData.marca} onChange={handleNewContactChange} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="imagen_url" className="text-sm">
+                      Imagen de la Marca
+                    </Label>
+                    <ImageUpload
+                      value={newContactData.imagen_url}
+                      onChange={handleNewContactImageChange}
+                      onRemove={() => handleNewContactImageChange("")}
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="col-span-2">
+                <h3 className="font-medium mb-2">Información de Ubicación</h3>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="nombre_finca" className="text-sm">
+                  Nombre de la Finca *
+                </Label>
+                <Input
+                  id="nombre_finca"
+                  name="nombre_finca"
+                  value={newContactData.nombre_finca}
+                  onChange={handleNewContactChange}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="direccion" className="text-sm">
+                  Dirección
+                </Label>
+                <Input
+                  id="direccion"
+                  name="direccion"
+                  value={newContactData.direccion}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="id_departamento" className="text-sm">
+                  Departamento *
+                </Label>
+                <Select
+                  value={newContactData.id_departamento}
+                  onValueChange={(value) => handleNewContactSelectChange("id_departamento", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departamentos.map((depto) => (
+                      <SelectItem key={depto.id} value={depto.id.toString()}>
+                        {depto.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="id_municipio" className="text-sm">
+                  Municipio *
+                </Label>
+                <Select
+                  value={newContactData.id_municipio}
+                  onValueChange={(value) => handleNewContactSelectChange("id_municipio", value)}
+                  disabled={!newContactData.id_departamento || municipiosContacto.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !newContactData.id_departamento
+                          ? "Seleccione primero un departamento"
+                          : municipiosContacto.length === 0
+                            ? "Cargando municipios..."
+                            : "Seleccione municipio"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {municipiosContacto.map((muni) => (
+                      <SelectItem key={muni.id} value={muni.id.toString()}>
+                        {muni.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="area_hectareas" className="text-sm">
+                  Área (Hectáreas)
+                </Label>
+                <Input
+                  id="area_hectareas"
+                  name="area_hectareas"
+                  type="number"
+                  value={newContactData.area_hectareas}
+                  onChange={handleNewContactChange}
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="es_principal"
+                  name="es_principal"
+                  checked={newContactData.es_principal}
+                  onChange={handleNewContactChange}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="es_principal" className="text-sm">
+                  Establecer como ubicación principal
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowCreateContactDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateContact} disabled={isCreatingContact}>
+              {isCreatingContact ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Contacto"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para crear una nueva ubicación para el dueño nuevo */}
+      <Dialog open={showCreateUbicacionNuevoDialog} onOpenChange={setShowCreateUbicacionNuevoDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Ubicación para Dueño Nuevo</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="nombre_finca_nuevo" className="text-sm">
+                  Nombre de la Finca *
+                </Label>
+                <Input
+                  id="nombre_finca_nuevo"
+                  name="nombre_finca"
+                  value={newUbicacionNuevoData.nombre_finca}
+                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, nombre_finca: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="direccion_nuevo" className="text-sm">
+                  Dirección
+                </Label>
+                <Input
+                  id="direccion_nuevo"
+                  name="direccion"
+                  value={newUbicacionNuevoData.direccion}
+                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, direccion: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="id_departamento_nuevo" className="text-sm">
+                  Departamento *
+                </Label>
+                <Select
+                  value={newUbicacionNuevoData.id_departamento}
+                  onValueChange={(value) => setNewUbicacionNuevoData((prev) => ({ ...prev, id_departamento: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departamentos.map((depto) => (
+                      <SelectItem key={depto.id} value={depto.id.toString()}>
+                        {depto.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="id_municipio_nuevo" className="text-sm">
+                  Municipio *
+                </Label>
+                <Select
+                  value={newUbicacionNuevoData.id_municipio}
+                  onValueChange={(value) => setNewUbicacionNuevoData((prev) => ({ ...prev, id_municipio: value }))}
+                  disabled={!newUbicacionNuevoData.id_departamento || municipiosUbicacionNuevo.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !newUbicacionNuevoData.id_departamento
+                          ? "Seleccione primero un departamento"
+                          : municipiosUbicacionNuevo.length === 0
+                            ? "Cargando municipios..."
+                            : "Seleccione municipio"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {municipiosUbicacionNuevo.map((muni) => (
+                      <SelectItem key={muni.id} value={muni.id.toString()}>
+                        {muni.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label htmlFor="area_hectareas_nuevo" className="text-sm">
+                  Área (Hectáreas)
+                </Label>
+                <Input
+                  id="area_hectareas_nuevo"
+                  name="area_hectareas"
+                  type="number"
+                  value={newUbicacionNuevoData.area_hectareas}
+                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, area_hectareas: e.target.value }))}
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="es_principal_nuevo"
+                  name="es_principal"
+                  checked={newUbicacionNuevoData.es_principal}
+                  onChange={(e) => setNewUbicacionNuevoData((prev) => ({ ...prev, es_principal: e.target.checked }))}
+                  className="h-4 w-4"
+                />
+                <Label htmlFor="es_principal_nuevo" className="text-sm">
+                  Establecer como ubicación principal
+                </Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setShowCreateUbicacionNuevoDialog(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateUbicacionNuevo} disabled={isCreatingUbicacionNuevo}>
+              {isCreatingUbicacionNuevo ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                "Crear Ubicación"
               )}
             </Button>
           </DialogFooter>

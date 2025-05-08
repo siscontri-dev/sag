@@ -33,7 +33,9 @@ export async function createSacrificio(data) {
         consignante,
         planilla,
         observaciones,
-        consec
+        consec,
+        ubication_contact_id,
+        ubication_contact_id2
       ) VALUES (
         ${data.business_location_id},
         ${data.type},
@@ -54,7 +56,9 @@ export async function createSacrificio(data) {
         ${data.consignante || null},
         ${data.planilla || null},
         ${data.observaciones || null},
-        ${data.consec}
+        ${data.consec},
+        ${data.ubication_contact_id || null},
+        ${data.ubication_contact_id2 || null}
       ) RETURNING id
     `
 
@@ -96,7 +100,9 @@ export async function updateSacrificio(id, data) {
         consignante = ${data.consignante || null},
         planilla = ${data.planilla || null},
         observaciones = ${data.observaciones || null},
-        consec = ${data.consec}
+        consec = ${data.consec},
+        ubication_contact_id = ${data.ubication_contact_id || null},
+        ubication_contact_id2 = ${data.ubication_contact_id2 || null}
       WHERE id = ${id}
     `
 

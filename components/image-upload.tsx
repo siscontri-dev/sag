@@ -174,3 +174,5 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     </div>
   )
 }
+
+export default ImageUpload

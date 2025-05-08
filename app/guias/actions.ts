@@ -17,6 +17,7 @@ interface GuiaData {
   quantity_m: number
   quantity_h: number
   quantity_k: number
+  ubication_contact_id: number // Nuevo campo para la ubicación
   lineas: LineaData[]
 }
 
@@ -53,7 +54,8 @@ export async function createGuia(data: GuiaData) {
         usuario_id,
         quantity_m,
         quantity_h,
-        quantity_k
+        quantity_k,
+        ubication_contact_id
       ) VALUES (
         ${data.numero_documento},
         ${data.fecha_documento},
@@ -66,7 +68,8 @@ export async function createGuia(data: GuiaData) {
         ${data.usuario_id},
         ${data.quantity_m || 0},
         ${data.quantity_h || 0},
-        ${data.quantity_k || 0}
+        ${data.quantity_k || 0},
+        ${data.ubication_contact_id || null}
       )
       RETURNING id
     `
@@ -152,6 +155,7 @@ export async function updateGuia(id: number, data: GuiaData) {
         quantity_m = ${data.quantity_m || 0},
         quantity_h = ${data.quantity_h || 0},
         quantity_k = ${data.quantity_k || 0},
+        ubication_contact_id = ${data.ubication_contact_id || null},
         fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id = ${id}
     `

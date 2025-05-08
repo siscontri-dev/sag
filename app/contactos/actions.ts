@@ -172,14 +172,18 @@ export async function updateContact(id: number, formData: FormData) {
     // Obtener ubicaciones nuevas y eliminadas
     const ubicacionesNuevasStr = formData.get("ubicacionesNuevas") as string
     const ubicacionesEliminadasStr = formData.get("ubicacionesEliminadas") as string
-
+    const ubicacionesEditadasStr = formData.get("ubicacionesEditadas") as string
     let ubicacionesNuevas = []
     let ubicacionesEliminadas = []
+    let ubicacionesEditadas = []
 
     try {
       ubicacionesNuevas = ubicacionesNuevasStr ? JSON.parse(ubicacionesNuevasStr) : []
       ubicacionesEliminadas = ubicacionesEliminadasStr ? JSON.parse(ubicacionesEliminadasStr) : []
-      console.log(`Ubicaciones nuevas: ${ubicacionesNuevas.length}, eliminadas: ${ubicacionesEliminadas.length}`)
+      ubicacionesEditadas = ubicacionesEditadasStr ? JSON.parse(ubicacionesEditadasStr) : []
+      console.log(
+        `Ubicaciones nuevas: ${ubicacionesNuevas.length}, eliminadas: ${ubicacionesEliminadas.length}, editadas: ${ubicacionesEditadas.length}`,
+      )
     } catch (error) {
       console.error("Error al parsear ubicaciones:", error)
       return { success: false, message: "Error al procesar las ubicaciones" }
@@ -276,6 +280,28 @@ export async function updateContact(id: number, formData: FormData) {
         console.log(`Ubicación ${ubicacionId} marcada como inactiva`)
       } catch (error) {
         console.error(`Error al eliminar ubicación ${ubicacionId}:`, error)
+        // Continuamos con la siguiente ubicación en caso de error
+      }
+    }
+
+    // Actualizar ubicaciones editadas
+    for (const ubicacion of ubicacionesEditadas) {
+      try {
+        console.log(`Actualizando ubicación ID: ${ubicacion.id}`)
+        await sql`
+          UPDATE ubication_contact 
+          SET 
+            direccion = ${ubicacion.direccion},
+            id_departamento = ${ubicacion.id_departamento},
+            id_municipio = ${ubicacion.id_municipio},
+            nombre_finca = ${ubicacion.nombre_finca},
+            area_hectareas = ${ubicacion.area_hectareas},
+            es_principal = ${ubicacion.es_principal}
+          WHERE id = ${ubicacion.id} AND id_contact = ${id}
+        `
+        console.log(`Ubicación ${ubicacion.id} actualizada correctamente`)
+      } catch (error) {
+        console.error(`Error al actualizar ubicación ${ubicacion.id}:`, error)
         // Continuamos con la siguiente ubicación en caso de error
       }
     }
