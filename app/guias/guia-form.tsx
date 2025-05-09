@@ -35,6 +35,17 @@ export default function GuiaForm({
   colores = [],
   guia = null,
 }) {
+  console.log("GuiaForm - Datos recibidos:", {
+    tipoAnimal,
+    locationId,
+    guiaId: guia?.id,
+    guiaType: guia?.type,
+    dueno_anterior: guia?.id_dueno_anterior,
+    dueno_anterior_nombre: guia?.dueno_anterior_nombre,
+    lineasCount: guia?.transaction_lines?.length,
+    ubication_contact_id: guia?.ubication_contact_id,
+  })
+
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -158,6 +169,24 @@ export default function GuiaForm({
 
   // Estado para generar ticket
   const [isGeneratingTicket, setIsGeneratingTicket] = useState(false)
+
+  // Inicializar el nombre del propietario si estamos editando
+  useEffect(() => {
+    if (guia && guia.id_dueno_anterior && guia.dueno_anterior_nombre) {
+      // Buscar el contacto en la lista de contactos
+      const contacto = contacts.find((c) => c.id.toString() === guia.id_dueno_anterior.toString())
+
+      if (contacto) {
+        // Si encontramos el contacto, usamos sus datos
+        setSearchDuenoAnterior(`${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`)
+      } else {
+        // Si no encontramos el contacto, usamos el nombre que viene en la guía
+        setSearchDuenoAnterior(guia.dueno_anterior_nombre)
+      }
+
+      console.log("Inicializando propietario:", guia.dueno_anterior_nombre)
+    }
+  }, [guia, contacts])
 
   // Efecto para actualizar el precio del ticket cuando cambia el producto
   useEffect(() => {
@@ -291,13 +320,22 @@ export default function GuiaForm({
           if (response.ok) {
             const data = await response.json()
             setFincas(data)
+            console.log("Fincas cargadas:", data)
+            console.log("Finca seleccionada en guía:", guia?.ubication_contact_id)
+
             // Si hay fincas, seleccionar la predeterminada o la primera
             if (data.length > 0) {
-              const predeterminada = data.find((f) => f.es_principal)
-              if (predeterminada) {
-                setSelectedFinca(predeterminada.id.toString())
+              // Si estamos editando y hay una finca seleccionada en la guía
+              if (guia && guia.ubication_contact_id) {
+                setSelectedFinca(guia.ubication_contact_id.toString())
               } else {
-                setSelectedFinca(data[0].id.toString())
+                // Si no, seleccionar la finca principal o la primera
+                const predeterminada = data.find((f) => f.es_principal)
+                if (predeterminada) {
+                  setSelectedFinca(predeterminada.id.toString())
+                } else {
+                  setSelectedFinca(data[0].id.toString())
+                }
               }
             } else {
               setSelectedFinca("")
@@ -316,7 +354,7 @@ export default function GuiaForm({
       setFincas([])
       setSelectedFinca("")
     }
-  }, [formData.id_dueno_anterior])
+  }, [formData.id_dueno_anterior, guia])
 
   // Función para manejar la creación de una nueva finca
   const handleCreateFinca = async () => {
@@ -880,22 +918,38 @@ export default function GuiaForm({
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
 
     // Crear un array de datos de tickets a partir de las líneas
-    const tickets = lineas.map((linea) => ({
-      ticketNumber: Number(linea.ticket),
-      fecha: new Date().toLocaleString("es-CO"),
-      duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
-      cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
-      tipoAnimal: tipoAnimal,
-      sku: linea.product_name || `Producto #${linea.product_id}`,
-      pesoKg: Number(linea.quantity || linea.kilos || 0),
-      raza: linea.raza_name || "N/A",
-      color: linea.color_name || "N/A",
-      genero: linea.es_macho ? "MACHO" : "HEMBRA",
-    }))
+    const tickets = lineas.map((linea) => {
+      // Asegurarse de que ticket2 sea un número válido
+      let ticket2Value = linea.ticket2
+
+      // Si ticket2 no existe o no es un número válido, usar el mismo valor que ticket
+      if (ticket2Value === undefined || ticket2Value === null || isNaN(Number(ticket2Value))) {
+        ticket2Value = linea.ticket
+        console.log(`Usando ticket (${linea.ticket}) como respaldo para ticket2`)
+      } else {
+        console.log(`Usando ticket2 existente: ${ticket2Value}`)
+      }
+
+      return {
+        ticketNumber: Number(linea.ticket), // Código del animal (ticket)
+        ticket2: Number(ticket2Value), // Número de báscula (ticket2)
+        fecha: new Date().toLocaleString("es-CO"),
+        duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
+        cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+        tipoAnimal: tipoAnimal,
+        sku: linea.product_name || `Producto #${linea.product_id}`,
+        pesoKg: Number(linea.quantity || linea.kilos || 0),
+        raza: linea.raza_name || "N/A",
+        color: linea.color_name || "N/A",
+        genero: linea.es_macho ? "MACHO" : "HEMBRA",
+        valor: linea.valor || 6000,
+      }
+    })
 
     return tickets
   }
 
+  // Modificar la función handleSubmit para usar los valores de ticket2 devueltos por el servidor
   const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -947,6 +1001,31 @@ export default function GuiaForm({
           title: "Éxito",
           description: guia ? "Guía actualizada correctamente" : "Guía creada correctamente",
         })
+
+        // Actualizar las líneas con los valores de ticket2 devueltos por el servidor
+        if (result.lines && result.lines.length > 0) {
+          console.log("Líneas devueltas por el servidor:", result.lines)
+
+          const updatedLineas = lineas.map((linea, index) => {
+            if (index < result.lines.length) {
+              const serverLine = result.lines[index]
+              console.log(`Línea ${index}: ticket=${linea.ticket}, ticket2 del servidor=${serverLine.ticket2}`)
+
+              return {
+                ...linea,
+                ticket2:
+                  serverLine.ticket2 !== undefined && serverLine.ticket2 !== null
+                    ? Number(serverLine.ticket2)
+                    : Number(linea.ticket),
+              }
+            }
+            return linea
+          })
+
+          setLineas(updatedLineas)
+        } else {
+          console.warn("No se recibieron líneas del servidor o el array está vacío")
+        }
 
         // Preparar los tickets para imprimir
         const tickets = prepareTicketsForPrinting()
@@ -1264,6 +1343,7 @@ export default function GuiaForm({
                         <TicketPrinter
                           ticketData={{
                             ticketNumber: Number(linea.ticket),
+                            ticket2: Number(linea.ticket2 || 0),
                             fecha: new Date().toLocaleString("es-CO"),
                             duenioAnterior:
                               contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)?.primer_nombre +

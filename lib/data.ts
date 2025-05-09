@@ -144,6 +144,7 @@ export async function getReportData() {
 
 // Función para obtener estadísticas de transacciones
 export async function getTransactionStats() {
+  noStore()
   try {
     // Obtener conteo de contactos
     const contactsResult = await sql`
@@ -213,18 +214,19 @@ export async function getTransactionStats() {
     `
 
     return {
-      contactCount: Number.parseInt(contactsResult.rows[0].count) || 0,
-      guiasCount: Number.parseInt(guiasResult.rows[0].count) || 0,
-      sacrificiosCount: Number.parseInt(sacrificiosResult.rows[0].count) || 0,
-      guiasBovinos: Number.parseInt(guiasBovinosResult.rows[0].count) || 0,
-      guiasPorcinos: Number.parseInt(guiasPortinosResult.rows[0].count) || 0,
-      sacrificiosBovinos: Number.parseInt(sacrificiosBovinosResult.rows[0].count) || 0,
-      sacrificiosPorcinos: Number.parseInt(sacrificiosPortinosResult.rows[0].count) || 0,
+      contactCount: Number.parseInt(contactsResult.rows[0]?.count || "0"),
+      guiasCount: Number.parseInt(guiasResult.rows[0]?.count || "0"),
+      sacrificiosCount: Number.parseInt(sacrificiosResult.rows[0]?.count || "0"),
+      guiasBovinos: Number.parseInt(guiasBovinosResult.rows[0]?.count || "0"),
+      guiasPorcinos: Number.parseInt(guiasPortinosResult.rows[0]?.count || "0"),
+      sacrificiosBovinos: Number.parseInt(sacrificiosBovinosResult.rows[0]?.count || "0"),
+      sacrificiosPorcinos: Number.parseInt(sacrificiosPortinosResult.rows[0]?.count || "0"),
       totalKilos: Number.parseFloat(kilosResult.rows[0]?.total || "0"),
       recentTransactions: recentTransactionsResult.rows || [],
     }
   } catch (error) {
     console.error("Error al obtener estadísticas:", error)
+    // Devolver valores por defecto para evitar errores en la UI
     return {
       contactCount: 0,
       guiasCount: 0,
@@ -392,41 +394,106 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
   }
 }
 
-// Función para obtener una transacción por ID
+// Función para obtener una transacción por ID con reintentos
 export async function getTransactionById(id) {
-  try {
-    // Obtener la transacción
-    const transactionResult = await sql`
-      SELECT 
-        t.*,
-        ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-        cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
-      FROM 
-        transactions t
-        LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-        LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-      WHERE 
-        t.id = ${id}
-    `
+  const MAX_RETRIES = 3
+  let retryCount = 0
+  let lastError = null
 
-    if (transactionResult.rows.length === 0) {
-      return null
+  while (retryCount < MAX_RETRIES) {
+    try {
+      console.log(`Intento ${retryCount + 1} de obtener transacción con ID ${id}`)
+
+      // Dividir las consultas para reducir la complejidad y el tiempo de ejecución
+
+      // 1. Obtener la transacción básica
+      const transactionResult = await sql`
+        SELECT 
+          t.id,
+          t.type,
+          t.business_location_id,
+          t.numero_documento,
+          t.fecha_documento,
+          t.id_dueno_anterior,
+          t.id_dueno_nuevo,
+          t.total,
+          t.activo,
+          t.impuesto1,
+          t.impuesto2,
+          t.impuesto3,
+          t.quantity_m,
+          t.quantity_h,
+          t.quantity_k
+        FROM 
+          transactions t
+        WHERE 
+          t.id = ${id}
+      `
+
+      if (transactionResult.rows.length === 0) {
+        console.log(`No se encontró la transacción con ID ${id}`)
+        return null
+      }
+
+      const transaction = transactionResult.rows[0]
+      console.log(`Transacción básica encontrada con ID ${id}`)
+
+      // 2. Obtener los nombres de los dueños en una consulta separada
+      const ownersResult = await sql`
+        SELECT 
+          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+        FROM 
+          transactions t
+          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+        WHERE 
+          t.id = ${id}
+      `
+
+      if (ownersResult.rows.length > 0) {
+        transaction.dueno_anterior_nombre = ownersResult.rows[0].dueno_anterior_nombre
+        transaction.dueno_nuevo_nombre = ownersResult.rows[0].dueno_nuevo_nombre
+      }
+
+      // 3. Obtener las líneas de transacción en una consulta simplificada
+      const linesResult = await sql`
+        SELECT 
+          id, 
+          transaction_id, 
+          product_id, 
+          quantity, 
+          ticket, 
+          ticket2, 
+          raza_id, 
+          color_id, 
+          valor
+        FROM 
+          transaction_lines 
+        WHERE 
+          transaction_id = ${id}
+      `
+
+      console.log(`Líneas encontradas para la transacción con ID ${id}: ${linesResult.rows.length}`)
+      transaction.transaction_lines = linesResult.rows
+
+      return transaction
+    } catch (error) {
+      lastError = error
+      console.error(`Error en intento ${retryCount + 1} al obtener transacción con ID ${id}:`, error)
+      retryCount++
+
+      // Esperar antes de reintentar (backoff exponencial)
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = Math.pow(2, retryCount) * 500 // 1s, 2s, 4s
+        console.log(`Esperando ${waitTime}ms antes de reintentar...`)
+        await new Promise((resolve) => setTimeout(resolve, waitTime))
+      }
     }
-
-    const transaction = transactionResult.rows[0]
-
-    // Obtener las líneas de la transacción
-    const linesResult = await sql`
-      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
-    `
-
-    transaction.transaction_lines = linesResult.rows
-
-    return transaction
-  } catch (error) {
-    console.error(`Error al obtener transacción con ID ${id}:`, error)
-    return null
   }
+
+  console.error(`Todos los intentos fallaron al obtener transacción con ID ${id}`)
+  throw lastError
 }
 
 // Función para obtener departamentos
@@ -692,12 +759,12 @@ export async function getFinancialData() {
     `
 
     return {
-      transactions: transactionsResult.rows,
-      monthlyStats: monthlyStatsResult.rows.map((row) => ({
+      transactions: transactionsResult.rows || [],
+      monthlyStats: (monthlyStatsResult.rows || []).map((row) => ({
         ...row,
-        mes: row.mes.toISOString().split("T")[0].substring(0, 7), // Formato YYYY-MM
+        mes: row.mes ? row.mes.toISOString().split("T")[0].substring(0, 7) : "", // Formato YYYY-MM
       })),
-      animalTypeStats: animalTypeStatsResult.rows,
+      animalTypeStats: animalTypeStatsResult.rows || [],
     }
   } catch (error) {
     console.error("Error al obtener datos financieros:", error)

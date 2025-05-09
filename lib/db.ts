@@ -9,6 +9,11 @@ export const db = {
       return result.rows
     } catch (error) {
       console.error(`Error executing query: ${query}`, error)
+      // Registrar más detalles sobre el error
+      if (error instanceof Error) {
+        console.error(`Error message: ${error.message}`)
+        console.error(`Error stack: ${error.stack}`)
+      }
       throw error
     }
   },

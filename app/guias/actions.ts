@@ -88,6 +88,7 @@ export async function createGuia(data: GuiaData) {
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
+      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
@@ -109,6 +110,11 @@ export async function createGuia(data: GuiaData) {
       `
     }
 
+    // Obtener las líneas con sus ticket2 generados
+    const linesResult = await sql`
+      SELECT * FROM transaction_lines WHERE transaction_id = ${transactionId}
+    `
+
     // Confirmar la transacción
     await sql`COMMIT`
 
@@ -119,6 +125,11 @@ export async function createGuia(data: GuiaData) {
       success: true,
       message: "Guía creada correctamente",
       transactionId,
+      lines: linesResult.rows.map((line) => ({
+        ...line,
+        ticket: line.ticket,
+        ticket2: line.ticket2,
+      })),
     }
   } catch (error) {
     // Revertir la transacción en caso de error
@@ -169,6 +180,7 @@ export async function updateGuia(id: number, data: GuiaData) {
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
+      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
@@ -190,6 +202,11 @@ export async function updateGuia(id: number, data: GuiaData) {
       `
     }
 
+    // Obtener las líneas con sus ticket2 generados
+    const linesResult = await sql`
+      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
+    `
+
     // Confirmar la transacción
     await sql`COMMIT`
 
@@ -201,6 +218,11 @@ export async function updateGuia(id: number, data: GuiaData) {
     return {
       success: true,
       message: "Guía actualizada correctamente",
+      lines: linesResult.rows.map((line) => ({
+        ...line,
+        ticket: line.ticket,
+        ticket2: line.ticket2,
+      })),
     }
   } catch (error) {
     // Revertir la transacción en caso de error
