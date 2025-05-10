@@ -11,6 +11,10 @@ export async function createSacrificio(data) {
     const impuesto2 = data.impuestos && data.impuestos.length > 1 ? data.impuestos[1].valor_calculado : 0
     const impuesto3 = data.impuestos && data.impuestos.length > 2 ? data.impuestos[2].valor_calculado : 0
 
+    // Formatear la fecha para incluir la hora actual
+    const fechaCompleta = new Date(data.fecha_documento)
+    const fechaFormateada = fechaCompleta.toISOString()
+
     // Insertar la transacción principal
     const result = await sql`
       INSERT INTO transactions (
@@ -41,7 +45,7 @@ export async function createSacrificio(data) {
         ${data.type},
         ${data.estado},
         ${data.numero_documento},
-        ${data.fecha_documento},
+        ${fechaFormateada},
         ${data.id_dueno_anterior},
         ${data.id_dueno_nuevo || null},
         ${data.usuario_id},
@@ -80,13 +84,17 @@ export async function updateSacrificio(id, data) {
     const impuesto2 = data.impuestos && data.impuestos.length > 1 ? data.impuestos[1].valor_calculado : 0
     const impuesto3 = data.impuestos && data.impuestos.length > 2 ? data.impuestos[2].valor_calculado : 0
 
+    // Formatear la fecha para incluir la hora actual
+    const fechaCompleta = new Date(data.fecha_documento)
+    const fechaFormateada = fechaCompleta.toISOString()
+
     // Actualizar la transacción principal
     await sql`
       UPDATE transactions SET
         business_location_id = ${data.business_location_id},
         estado = ${data.estado},
         numero_documento = ${data.numero_documento},
-        fecha_documento = ${data.fecha_documento},
+        fecha_documento = ${fechaFormateada},
         id_dueno_anterior = ${data.id_dueno_anterior},
         id_dueno_nuevo = ${data.id_dueno_nuevo || null},
         total = ${data.total},
