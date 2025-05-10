@@ -113,6 +113,7 @@ async function EditarGuiaContent({ params }: { params: { id: string } }) {
   // Obtener datos necesarios
   let contacts, products, razas, colores
   try {
+    // Usar las funciones existentes para obtener los datos
     ;[contacts, products, razas, colores] = await Promise.all([
       getContacts(),
       getProducts(tipoAnimal, locationId),

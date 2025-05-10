@@ -481,7 +481,13 @@ export default function PrintSacrificioDialog({ open, onOpenChange, data, onComp
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(open) => {
+        onOpenChange(open)
+        if (!open && onComplete) onComplete()
+      }}
+    >
       <DialogContent className="max-w-[600px]">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold">Vista previa del documento</h2>
@@ -623,7 +629,13 @@ export default function PrintSacrificioDialog({ open, onOpenChange, data, onComp
         </div>
 
         <div className="flex justify-end gap-2 mt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false)
+              if (onComplete) onComplete()
+            }}
+          >
             Cancelar
           </Button>
           <Button onClick={handlePrint} disabled={isPrinting}>

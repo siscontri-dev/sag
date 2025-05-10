@@ -50,6 +50,7 @@ export default function GuiaForm({
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const ticketInputRef = useRef(null)
+  const hasSubmittedRef = useRef(false)
 
   // Estado para validación de campos
   const [validationAttempted, setValidationAttempted] = useState(false)
@@ -68,11 +69,17 @@ export default function GuiaForm({
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
+  // Obtener la fecha actual en la zona horaria local (Bogotá/Lima)
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, "0")
+  const day = String(today.getDate()).padStart(2, "0")
+  const formattedDate = `${year}-${month}-${day}`
+
+  // Inicializar el formulario con la fecha actual
   const [formData, setFormData] = useState({
     numero_documento: guia?.numero_documento || "",
-    fecha_documento: guia?.fecha_documento
-      ? new Date(guia.fecha_documento).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
+    fecha_documento: guia?.fecha_documento ? new Date(guia.fecha_documento).toISOString().split("T")[0] : formattedDate,
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     business_location_id: locationId.toString(),
     estado: guia?.estado || "confirmado",
@@ -140,8 +147,8 @@ export default function GuiaForm({
     guia?.transaction_lines?.map((line) => ({
       ...line,
       product_name: products.find((p) => p.id === line.product_id)?.name || `Producto #${line.product_id}`,
-      raza_name: razas.find((r) => r.id === line.raza_id)?.nombre || "N/A",
-      color_name: colores.find((c) => c.id === line.color_id)?.nombre || "N/A",
+      raza_name: razas.find((r) => r.id === line.raza_id)?.name || "N/A",
+      color_name: colores.find((c) => c.id === line.color_id)?.name || "N/A",
       es_macho: line.es_macho || false,
     })) || [],
   )
@@ -759,6 +766,51 @@ export default function GuiaForm({
     return !Object.values(errors).some((error) => error)
   }
 
+  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
+  const [ticketButtonDisabled, setTicketButtonDisabled] = useState(false)
+
+  // Modificar la función generateTicket para bloquear el botón after usarlo
+  const handleGenerateTicket = async () => {
+    try {
+      setIsGeneratingTicket(true)
+      // Obtener el ID de ubicación del formulario
+      const locationId = Number(formData.business_location_id)
+
+      const response = await fetch(`/api/tickets/next/${locationId}`)
+
+      if (!response.ok) {
+        throw new Error("Error al generar el ticket")
+      }
+
+      const data = await response.json()
+      console.log("Ticket generado en guía:", data)
+
+      // Actualizar el campo de ticket en la nueva línea
+      setNuevaLinea((prev) => ({
+        ...prev,
+        ticket: data.ticket.toString(),
+      }))
+
+      // Bloquear el botón después de usarlo
+      setTicketButtonDisabled(true)
+
+      toast({
+        title: "Ticket generado",
+        description: `Ticket #${data.ticket} generado correctamente`,
+      })
+    } catch (error) {
+      console.error("Error al generar ticket:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingTicket(false)
+    }
+  }
+
+  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
   const handleAddLinea = () => {
     // Validar datos requeridos
     if (!validateLineaFields()) {
@@ -791,8 +843,8 @@ export default function GuiaForm({
       ...nuevaLinea,
       id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
       product_name: product?.name || "Producto",
-      raza_name: raza?.nombre || "Raza",
-      color_name: color?.nombre || "Color",
+      raza_name: raza?.name || "Raza",
+      color_name: color?.name || "Color",
       price_ticket: precioTicket,
       quantity: Number.parseFloat(nuevaLinea.kilos), // Para mantener compatibilidad con el modelo existente
       valor: precioTicket, // Usar solo el precio del ticket como valor, no multiplicar por kilos
@@ -800,6 +852,9 @@ export default function GuiaForm({
     }
 
     setLineas([...lineas, newLinea])
+
+    // Resetear el estado del botón "A" cuando se añade una línea
+    setTicketButtonDisabled(false)
 
     // Limpiar el formulario de nueva línea, manteniendo los valores predeterminados para porcinos
     // e incrementando automáticamente el número de ticket
@@ -875,44 +930,15 @@ export default function GuiaForm({
 
   const totales = calcularTotales()
 
-  const generateTicket = async () => {
-    try {
-      setIsGeneratingTicket(true)
-      // Obtener el ID de ubicación del formulario
-      const locationId = Number(formData.business_location_id)
+  // Estado para generar ticket
+  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
+  // Modificar la función generateTicket para bloquear el botón after usarlo
 
-      const response = await fetch(`/api/tickets/next/${locationId}`)
+  // Modificar el botón para usar el nuevo estado ticketButtonDisabled
+  // Buscar el botón que tiene onClick={generateTicket} y modificarlo así:
 
-      if (!response.ok) {
-        throw new Error("Error al generar el ticket")
-      }
+  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
 
-      const data = await response.json()
-      console.log("Ticket generado en guía:", data)
-
-      // Actualizar el campo de ticket en la nueva línea
-      setNuevaLinea((prev) => ({
-        ...prev,
-        ticket: data.ticket.toString(),
-      }))
-
-      toast({
-        title: "Ticket generado",
-        description: `Ticket #${data.ticket} generado correctamente`,
-      })
-    } catch (error) {
-      console.error("Error al generar ticket:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
-        variant: "destructive",
-      })
-    } finally {
-      setIsGeneratingTicket(false)
-    }
-  }
-
-  // Función para preparar los tickets para imprimir
   const prepareTicketsForPrinting = () => {
     // Obtener el dueño anterior
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
@@ -952,7 +978,14 @@ export default function GuiaForm({
   // Modificar la función handleSubmit para usar los valores de ticket2 devueltos por el servidor
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Evitar múltiples envíos
+    if (isSubmitting || hasSubmittedRef.current) {
+      return
+    }
+
     setIsSubmitting(true)
+    hasSubmittedRef.current = true
 
     try {
       // Calcular totales de machos y hembras
@@ -1033,6 +1066,9 @@ export default function GuiaForm({
 
         // Mostrar el diálogo de impresión
         setShowPrintDialog(true)
+
+        // Importante: No redirigir aquí, la redirección se hará después de la impresión
+        setIsSubmitting(false)
       } else {
         throw new Error(result.message || "Error al guardar la guía")
       }
@@ -1044,6 +1080,7 @@ export default function GuiaForm({
         variant: "destructive",
       })
       setIsSubmitting(false)
+      hasSubmittedRef.current = false
     }
   }
 
@@ -1099,13 +1136,13 @@ export default function GuiaForm({
             Fecha
           </Label>
           <Input
+            type="date"
             id="fecha_documento"
             name="fecha_documento"
-            type="date"
             value={formData.fecha_documento}
             onChange={handleChange}
-            required
             className="h-8"
+            required
           />
         </div>
         <div className="space-y-1">
@@ -1381,8 +1418,8 @@ export default function GuiaForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={generateTicket}
-                        disabled={isGeneratingTicket}
+                        onClick={handleGenerateTicket}
+                        disabled={isGeneratingTicket || ticketButtonDisabled}
                         className="whitespace-nowrap px-2"
                       >
                         {isGeneratingTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : "A"}
@@ -1434,7 +1471,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {razas.map((raza) => (
                           <SelectItem key={raza.id} value={raza.id.toString()}>
-                            {raza.nombre}
+                            {raza.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1453,7 +1490,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {colores.map((color) => (
                           <SelectItem key={color.id} value={color.id.toString()}>
-                            {color.nombre}
+                            {color.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
