@@ -4,7 +4,9 @@ import Link from "next/link"
 import GuiasTable from "./guias-table"
 import TicketsTable from "./tickets-table"
 import TicketsAgrupadosPorDia from "./tickets-agrupados-por-dia"
+import GuiasPorPropietario from "./guias-por-propietario"
 import ExportButtons from "./export-buttons"
+import TicketsAgrupadosFiltros from "./tickets-agrupados-filtros"
 import { getTransactions, getTicketsLines } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -49,7 +51,7 @@ export default async function GuiasPage({
   // Obtener tickets con manejo de errores - usar -1 para obtener todos los tickets
   let tickets = []
   try {
-    tickets = await getTicketsLines(tipo, -1) // Usar -1 para obtener todos los tickets
+    tickets = await getTicketsLines(tipo, -1, fechaDesde, fechaHasta) // Añadir parámetros de fecha
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
@@ -125,6 +127,12 @@ export default async function GuiasPage({
           >
             Tickets Agrupados
           </TabsTrigger>
+          <TabsTrigger
+            value="propietarios"
+            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
+          >
+            Propietarios
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lista" className="mt-2">
@@ -142,7 +150,14 @@ export default async function GuiasPage({
 
         <TabsContent value="tickets-agrupados" className="mt-2">
           <div className="space-y-4">
-            <TicketsAgrupadosPorDia tickets={tickets} />
+            <TicketsAgrupadosFiltros tipo={tipo} />
+            <TicketsAgrupadosPorDia tickets={tickets} tipo={tipo} fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="propietarios" className="mt-2">
+          <div className="space-y-4">
+            <GuiasPorPropietario guias={guias} />
           </div>
         </TabsContent>
       </Tabs>
