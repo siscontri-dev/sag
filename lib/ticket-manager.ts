@@ -239,6 +239,7 @@ export async function getNextTicketNumber(locationId: number): Promise<number> {
       // Si no existe el contador, verificar el último ticket en transaction_lines
       const lastTicketFromDB = await getLastTicketFromTransactionLines(locationId)
       nextTicket = lastTicketFromDB + 1
+      console.log(`No se encontró contador, usando último ticket de DB + 1: ${nextTicket}`)
 
       // Crear un nuevo contador
       if (columnExists) {
@@ -282,10 +283,13 @@ export async function getNextTicketNumber(locationId: number): Promise<number> {
       const currentCounter = Number(result.rows[0].current_ticket)
       const manualReset = columnExists ? result.rows[0].manual_reset : false
 
+      console.log(`Contador existente: ${currentCounter}, Reinicio manual: ${manualReset}`)
+
       if (manualReset) {
         // Si hubo un reinicio manual, usar directamente el contador + 1
         baseTicket = currentCounter
         nextTicket = currentCounter + 1
+        console.log(`Reinicio manual detectado, usando contador + 1: ${nextTicket}`)
 
         // Actualizar el contador
         await sql`
@@ -297,10 +301,12 @@ export async function getNextTicketNumber(locationId: number): Promise<number> {
       } else {
         // Si no hubo reinicio manual, verificar el último ticket en transaction_lines
         const lastTicketFromDB = await getLastTicketFromTransactionLines(locationId)
+        console.log(`Último ticket en DB: ${lastTicketFromDB}, Contador actual: ${currentCounter}`)
 
         // Usar el valor más alto entre el contador y el último ticket de la base de datos
         baseTicket = Math.max(currentCounter, lastTicketFromDB)
         nextTicket = baseTicket + 1
+        console.log(`Usando el valor más alto + 1: ${nextTicket}`)
 
         // Actualizar el contador
         await sql`

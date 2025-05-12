@@ -86,17 +86,23 @@ export async function createGuia(data: GuiaData) {
     const transactionId = transactionResult.rows[0].id
 
     // Insertar las líneas de la transacción (sin el campo es_macho)
+    const insertedLines = []
+
     for (const linea of data.lineas) {
       // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
       // Si son nulos, usar valores predeterminados según el tipo de animal
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
-      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
-      await sql`
+      console.log(`Insertando línea con ticket: ${linea.ticket}`)
+
+      // En lugar de deshabilitar triggers, usamos una inserción directa con valores explícitos
+      // Esto evita problemas con los triggers del sistema
+      const lineResult = await sql`
         INSERT INTO transaction_lines (
           transaction_id,
           ticket,
+          ticket2,
           product_id,
           quantity,
           raza_id,
@@ -105,17 +111,44 @@ export async function createGuia(data: GuiaData) {
         ) VALUES (
           ${transactionId},
           ${linea.ticket},
+          ${linea.ticket},
           ${linea.product_id},
           ${linea.quantity},
           ${raza_id},
           ${color_id},
           ${linea.valor}
         )
+        RETURNING id, ticket, ticket2
       `
+
+      if (lineResult.rows && lineResult.rows.length > 0) {
+        insertedLines.push(lineResult.rows[0])
+      }
     }
 
-    // Obtener las líneas con sus ticket2 generados
+    // Verificar que los valores de ticket se hayan guardado correctamente
     const linesResult = await sql`
+      SELECT * FROM transaction_lines WHERE transaction_id = ${transactionId}
+    `
+
+    // Si algún valor de ticket ha sido modificado, actualizarlo para que coincida con el valor original
+    for (const linea of data.lineas) {
+      const lineaGuardada = linesResult.rows.find(
+        (row) => row.product_id === linea.product_id && row.quantity === linea.quantity && row.valor === linea.valor,
+      )
+
+      if (lineaGuardada && lineaGuardada.ticket !== linea.ticket) {
+        // Si el ticket ha sido modificado, actualizarlo al valor original
+        await sql`
+          UPDATE transaction_lines 
+          SET ticket = ${linea.ticket}, ticket2 = ${linea.ticket}
+          WHERE id = ${lineaGuardada.id}
+        `
+      }
+    }
+
+    // Obtener las líneas actualizadas
+    const updatedLinesResult = await sql`
       SELECT * FROM transaction_lines WHERE transaction_id = ${transactionId}
     `
 
@@ -129,7 +162,7 @@ export async function createGuia(data: GuiaData) {
       success: true,
       message: "Guía creada correctamente",
       transactionId,
-      lines: linesResult.rows.map((line) => ({
+      lines: updatedLinesResult.rows.map((line) => ({
         ...line,
         ticket: line.ticket,
         ticket2: line.ticket2,
@@ -183,16 +216,19 @@ export async function updateGuia(id: number, data: GuiaData) {
     await sql`DELETE FROM transaction_lines WHERE transaction_id = ${id}`
 
     // Insertar las nuevas líneas (sin el campo es_macho)
+    const insertedLines = []
+
     for (const linea of data.lineas) {
       // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
-      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
-      await sql`
+      // En lugar de deshabilitar triggers, usamos una inserción directa con valores explícitos
+      const lineResult = await sql`
         INSERT INTO transaction_lines (
           transaction_id,
           ticket,
+          ticket2,
           product_id,
           quantity,
           raza_id,
@@ -201,17 +237,44 @@ export async function updateGuia(id: number, data: GuiaData) {
         ) VALUES (
           ${id},
           ${linea.ticket},
+          ${linea.ticket},
           ${linea.product_id},
           ${linea.quantity},
           ${raza_id},
           ${color_id},
           ${linea.valor}
         )
+        RETURNING id, ticket, ticket2
       `
+
+      if (lineResult.rows && lineResult.rows.length > 0) {
+        insertedLines.push(lineResult.rows[0])
+      }
     }
 
-    // Obtener las líneas con sus ticket2 generados
+    // Verificar que los valores de ticket se hayan guardado correctamente
     const linesResult = await sql`
+      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
+    `
+
+    // Si algún valor de ticket ha sido modificado, actualizarlo para que coincida con el valor original
+    for (const linea of data.lineas) {
+      const lineaGuardada = linesResult.rows.find(
+        (row) => row.product_id === linea.product_id && row.quantity === linea.quantity && row.valor === linea.valor,
+      )
+
+      if (lineaGuardada && lineaGuardada.ticket !== linea.ticket) {
+        // Si el ticket ha sido modificado, actualizarlo al valor original
+        await sql`
+          UPDATE transaction_lines 
+          SET ticket = ${linea.ticket}, ticket2 = ${linea.ticket}
+          WHERE id = ${lineaGuardada.id}
+        `
+      }
+    }
+
+    // Obtener las líneas actualizadas
+    const updatedLinesResult = await sql`
       SELECT * FROM transaction_lines WHERE transaction_id = ${id}
     `
 
@@ -226,7 +289,7 @@ export async function updateGuia(id: number, data: GuiaData) {
     return {
       success: true,
       message: "Guía actualizada correctamente",
-      lines: linesResult.rows.map((line) => ({
+      lines: updatedLinesResult.rows.map((line) => ({
         ...line,
         ticket: line.ticket,
         ticket2: line.ticket2,
