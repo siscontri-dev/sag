@@ -22,3 +22,12 @@ export function formatDate(date: string | Date | null | undefined): string {
     year: "numeric",
   }).format(dateObj)
 }
+
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return "0"
+  }
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}

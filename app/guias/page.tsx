@@ -1,59 +1,65 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, Home } from "lucide-react"
+import { PlusCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
+import TicketsTable from "./tickets-table"
+import TicketsAgrupadosPorDia from "./tickets-agrupados-por-dia"
 import ExportButtons from "./export-buttons"
-import { getTransactions } from "@/lib/data"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { getTransactions, getTicketsLines } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// Modificar la función para determinar el tipo de animal basado en business_location_id
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default async function GuiasPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string; fecha_inicio?: string; fecha_fin?: string; valor_min?: string; valor_max?: string }
+  searchParams: {
+    tipo?: string
+    propietario?: string
+    propietario_id?: string
+    limit?: string
+    tab?: string
+    fechaDesde?: string
+    fechaHasta?: string
+    estado?: string
+  }
 }) {
+  // Añadir al inicio de la función, después de obtener los parámetros
+  console.log("Parámetros de búsqueda recibidos:", searchParams)
+
   const tipo = searchParams.tipo || undefined
-  const fecha_inicio = searchParams.fecha_inicio || undefined
-  const fecha_fin = searchParams.fecha_fin || undefined
-  const valor_min = searchParams.valor_min ? Number(searchParams.valor_min) : undefined
-  const valor_max = searchParams.valor_max ? Number(searchParams.valor_max) : undefined
+  const limit = searchParams.limit ? Number.parseInt(searchParams.limit) : 30
+  const activeTab = searchParams.tab || "lista"
+  const fechaDesde = searchParams.fechaDesde || undefined
+  const fechaHasta = searchParams.fechaHasta || undefined
+  const estado = searchParams.estado || undefined
 
-  const guias = await getTransactions("entry", tipo)
-
-  // Filtrar por fecha si se proporcionan los parámetros
-  let guiasFiltradas = guias
-  if (fecha_inicio || fecha_fin) {
-    const fechaInicio = fecha_inicio ? new Date(fecha_inicio) : new Date(0)
-    const fechaFin = fecha_fin ? new Date(fecha_fin) : new Date()
-    guiasFiltradas = guias.filter((g) => {
-      const fechaGuia = new Date(g.fecha_documento)
-      return fechaGuia >= fechaInicio && fechaGuia <= fechaFin
-    })
+  // Obtener guías con manejo de errores
+  let guias = []
+  try {
+    guias = await getTransactions("entry", tipo, limit)
+    console.log(`Total de guías obtenidas: ${guias.length}`)
+  } catch (error) {
+    console.error("Error al obtener guías:", error)
+    // Continuar con array vacío
   }
 
-  // Filtrar por valor de ticket si se proporcionan los parámetros
-  if (valor_min !== undefined || valor_max !== undefined) {
-    guiasFiltradas = guiasFiltradas.filter((g) => {
-      const valorTotal = g.total || 0
-      return (
-        (valor_min === undefined || valorTotal >= valor_min) && (valor_max === undefined || valorTotal <= valor_max)
-      )
-    })
+  // Obtener tickets con manejo de errores - usar -1 para obtener todos los tickets
+  let tickets = []
+  try {
+    tickets = await getTicketsLines(tipo, -1) // Usar -1 para obtener todos los tickets
+    console.log(`Total de tickets obtenidos: ${tickets.length}`)
+  } catch (error) {
+    console.error("Error al obtener tickets:", error)
+    // Continuar con array vacío
   }
 
   // Determinar el tipo de animal para cada guía basado en business_location_id
-  guiasFiltradas.forEach((guia) => {
+  guias.forEach((guia) => {
     guia.tipo_animal = guia.business_location_id === 1 ? "bovino" : "porcino"
   })
-
-  // Filtrar por estado
-  const borradores = guiasFiltradas.filter((g) => g.estado === "borrador")
-  const confirmadas = guiasFiltradas.filter((g) => g.estado === "confirmado")
-  const anuladas = guiasFiltradas.filter((g) => g.estado === "anulado")
 
   // Determinar colores basados en el tipo
   const colors =
@@ -66,10 +72,15 @@ export default async function GuiasPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" asChild>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            asChild
+            className="h-10 w-10 rounded-full border-2 shadow-sm hover:bg-gray-100 transition-all"
+          >
             <Link href="/">
-              <Home className="h-4 w-4" />
+              <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
@@ -77,127 +88,62 @@ export default async function GuiasPage({
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
+          <Button
+            asChild
+            className="rounded-full px-6 py-2 font-semibold shadow-md hover:shadow-lg transition-all"
+            style={{
+              backgroundColor: tipo === "bovino" ? "#1E40AF" : tipo === "porcino" ? "#7E22CE" : "#2563EB",
+              color: "white",
+            }}
+          >
             <Link href={`/guias/nueva${tipo ? `?tipo=${tipo}` : ""}`}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Nueva Guía
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Nueva Guía ICA
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Filtros de fecha y valor */}
-      <Card className="shadow-sm">
-        <CardHeader className="py-3">
-          <CardTitle className="text-lg">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-1">
-              <Label htmlFor="fecha_inicio" className="text-sm">
-                Fecha Inicio
-              </Label>
-              <Input id="fecha_inicio" name="fecha_inicio" type="date" defaultValue={fecha_inicio} className="h-8" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="fecha_fin" className="text-sm">
-                Fecha Fin
-              </Label>
-              <Input id="fecha_fin" name="fecha_fin" type="date" defaultValue={fecha_fin} className="h-8" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="valor_min" className="text-sm">
-                Valor Mínimo
-              </Label>
-              <Input
-                id="valor_min"
-                name="valor_min"
-                type="number"
-                defaultValue={valor_min}
-                className="h-8"
-                placeholder="Valor mínimo"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="valor_max" className="text-sm">
-                Valor Máximo
-              </Label>
-              <Input
-                id="valor_max"
-                name="valor_max"
-                type="number"
-                defaultValue={valor_max}
-                className="h-8"
-                placeholder="Valor máximo"
-              />
-            </div>
-            <div className="md:col-span-4 flex justify-end">
-              <Button type="submit">Aplicar Filtros</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm overflow-hidden">
-        <div className="h-1" style={{ backgroundColor: colors.dark }}></div>
-        <CardHeader style={{ backgroundColor: colors.light }}>
-          <CardTitle>Resumen</CardTitle>
-          <CardDescription>Estadísticas de guías ICA</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-3 gap-4 p-6">
-          <div className="flex flex-col items-center p-4 rounded-lg" style={{ backgroundColor: colors.light }}>
-            <span className="text-2xl font-bold" style={{ color: colors.text }}>
-              {guiasFiltradas.length}
-            </span>
-            <span className="text-sm text-muted-foreground">Total Guías</span>
-          </div>
-          <div
-            className="flex flex-col items-center p-4 rounded-lg"
-            style={{ backgroundColor: themeColors.estado.borrador.bg }}
+      {/* Sistema de pestañas */}
+      <Tabs defaultValue={activeTab} className="w-full">
+        <TabsList className="mb-4 w-full bg-gray-100 p-1 rounded-lg">
+          <TabsTrigger
+            value="lista"
+            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
           >
-            <span className="text-2xl font-bold" style={{ color: themeColors.estado.borrador.text }}>
-              {borradores.length}
-            </span>
-            <span className="text-sm" style={{ color: themeColors.estado.borrador.text }}>
-              Borradores
-            </span>
-          </div>
-          <div
-            className="flex flex-col items-center p-4 rounded-lg"
-            style={{ backgroundColor: themeColors.estado.confirmado.bg }}
+            Lista
+          </TabsTrigger>
+          <TabsTrigger
+            value="tickets"
+            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
           >
-            <span className="text-2xl font-bold" style={{ color: themeColors.estado.confirmado.text }}>
-              {confirmadas.length}
-            </span>
-            <span className="text-sm" style={{ color: themeColors.estado.confirmado.text }}>
-              Confirmadas
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="todas" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="todas">Todas</TabsTrigger>
-          <TabsTrigger value="borradores">Borradores</TabsTrigger>
-          <TabsTrigger value="confirmadas">Confirmadas</TabsTrigger>
-          <TabsTrigger value="anuladas">Anuladas</TabsTrigger>
+            Tickets
+          </TabsTrigger>
+          <TabsTrigger
+            value="tickets-agrupados"
+            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
+          >
+            Tickets Agrupados
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="todas">
-          <ExportButtons tipo={tipo} />
-          <GuiasTable guias={guiasFiltradas} />
+
+        <TabsContent value="lista" className="mt-2">
+          <div className="space-y-4">
+            <ExportButtons tipo={tipo} />
+            <GuiasTable guias={guias} currentLimit={limit} />
+          </div>
         </TabsContent>
-        <TabsContent value="borradores">
-          <ExportButtons tipo={tipo} estado="borrador" />
-          <GuiasTable guias={borradores} />
+
+        <TabsContent value="tickets" className="mt-2">
+          <div className="space-y-4">
+            <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+          </div>
         </TabsContent>
-        <TabsContent value="confirmadas">
-          <ExportButtons tipo={tipo} estado="confirmado" />
-          <GuiasTable guias={confirmadas} />
-        </TabsContent>
-        <TabsContent value="anuladas">
-          <ExportButtons tipo={tipo} estado="anulado" />
-          <GuiasTable guias={anuladas} />
+
+        <TabsContent value="tickets-agrupados" className="mt-2">
+          <div className="space-y-4">
+            <TicketsAgrupadosPorDia tickets={tickets} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
