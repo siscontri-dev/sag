@@ -5,7 +5,8 @@ import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from 
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 
-// Modificar la función Home para manejar mejor los errores:
+// Forzar renderizado dinámico para evitar errores con unstable_noStore()
+export const dynamic = "force-dynamic"
 
 export default async function Home() {
   let stats

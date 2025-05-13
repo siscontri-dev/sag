@@ -144,6 +144,7 @@ export async function getReportData() {
 
 // Función para obtener estadísticas de transacciones
 export async function getTransactionStats() {
+  // Mantenemos noStore() para asegurar datos frescos
   noStore()
   try {
     // Obtener conteo de contactos
@@ -629,6 +630,7 @@ export async function getTaxesByLocationType(tipo: string) {
 
 // Función para obtener datos financieros
 export async function getFinancialData() {
+  // Mantenemos noStore() para asegurar datos frescos
   noStore()
   try {
     // Obtener todas las transacciones con sus impuestos
