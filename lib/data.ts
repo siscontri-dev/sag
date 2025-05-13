@@ -328,8 +328,8 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
   }
 }
 
-// Modificar la función getTransactions para incluir un parámetro de límite
-export async function getTransactions(type = undefined, tipoAnimal = undefined, limit = 30) {
+// Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
+export async function getTransactions(type = undefined, tipoAnimal = undefined) {
   noStore()
   try {
     // Convertir el tipo de animal a business_location_id
@@ -342,116 +342,50 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
 
     let query
     if (type && locationId) {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
-          ORDER BY 
-            t.fecha_documento DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
-          ORDER BY 
-            t.fecha_documento DESC
-        `
-      }
+      query = sql`
+        SELECT 
+          t.*,
+          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+        FROM 
+          transactions t
+          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+        WHERE 
+          t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
+        ORDER BY 
+          t.fecha_documento DESC
+      `
     } else if (type) {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type}
-          ORDER BY 
-            t.fecha_documento DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type}
-          ORDER BY 
-            t.fecha_documento DESC
-        `
-      }
+      query = sql`
+        SELECT 
+          t.*,
+          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+        FROM 
+          transactions t
+          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+        WHERE 
+          t.activo = TRUE AND t.type = ${type}
+        ORDER BY 
+          t.fecha_documento DESC
+      `
     } else {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE
-          ORDER BY 
-            t.fecha_documento DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE
-          ORDER BY 
-            t.fecha_documento DESC
-        `
-      }
+      query = sql`
+        SELECT 
+          t.*,
+          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+        FROM 
+          transactions t
+          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+        WHERE 
+          t.activo = TRUE
+        ORDER BY 
+          t.fecha_documento DESC
+      `
     }
 
     const result = await query
@@ -469,9 +403,7 @@ export async function getTransactionById(id: string) {
     const transactionResult = await sql`
       SELECT t.*, 
              c1.primer_nombre || ' ' || c1.primer_apellido as dueno_anterior_nombre,
-             c1.nit as dueno_anterior_nit,
-             c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre,
-             c2.nit as dueno_nuevo_nit
+             c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre
       FROM transactions t
       LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
       LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
