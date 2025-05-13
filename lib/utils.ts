@@ -11,6 +11,7 @@ export function formatCurrency(amount: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
+// Actualizar la función formatDate para usar la zona horaria de Bogotá
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return ""
 
@@ -20,5 +21,6 @@ export function formatDate(date: string | Date | null | undefined): string {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    timeZone: "America/Bogota",
   }).format(dateObj)
 }
