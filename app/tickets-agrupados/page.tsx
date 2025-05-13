@@ -3,6 +3,8 @@ import TicketsAgrupadosDia from "./tickets-agrupados-dia"
 import TicketsAgrupadosMes from "./tickets-agrupados-mes"
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 async function getTicketsData() {
   noStore()
@@ -38,26 +40,56 @@ async function getTicketsData() {
         AND tl.ticket IS NOT NULL
         AND tl.activo = TRUE
       ORDER BY t.fecha_documento DESC
+      LIMIT 1000
     `
 
     // Verificar el rango de fechas obtenido
     if (result.rows.length > 0) {
-      const fechas = result.rows.map((row) => new Date(row.fecha))
-      const minFecha = new Date(Math.min(...fechas))
-      const maxFecha = new Date(Math.max(...fechas))
-      console.log(`Rango de fechas obtenido: ${minFecha.toISOString()} a ${maxFecha.toISOString()}`)
-      console.log(`Total de tickets obtenidos: ${result.rows.length}`)
+      const fechasValidas = result.rows
+        .filter((row) => row.fecha && !isNaN(new Date(row.fecha).getTime()))
+        .map((row) => new Date(row.fecha))
+
+      if (fechasValidas.length > 0) {
+        const minFecha = new Date(Math.min(...fechasValidas))
+        const maxFecha = new Date(Math.max(...fechasValidas))
+        console.log(`Rango de fechas obtenido: ${minFecha.toISOString()} a ${maxFecha.toISOString()}`)
+        console.log(`Total de tickets obtenidos: ${result.rows.length}`)
+        console.log(`Tickets con fechas válidas: ${fechasValidas.length}`)
+      } else {
+        console.warn("No se encontraron fechas válidas en los tickets")
+      }
     }
 
-    return result.rows
+    // Normalizar las fechas en los resultados
+    const normalizedRows = result.rows.map((row) => {
+      try {
+        if (row.fecha) {
+          const fecha = new Date(row.fecha)
+          // Verificar si la fecha es válida
+          if (!isNaN(fecha.getTime())) {
+            // La fecha es válida, no hacer nada
+          } else {
+            console.warn(`Fecha inválida en ticket ${row.id}: ${row.fecha}`)
+            row.fecha = null // Establecer como null si es inválida
+          }
+        }
+        return row
+      } catch (error) {
+        console.error(`Error al procesar fecha en ticket ${row.id}:`, error)
+        row.fecha = null
+        return row
+      }
+    })
+
+    return { tickets: normalizedRows, error: null }
   } catch (error) {
     console.error("Error al obtener datos de tickets:", error)
-    return []
+    return { tickets: [], error: error.message || "Error al obtener datos de tickets" }
   }
 }
 
 export default async function TicketsAgrupadosPage() {
-  const tickets = await getTicketsData()
+  const { tickets, error } = await getTicketsData()
 
   return (
     <div className="space-y-6">
@@ -65,20 +97,38 @@ export default async function TicketsAgrupadosPage() {
         <h1 className="text-3xl font-bold tracking-tight">Tickets Agrupados</h1>
       </div>
 
-      <Tabs defaultValue="dia" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="dia">Agrupar por Día</TabsTrigger>
-          <TabsTrigger value="mes">Agrupar por Mes</TabsTrigger>
-        </TabsList>
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-        <TabsContent value="dia">
-          <TicketsAgrupadosDia tickets={tickets} />
-        </TabsContent>
+      {tickets.length === 0 && !error && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Sin datos</AlertTitle>
+          <AlertDescription>No se encontraron tickets para mostrar.</AlertDescription>
+        </Alert>
+      )}
 
-        <TabsContent value="mes">
-          <TicketsAgrupadosMes tickets={tickets} />
-        </TabsContent>
-      </Tabs>
+      {tickets.length > 0 && (
+        <Tabs defaultValue="dia" className="w-full">
+          <TabsList className="mb-4">
+            <TabsTrigger value="dia">Agrupar por Día</TabsTrigger>
+            <TabsTrigger value="mes">Agrupar por Mes</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="dia">
+            <TicketsAgrupadosDia tickets={tickets} />
+          </TabsContent>
+
+          <TabsContent value="mes">
+            <TicketsAgrupadosMes tickets={tickets} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }

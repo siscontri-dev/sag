@@ -56,12 +56,24 @@ export default function TicketsAgrupadosMes({ tickets = [] }) {
         const fromDate = new Date(fechaInicial)
         fromDate.setHours(0, 0, 0, 0)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          // Asegurarse de que ticket.fecha es una fecha válida
-          if (!ticket.fecha) return false
+          try {
+            // Asegurarse de que ticket.fecha es una fecha válida
+            if (!ticket.fecha) return false
 
-          // Convertir a fecha local para comparación
-          const ticketDate = new Date(ticket.fecha)
-          return ticketDate >= fromDate
+            // Convertir a fecha local para comparación
+            const ticketDate = new Date(ticket.fecha)
+
+            // Verificar si la fecha es válida
+            if (isNaN(ticketDate.getTime())) {
+              console.warn(`Fecha inválida en ticket: ${ticket.fecha}`)
+              return false
+            }
+
+            return ticketDate >= fromDate
+          } catch (error) {
+            console.error("Error al filtrar por fecha inicial:", error)
+            return false
+          }
         })
       }
 
@@ -69,12 +81,23 @@ export default function TicketsAgrupadosMes({ tickets = [] }) {
         const toDate = new Date(fechaFinal)
         toDate.setHours(23, 59, 59, 999)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          // Asegurarse de que ticket.fecha es una fecha válida
-          if (!ticket.fecha) return false
+          try {
+            // Asegurarse de que ticket.fecha es una fecha válida
+            if (!ticket.fecha) return false
 
-          // Convertir a fecha local para comparación
-          const ticketDate = new Date(ticket.fecha)
-          return ticketDate <= toDate
+            // Convertir a fecha local para comparación
+            const ticketDate = new Date(ticket.fecha)
+
+            // Verificar si la fecha es válida
+            if (isNaN(ticketDate.getTime())) {
+              return false
+            }
+
+            return ticketDate <= toDate
+          } catch (error) {
+            console.error("Error al filtrar por fecha final:", error)
+            return false
+          }
         })
       }
 

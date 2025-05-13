@@ -132,12 +132,26 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       result = result.filter((guia) => {
         if (!guia.fecha_documento) return false
 
-        const fechaGuia = new Date(guia.fecha_documento)
+        // Asegurarse de que la fecha es un objeto Date válido
+        let fechaGuia
+        try {
+          // Convertir a fecha local para comparación
+          fechaGuia = new Date(guia.fecha_documento)
 
-        return isWithinInterval(fechaGuia, {
-          start: fromDate,
-          end: toDate,
-        })
+          // Verificar si la fecha es válida
+          if (isNaN(fechaGuia.getTime())) {
+            console.warn(`Fecha inválida en guía ${guia.id}: ${guia.fecha_documento}`)
+            return false
+          }
+
+          return isWithinInterval(fechaGuia, {
+            start: fromDate,
+            end: toDate,
+          })
+        } catch (error) {
+          console.error(`Error al procesar fecha en guía ${guia.id}:`, error)
+          return false
+        }
       })
     }
 

@@ -625,74 +625,169 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
       locationId = 2
     }
 
+    // Usar plantillas SQL directas en lugar de sql.query para evitar problemas de WebSocket
     let query
     if (locationId) {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-          AND t.business_location_id = ${locationId}
-        ORDER BY tl.ticket DESC
-        ${limit !== -1 ? sql`LIMIT ${limit}` : sql``}
-      `
+      if (limit !== -1) {
+        query = sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+            AND t.business_location_id = ${locationId}
+          ORDER BY tl.ticket DESC
+          LIMIT ${limit}
+        `
+      } else {
+        query = sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+            AND t.business_location_id = ${locationId}
+          ORDER BY tl.ticket DESC
+        `
+      }
     } else {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-        ORDER BY tl.ticket DESC
-        ${limit !== -1 ? sql`LIMIT ${limit}` : sql``}
-      `
+      if (limit !== -1) {
+        query = sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+          ORDER BY tl.ticket DESC
+          LIMIT ${limit}
+        `
+      } else {
+        query = sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+          ORDER BY tl.ticket DESC
+        `
+      }
     }
 
     const result = await query
-    return result.rows
+
+    // Verificar que result.rows existe y es un array
+    if (!result || !result.rows || !Array.isArray(result.rows)) {
+      console.error("Error: result.rows no es un array válido", result)
+      return []
+    }
+
+    // Después de obtener los resultados de la consulta SQL
+    const normalizedTickets = result.rows.map((ticket) => {
+      // Normalizar la fecha
+      if (ticket.fecha) {
+        try {
+          const date = new Date(ticket.fecha)
+          if (!isNaN(date.getTime())) {
+            // La fecha es válida, formatearla como ISO para consistencia
+            ticket.fecha = date.toISOString()
+          } else {
+            console.warn(`Fecha inválida en ticket ${ticket.id}: ${ticket.fecha}`)
+            // Establecer una fecha por defecto o null
+            ticket.fecha = null
+          }
+        } catch (error) {
+          console.error(`Error al procesar fecha en ticket ${ticket.id}:`, error)
+          ticket.fecha = null
+        }
+      }
+      return ticket
+    })
+
+    return normalizedTickets
   } catch (error) {
     console.error("Error al obtener tickets:", error)
     return []

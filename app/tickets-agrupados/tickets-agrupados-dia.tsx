@@ -43,6 +43,7 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
     try {
       // Si es null o undefined, usar la fecha actual
       if (fechaInput === null || fechaInput === undefined) {
+        console.warn("Fecha nula o indefinida, usando fecha actual")
         const now = new Date()
         return format(now, "yyyy-MM-dd")
       }
@@ -69,6 +70,14 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
           const parsedDate = new Date(`${year}-${month}-${day}`)
           if (!isNaN(parsedDate.getTime())) {
             return format(parsedDate, "yyyy-MM-dd")
+          }
+        }
+
+        // Intentar con formato ISO
+        if (fechaInput.includes("T")) {
+          const isoDate = new Date(fechaInput)
+          if (!isNaN(isoDate.getTime())) {
+            return format(isoDate, "yyyy-MM-dd")
           }
         }
       }
@@ -157,9 +166,21 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         const fromDate = new Date(fechaInicial)
         fromDate.setHours(0, 0, 0, 0)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          if (!ticket.fecha) return false
-          const ticketDate = new Date(ticket.fecha)
-          return ticketDate >= fromDate
+          try {
+            if (!ticket.fecha) return false
+            const ticketDate = new Date(ticket.fecha)
+
+            // Verificar si la fecha es válida
+            if (isNaN(ticketDate.getTime())) {
+              console.warn(`Fecha inválida en ticket: ${ticket.fecha}`)
+              return false
+            }
+
+            return ticketDate >= fromDate
+          } catch (error) {
+            console.error("Error al filtrar por fecha inicial:", error)
+            return false
+          }
         })
       }
 
@@ -167,9 +188,20 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         const toDate = new Date(fechaFinal)
         toDate.setHours(23, 59, 59, 999)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          if (!ticket.fecha) return false
-          const ticketDate = new Date(ticket.fecha)
-          return ticketDate <= toDate
+          try {
+            if (!ticket.fecha) return false
+            const ticketDate = new Date(ticket.fecha)
+
+            // Verificar si la fecha es válida
+            if (isNaN(ticketDate.getTime())) {
+              return false
+            }
+
+            return ticketDate <= toDate
+          } catch (error) {
+            console.error("Error al filtrar por fecha final:", error)
+            return false
+          }
         })
       }
 

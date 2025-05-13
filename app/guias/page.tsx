@@ -8,6 +8,8 @@ import ExportButtons from "./export-buttons"
 import { getTransactions, getTicketsLines } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -38,22 +40,25 @@ export default async function GuiasPage({
 
   // Obtener guías con manejo de errores
   let guias = []
+  let guiasError = null
   try {
     guias = await getTransactions("entry", tipo, limit)
     console.log(`Total de guías obtenidas: ${guias.length}`)
   } catch (error) {
     console.error("Error al obtener guías:", error)
-    // Continuar con array vacío
+    guiasError = error.message || "Error al obtener guías"
   }
 
   // Obtener tickets con manejo de errores - usar -1 para obtener todos los tickets
   let tickets = []
+  let ticketsError = null
   try {
-    tickets = await getTicketsLines(tipo, -1) // Usar -1 para obtener todos los tickets
+    // Limitar a 100 tickets para evitar problemas de rendimiento
+    tickets = await getTicketsLines(tipo, 100)
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
-    // Continuar con array vacío
+    ticketsError = error.message || "Error al obtener tickets"
   }
 
   // Determinar el tipo de animal para cada guía basado en business_location_id
@@ -129,20 +134,46 @@ export default async function GuiasPage({
 
         <TabsContent value="lista" className="mt-2">
           <div className="space-y-4">
-            <ExportButtons tipo={tipo} />
-            <GuiasTable guias={guias} currentLimit={limit} />
+            {guiasError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{guiasError}</AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <ExportButtons tipo={tipo} />
+                <GuiasTable guias={guias} currentLimit={limit} />
+              </>
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="tickets" className="mt-2">
           <div className="space-y-4">
-            <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+            {ticketsError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{ticketsError}</AlertDescription>
+              </Alert>
+            ) : (
+              <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+            )}
           </div>
         </TabsContent>
 
         <TabsContent value="tickets-agrupados" className="mt-2">
           <div className="space-y-4">
-            <TicketsAgrupadosPorDia tickets={tickets} />
+            {ticketsError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{ticketsError}</AlertDescription>
+              </Alert>
+            ) : (
+              <TicketsAgrupadosPorDia tickets={tickets} />
+            )}
           </div>
         </TabsContent>
       </Tabs>
