@@ -2,40 +2,18 @@
  * Biblioteca de utilidades para el manejo de fechas
  * Esta biblioteca proporciona funciones robustas para manejar fechas
  * de manera consistente en todos los entornos (desarrollo y producción)
- *
- * Configurada específicamente para la zona horaria de Bogotá (UTC-5)
  */
 
-// Constante para la zona horaria de Bogotá (UTC-5)
-const BOGOTA_TIMEZONE_OFFSET = -5 * 60 // -5 horas en minutos
-
 /**
- * Ajusta una fecha a la zona horaria de Bogotá
- * @param date Fecha a ajustar
- * @returns Fecha ajustada a la zona horaria de Bogotá
- */
-export function adjustToBogotaTimezone(date: Date): Date {
-  // Crear una nueva fecha para no modificar la original
-  const newDate = new Date(date)
-
-  // Obtener la diferencia entre la zona horaria local y UTC en minutos
-  const localTimezoneOffset = newDate.getTimezoneOffset()
-
-  // Calcular la diferencia entre la zona horaria local y Bogotá en minutos
-  const offsetDiff = localTimezoneOffset - BOGOTA_TIMEZONE_OFFSET
-
-  // Ajustar la fecha sumando la diferencia en milisegundos
-  newDate.setMinutes(newDate.getMinutes() + offsetDiff)
-
-  return newDate
-}
-
-/**
- * Normaliza una fecha en cualquier formato a un objeto Date estándar en zona horaria de Bogotá
+ * Normaliza una fecha en cualquier formato a un objeto Date estándar
  * @param date Fecha en cualquier formato (string, Date, null, undefined)
  * @returns Objeto Date normalizado o null si la fecha es inválida
  */
 export function normalizeDate(date: string | Date | null | undefined): Date | null {
+  // Si ya es un objeto Date, devolverlo directamente
+  if (date instanceof Date) {
+    return date
+  }
   if (!date) return null
 
   try {
@@ -45,8 +23,7 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       // Formato DD/MM/YYYY
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
         const [day, month, year] = date.split("/").map(Number)
-        // Crear la fecha con hora 12:00:00 para evitar problemas con cambios de día
-        dateObj = new Date(year, month - 1, day, 12, 0, 0)
+        dateObj = new Date(year, month - 1, day)
       }
       // Formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
       else if (date.includes("T")) {
@@ -55,8 +32,7 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       // Formato YYYY-MM-DD
       else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         const [year, month, day] = date.split("-").map(Number)
-        // Crear la fecha con hora 12:00:00 para evitar problemas con cambios de día
-        dateObj = new Date(year, month - 1, day, 12, 0, 0)
+        dateObj = new Date(year, month - 1, day)
       }
       // Otros formatos
       else {
@@ -72,8 +48,7 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       return null
     }
 
-    // Ajustar a la zona horaria de Bogotá
-    return adjustToBogotaTimezone(dateObj)
+    return dateObj
   } catch (error) {
     console.error(`[date-utils] Error al normalizar fecha: ${date}`, error)
     return null
@@ -86,15 +61,45 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
  * @returns String en formato DD/MM/YYYY o cadena vacía si la fecha es inválida
  */
 export function formatDateDMY(date: string | Date | null | undefined): string {
-  const dateObj = normalizeDate(date)
-  if (!dateObj) return ""
+  // Si la fecha es null o undefined, devolver cadena vacía
+  if (!date) return ""
 
-  // Formatear manualmente para evitar problemas de locale
-  const day = String(dateObj.getDate()).padStart(2, "0")
-  const month = String(dateObj.getMonth() + 1).padStart(2, "0")
-  const year = dateObj.getFullYear()
+  try {
+    // Si es una cadena en formato DD/MM/YYYY, devolverla directamente
+    if (typeof date === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      return date
+    }
 
-  return `${day}/${month}/${year}`
+    // Si es una cadena en formato YYYY-MM-DD, convertirla a DD/MM/YYYY
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split("-")
+      return `${day}/${month}/${year}`
+    }
+
+    // Si es una cadena ISO, extraer la fecha
+    if (typeof date === "string" && date.includes("T")) {
+      const isoDate = new Date(date)
+      if (!isNaN(isoDate.getTime())) {
+        const day = String(isoDate.getDate()).padStart(2, "0")
+        const month = String(isoDate.getMonth() + 1).padStart(2, "0")
+        const year = isoDate.getFullYear()
+        return `${day}/${month}/${year}`
+      }
+    }
+
+    // Para objetos Date y otros formatos de cadena
+    const dateObj = normalizeDate(date)
+    if (!dateObj) return ""
+
+    const day = String(dateObj.getDate()).padStart(2, "0")
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+    const year = dateObj.getFullYear()
+
+    return `${day}/${month}/${year}`
+  } catch (error) {
+    console.error(`[date-utils] Error al formatear fecha: ${date}`, error)
+    return String(date) || ""
+  }
 }
 
 /**
@@ -103,15 +108,34 @@ export function formatDateDMY(date: string | Date | null | undefined): string {
  * @returns String en formato YYYY-MM-DD o cadena vacía si la fecha es inválida
  */
 export function formatDateYMD(date: string | Date | null | undefined): string {
-  const dateObj = normalizeDate(date)
-  if (!dateObj) return ""
+  // Si la fecha es null o undefined, devolver cadena vacía
+  if (!date) return ""
 
-  // Formatear manualmente para evitar problemas de locale
-  const day = String(dateObj.getDate()).padStart(2, "0")
-  const month = String(dateObj.getMonth() + 1).padStart(2, "0")
-  const year = dateObj.getFullYear()
+  try {
+    // Si es una cadena en formato YYYY-MM-DD, devolverla directamente
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date
+    }
 
-  return `${year}-${month}-${day}`
+    // Si es una cadena en formato DD/MM/YYYY, convertirla a YYYY-MM-DD
+    if (typeof date === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      const [day, month, year] = date.split("/")
+      return `${year}-${month}-${day}`
+    }
+
+    // Para objetos Date y otros formatos de cadena
+    const dateObj = normalizeDate(date)
+    if (!dateObj) return ""
+
+    const day = String(dateObj.getDate()).padStart(2, "0")
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+    const year = dateObj.getFullYear()
+
+    return `${year}-${month}-${day}`
+  } catch (error) {
+    console.error(`[date-utils] Error al formatear fecha: ${date}`, error)
+    return String(date) || ""
+  }
 }
 
 /**
@@ -185,9 +209,7 @@ export function isDateInRange(
  * @returns String en formato YYYY-MM-DD
  */
 export function getCurrentDateYMD(): string {
-  // Ajustar la fecha actual a la zona horaria de Bogotá
-  const now = adjustToBogotaTimezone(new Date())
-  return formatDateYMD(now)
+  return formatDateYMD(new Date())
 }
 
 /**
@@ -195,9 +217,7 @@ export function getCurrentDateYMD(): string {
  * @returns String en formato DD/MM/YYYY
  */
 export function getCurrentDateDMY(): string {
-  // Ajustar la fecha actual a la zona horaria de Bogotá
-  const now = adjustToBogotaTimezone(new Date())
-  return formatDateDMY(now)
+  return formatDateDMY(new Date())
 }
 
 /**
@@ -205,8 +225,7 @@ export function getCurrentDateDMY(): string {
  * @returns String en formato YYYY-MM-DD
  */
 export function getYesterdayDateYMD(): string {
-  // Ajustar la fecha actual a la zona horaria de Bogotá
-  const yesterday = adjustToBogotaTimezone(new Date())
+  const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   return formatDateYMD(yesterday)
 }
@@ -216,8 +235,7 @@ export function getYesterdayDateYMD(): string {
  * @returns String en formato DD/MM/YYYY
  */
 export function getYesterdayDateDMY(): string {
-  // Ajustar la fecha actual a la zona horaria de Bogotá
-  const yesterday = adjustToBogotaTimezone(new Date())
+  const yesterday = new Date()
   yesterday.setDate(yesterday.getDate() - 1)
   return formatDateDMY(yesterday)
 }
@@ -234,7 +252,6 @@ export function debugDate(label: string, date: string | Date | null | undefined)
   }
 
   const dateObj = typeof date === "string" ? new Date(date) : date
-  const bogotaDate = adjustToBogotaTimezone(dateObj)
 
   console.log(`[DEBUG] ${label}:`)
   console.log(`  Original: ${date}`)
@@ -243,9 +260,6 @@ export function debugDate(label: string, date: string | Date | null | undefined)
   console.log(`  getTime(): ${dateObj.getTime()}`)
   console.log(`  toISOString(): ${dateObj.toISOString()}`)
   console.log(`  toLocaleDateString(): ${dateObj.toLocaleDateString()}`)
-  console.log(`  Zona horaria local: UTC${-dateObj.getTimezoneOffset() / 60}`)
-  console.log(`  Ajustado a Bogotá: ${bogotaDate}`)
-  console.log(`  Bogotá toISOString(): ${bogotaDate.toISOString()}`)
   console.log(`  Normalizado: ${formatDateDMY(date)}`)
 }
 
@@ -261,4 +275,61 @@ export function formatNumber(value: number | null | undefined): string {
   return Math.round(value)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
+/**
+ * Función para forzar el formato de fecha en DD/MM/YYYY
+ * Esta función es más agresiva y está diseñada para garantizar
+ * que siempre se devuelva una fecha en formato DD/MM/YYYY
+ */
+export function forceDateDMY(date: string | Date | null | undefined): string {
+  if (!date) return ""
+
+  try {
+    // Si ya es una cadena en formato DD/MM/YYYY, devolverla directamente
+    if (typeof date === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      return date
+    }
+
+    // Si es una cadena ISO con formato YYYY-MM-DDTHH:mm:ss.sssZ
+    if (typeof date === "string" && date.includes("T")) {
+      // Extraer solo la parte de la fecha (YYYY-MM-DD)
+      const datePart = date.split("T")[0]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [year, month, day] = datePart.split("-")
+        return `${day}/${month}/${year}`
+      }
+    }
+
+    // Si es una cadena en formato YYYY-MM-DD
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [year, month, day] = date.split("-")
+      return `${day}/${month}/${year}`
+    }
+
+    // Si es un objeto Date
+    if (date instanceof Date) {
+      const day = String(date.getDate()).padStart(2, "0")
+      const month = String(date.getMonth() + 1).padStart(2, "0")
+      const year = date.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+
+    // Último recurso: intentar crear un objeto Date y formatearlo
+    const dateObj = new Date(String(date))
+    if (!isNaN(dateObj.getTime())) {
+      const day = String(dateObj.getDate()).padStart(2, "0")
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+      const year = dateObj.getFullYear()
+      return `${day}/${month}/${year}`
+    }
+
+    // Si todo falla, devolver la fecha original como string
+    return typeof date === "object" && date instanceof Date
+      ? `${String(date.getDate()).padStart(2, "0")}/${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`
+      : String(date)
+  } catch (error) {
+    console.error(`[date-utils] Error al forzar formato de fecha: ${date}`, error)
+    return String(date) || ""
+  }
 }

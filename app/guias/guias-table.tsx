@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Edit, Eye, Search, Filter, X, ArrowUpDown, Calendar } from "lucide-react"
 import Link from "next/link"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 import { themeColors } from "@/lib/theme-config"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -377,7 +377,8 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
           Mostrando {filteredGuias.length} de {guias.length} guías
           {fechaInicio && fechaFin && (
             <span className="ml-2">
-              (Periodo: {format(new Date(fechaInicio), "dd/MM/yyyy")} - {format(new Date(fechaFin), "dd/MM/yyyy")})
+              (Periodo: {format(fechaInicio instanceof Date ? fechaInicio : new Date(fechaInicio), "dd/MM/yyyy")} -
+              {format(fechaFin instanceof Date ? fechaFin : new Date(fechaFin), "dd/MM/yyyy")})
             </span>
           )}
         </div>
@@ -457,7 +458,11 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
                         style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                       >
                         <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                        <TableCell>{guia.fecha_documento ? formatDate(guia.fecha_documento) : ""}</TableCell>
+                        <TableCell>
+                          {typeof guia.fecha_documento === "object" && guia.fecha_documento instanceof Date
+                            ? format(guia.fecha_documento, "dd/MM/yyyy")
+                            : guia.fecha_documento || ""}
+                        </TableCell>
                         <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
                         <TableCell>{guia.dueno_anterior_nit || "N/A"}</TableCell>
                         <TableCell>{guia.quantity_m || 0}</TableCell>
