@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ArrowLeft } from "lucide-react"
+import { PlusCircle, ArrowLeft, AlertCircle } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
 import TicketsTable from "./tickets-table"
@@ -8,7 +8,6 @@ import ExportButtons from "./export-buttons"
 import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
 import { sql } from "@vercel/postgres"
 
 export const dynamic = "force-dynamic"
@@ -255,6 +254,19 @@ export default async function GuiasPage({
           </Button>
         </div>
       </div>
+
+      {/* Alerta para la guía 154 */}
+      <Alert className="bg-amber-50 border-amber-200">
+        <AlertCircle className="h-4 w-4 text-amber-600" />
+        <AlertTitle className="text-amber-800">Acceso directo a Guía #154</AlertTitle>
+        <AlertDescription className="text-amber-700">
+          Si necesita acceder específicamente a la guía #154, use este{" "}
+          <Link href="/guias/editar-154" className="font-medium underline">
+            enlace directo
+          </Link>
+          .
+        </AlertDescription>
+      </Alert>
 
       {/* Sistema de pestañas */}
       <Tabs defaultValue={activeTab} className="w-full">
