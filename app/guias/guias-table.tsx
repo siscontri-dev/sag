@@ -150,45 +150,8 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
     setFilteredGuias(result)
   }, [guias, searchTerm, estadoFilter, fechaInicio, fechaFin, sortConfig])
 
-  // Determinar el tipo de animal predominante para los colores
-  const tipoAnimal = useMemo(() => {
-    if (filteredGuias.length === 0) return "general"
-
-    const bovinos = filteredGuias.filter((g) => g.tipo_animal === "bovino").length
-    const porcinos = filteredGuias.filter((g) => g.tipo_animal === "porcino").length
-
-    return bovinos >= porcinos ? "bovino" : "porcino"
-  }, [filteredGuias])
-
-  // Colores basados en el tipo de animal
-  const colors = useMemo(() => {
-    return tipoAnimal === "bovino"
-      ? themeColors.bovino
-      : tipoAnimal === "porcino"
-        ? themeColors.porcino
-        : { light: "#F9FAFB", medium: "#F3F4F6", dark: "#E5E7EB", text: "#111827" }
-  }, [tipoAnimal])
-
   return (
     <div className="space-y-4">
-      {/* Indicadores de totales */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4" style={{ borderLeftColor: colors.dark }}>
-          <div className="text-sm text-gray-500 font-medium">Total Animales</div>
-          <div className="text-2xl font-bold mt-1">{totales.animales.toLocaleString("es-CO")}</div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4" style={{ borderLeftColor: colors.dark }}>
-          <div className="text-sm text-gray-500 font-medium">Total Kilos</div>
-          <div className="text-2xl font-bold mt-1">{totales.kilos.toLocaleString("es-CO")} kg</div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm p-4 border-l-4" style={{ borderLeftColor: colors.dark }}>
-          <div className="text-sm text-gray-500 font-medium">Valor Total</div>
-          <div className="text-2xl font-bold mt-1">${totales.valor.toLocaleString("es-CO")}</div>
-        </div>
-      </div>
-
       {/* Filtros en el cliente */}
       <div className="flex flex-col sm:flex-row gap-3 items-end">
         <div className="w-full sm:w-2/5">
@@ -387,141 +350,130 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         </div>
       </div>
 
-      {/* Tabla de guías con altura máxima y desplazamiento vertical */}
+      {/* Tabla de guías */}
       <div className="rounded-lg border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="max-h-[500px] overflow-y-auto">
-            <Table>
-              <TableHeader className="sticky top-0 z-10" style={{ backgroundColor: colors.light }}>
-                <TableRow>
-                  <TableHead className="font-semibold">
-                    <Button
-                      variant="ghost"
-                      onClick={() => requestSort("numero_documento")}
-                      className="h-8 px-2 -ml-2 flex items-center"
-                    >
-                      Número
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold">
-                    <Button
-                      variant="ghost"
-                      onClick={() => requestSort("fecha_documento")}
-                      className="h-8 px-2 -ml-2 flex items-center"
-                    >
-                      Fecha
-                      <ArrowUpDown className="ml-1 h-4 w-4" />
-                    </Button>
-                  </TableHead>
-                  <TableHead className="font-semibold">Propietario</TableHead>
-                  <TableHead className="font-semibold">NIT</TableHead>
-                  <TableHead className="font-semibold">Nuevo Propietario</TableHead>
-                  <TableHead className="font-semibold">Machos</TableHead>
-                  <TableHead className="font-semibold">Hembras</TableHead>
-                  <TableHead className="font-semibold">T. Animales</TableHead>
-                  <TableHead className="font-semibold">Kilos</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
-                  <TableHead className="font-semibold">Total</TableHead>
-                  <TableHead className="text-right font-semibold">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredGuias.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={12} className="h-24 text-center">
-                      <div className="text-lg font-medium">No se encontraron guías con los filtros aplicados.</div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredGuias.map((guia, index) => {
-                    // Calcular el total de animales para cada guía
-                    const totalAnimales = (Number(guia.quantity_m) || 0) + (Number(guia.quantity_h) || 0)
-
-                    return (
-                      <TableRow
-                        key={guia.id}
-                        className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
-                        style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
-                      >
-                        <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                        <TableCell>{formatDate(guia.fecha_documento)}</TableCell>
-                        <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
-                        <TableCell>{guia.dueno_anterior_nit || "N/A"}</TableCell>
-                        <TableCell>{guia.dueno_nuevo_nombre || "N/A"}</TableCell>
-                        <TableCell>{guia.quantity_m || 0}</TableCell>
-                        <TableCell>{guia.quantity_h || 0}</TableCell>
-                        <TableCell>{totalAnimales}</TableCell>
-                        <TableCell>
-                          {guia.quantity_k ? `${guia.quantity_k.toLocaleString("es-CO")} kg` : "0 kg"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className="px-2 py-1 rounded-full text-xs font-medium"
-                            style={{
-                              backgroundColor:
-                                guia.estado === "confirmado"
-                                  ? themeColors.estado.confirmado.bg
-                                  : guia.estado === "anulado"
-                                    ? themeColors.estado.anulado.bg
-                                    : themeColors.estado.borrador.bg,
-                              color:
-                                guia.estado === "confirmado"
-                                  ? themeColors.estado.confirmado.text
-                                  : guia.estado === "anulado"
-                                    ? themeColors.estado.anulado.text
-                                    : themeColors.estado.borrador.text,
-                            }}
-                          >
-                            {guia.estado === "confirmado"
-                              ? "Confirmado"
-                              : guia.estado === "anulado"
-                                ? "Anulado"
-                                : "Borrador"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-medium">{formatCurrency(guia.total)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
-                              <Link href={`/guias/ver/${guia.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
-                              <Link href={`/guias/editar/${guia.id}`}>
-                                <Edit className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-        {/* Fila de totales fuera del área de desplazamiento */}
-        <div className="font-semibold" style={{ backgroundColor: colors.medium }}>
-          <Table>
-            <TableBody>
+        <Table>
+          <TableHeader className="bg-blue-50">
+            <TableRow>
+              <TableHead className="font-semibold">
+                <Button
+                  variant="ghost"
+                  onClick={() => requestSort("numero_documento")}
+                  className="h-8 px-2 -ml-2 flex items-center"
+                >
+                  Número
+                  <ArrowUpDown className="ml-1 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead className="font-semibold">
+                <Button
+                  variant="ghost"
+                  onClick={() => requestSort("fecha_documento")}
+                  className="h-8 px-2 -ml-2 flex items-center"
+                >
+                  Fecha
+                  <ArrowUpDown className="ml-1 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead className="font-semibold">Propietario</TableHead>
+              <TableHead className="font-semibold">NIT</TableHead>
+              <TableHead className="font-semibold">Nuevo Propietario</TableHead>
+              <TableHead className="font-semibold">Machos</TableHead>
+              <TableHead className="font-semibold">Hembras</TableHead>
+              <TableHead className="font-semibold">T. Animales</TableHead>
+              <TableHead className="font-semibold">Kilos</TableHead>
+              <TableHead className="font-semibold">Estado</TableHead>
+              <TableHead className="font-semibold">Total</TableHead>
+              <TableHead className="text-right font-semibold">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredGuias.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-right">
-                  Totales:
+                <TableCell colSpan={12} className="h-24 text-center">
+                  <div className="text-lg font-medium">No se encontraron guías con los filtros aplicados.</div>
                 </TableCell>
-                <TableCell>{totales.machos}</TableCell>
-                <TableCell>{totales.hembras}</TableCell>
-                <TableCell>{totales.animales}</TableCell>
-                <TableCell>{totales.kilos.toLocaleString("es-CO")} kg</TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-bold">{formatCurrency(totales.valor)}</TableCell>
-                <TableCell></TableCell>
               </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+            ) : (
+              <>
+                {filteredGuias.map((guia, index) => {
+                  // Calcular el total de animales para cada guía
+                  const totalAnimales = (Number(guia.quantity_m) || 0) + (Number(guia.quantity_h) || 0)
+
+                  return (
+                    <TableRow key={guia.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                      <TableCell className="font-medium">{guia.numero_documento}</TableCell>
+                      <TableCell>{formatDate(guia.fecha_documento)}</TableCell>
+                      <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
+                      <TableCell>{guia.dueno_anterior_nit || "N/A"}</TableCell>
+                      <TableCell>{guia.dueno_nuevo_nombre || "N/A"}</TableCell>
+                      <TableCell>{guia.quantity_m || 0}</TableCell>
+                      <TableCell>{guia.quantity_h || 0}</TableCell>
+                      <TableCell>{totalAnimales}</TableCell>
+                      <TableCell>
+                        {guia.quantity_k ? `${guia.quantity_k.toLocaleString("es-CO")} kg` : "0 kg"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          className="px-2 py-1 rounded-full text-xs font-medium"
+                          style={{
+                            backgroundColor:
+                              guia.estado === "confirmado"
+                                ? themeColors.estado.confirmado.bg
+                                : guia.estado === "anulado"
+                                  ? themeColors.estado.anulado.bg
+                                  : themeColors.estado.borrador.bg,
+                            color:
+                              guia.estado === "confirmado"
+                                ? themeColors.estado.confirmado.text
+                                : guia.estado === "anulado"
+                                  ? themeColors.estado.anulado.text
+                                  : themeColors.estado.borrador.text,
+                          }}
+                        >
+                          {guia.estado === "confirmado"
+                            ? "Confirmado"
+                            : guia.estado === "anulado"
+                              ? "Anulado"
+                              : "Borrador"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">{formatCurrency(guia.total)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
+                            <Link href={`/guias/ver/${guia.id}`}>
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" asChild>
+                            <Link href={`/guias/editar/${guia.id}`}>
+                              <Edit className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+
+                {/* Fila de totales */}
+                <TableRow className="bg-gray-100 font-semibold">
+                  <TableCell colSpan={5} className="text-right">
+                    Totales:
+                  </TableCell>
+                  <TableCell>{totales.machos}</TableCell>
+                  <TableCell>{totales.hembras}</TableCell>
+                  <TableCell>{totales.animales}</TableCell>
+                  <TableCell>{totales.kilos.toLocaleString("es-CO")} kg</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="font-bold">{formatCurrency(totales.valor)}</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </>
+            )}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
