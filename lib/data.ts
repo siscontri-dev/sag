@@ -1,5 +1,6 @@
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
+import { processObjectDates } from "./date-interceptor"
 
 // Function to get transaction statistics
 export async function getTransactionStats() {
@@ -481,316 +482,107 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
   }
 }
 
-// Function to get transactions
-export async function getTransactions(type = undefined, tipoAnimal = undefined, limit = 30) {
+// Función para obtener transacciones (guías o sacrificios)
+export async function getTransactions(tipo_transaccion: "entry" | "sell" = "entry", tipo_animal?: string, limit = 30) {
   try {
-    // Convert animal type to business_location_id
-    let locationId = undefined
-    if (tipoAnimal === "bovino") {
-      locationId = 1
-    } else if (tipoAnimal === "porcino") {
-      locationId = 2
+    let query = `
+      SELECT 
+        t.*, 
+        c1.nombre as propietario_nombre, 
+        c1.apellido as propietario_apellido,
+        c1.nit as propietario_nit,
+        c2.nombre as comprador_nombre, 
+        c2.apellido as comprador_apellido,
+        c2.nit as comprador_nit,
+        uc1.nombre as ubicacion_contacto_nombre,
+        uc2.nombre as ubicacion_contacto_nombre2
+      FROM 
+        transactions t
+      LEFT JOIN 
+        contacts c1 ON t.contact_id = c1.id
+      LEFT JOIN 
+        contacts c2 ON t.customer_id = c2.id
+      LEFT JOIN
+        ubication_contact uc1 ON t.ubication_contact_id = uc1.id
+      LEFT JOIN
+        ubication_contact uc2 ON t.ubication_contact_id2 = uc2.id
+      WHERE 
+        t.tipo_transaccion = $1
+    `
+
+    const params: any[] = [tipo_transaccion]
+
+    // Filtrar por tipo de animal si se proporciona
+    if (tipo_animal) {
+      query += ` AND t.tipo_animal = $2`
+      params.push(tipo_animal)
     }
 
-    let query
-    if (type && locationId) {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
-          ORDER BY 
-            t.id DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
-          ORDER BY 
-            t.id DESC
-        `
-      }
-    } else if (type) {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type}
-          ORDER BY 
-            t.id DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE AND t.type = ${type}
-          ORDER BY 
-            t.id DESC
-        `
-      }
-    } else {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE
-          ORDER BY 
-            t.id DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.*,
-            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-            ca.nit AS dueno_anterior_nit,
-            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-            cn.nit AS dueno_nuevo_nit
-          FROM 
-            transactions t
-            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-          WHERE 
-            t.activo = TRUE
-          ORDER BY 
-            t.id DESC
-        `
-      }
+    // Ordenar por fecha de documento (más reciente primero) y luego por ID
+    query += ` ORDER BY t.fecha_documento DESC, t.id DESC`
+
+    // Limitar resultados si se especifica
+    if (limit > 0) {
+      query += ` LIMIT $${params.length + 1}`
+      params.push(limit)
     }
 
-    const result = await query
-    return result.rows
+    const result = await sql.query(query, params)
+
+    // Procesar fechas para asegurar que sean strings
+    return processObjectDates(result.rows)
   } catch (error) {
     console.error("Error al obtener transacciones:", error)
-    return []
+    throw error
   }
 }
 
-// Function to get tickets lines
-export async function getTicketsLines(tipo?: string, limit = 30) {
+// Función para obtener líneas de tickets
+export async function getTicketsLines(tipo_animal?: string, limit = 30) {
   try {
-    // Convert animal type to business_location_id
-    let locationId = undefined
-    if (tipo === "bovino") {
-      locationId = 1
-    } else if (tipo === "porcino") {
-      locationId = 2
+    let query = `
+      SELECT 
+        tl.*,
+        t.tipo_animal,
+        t.fecha_documento,
+        t.numero_documento,
+        c.nombre as propietario_nombre,
+        c.apellido as propietario_apellido,
+        c.nit as propietario_nit
+      FROM 
+        transaction_lines tl
+      JOIN 
+        transactions t ON tl.transaction_id = t.id
+      LEFT JOIN 
+        contacts c ON t.contact_id = c.id
+      WHERE 
+        t.tipo_transaccion = 'entry'
+    `
+
+    const params: any[] = []
+
+    // Filtrar por tipo de animal si se proporciona
+    if (tipo_animal) {
+      query += ` AND t.tipo_animal = $1`
+      params.push(tipo_animal)
     }
 
-    // Usar plantillas SQL directas en lugar de sql.query para evitar problemas de WebSocket
-    let query
-    if (locationId) {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.id,
-            t.fecha_documento as fecha,
-            t.numero_documento as numero_guia,
-            tl.ticket,
-            tl.ticket2,
-            c.primer_nombre || ' ' || c.primer_apellido as propietario,
-            c.nit,
-            p.name as tipo,
-            r.name as raza,
-            col.name as color,
-            g.name as genero,
-            tl.quantity as kilos,
-            tl.valor,
-            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-            t.business_location_id
-          FROM transactions t
-          JOIN transaction_lines tl ON t.id = tl.transaction_id
-          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-          LEFT JOIN products p ON tl.product_id = p.id
-          LEFT JOIN razas r ON tl.raza_id = r.id
-          LEFT JOIN colors col ON tl.color_id = col.id
-          LEFT JOIN generos g ON tl.genero_id = g.id
-          WHERE t.activo = TRUE 
-            AND t.type = 'entry' 
-            AND tl.ticket IS NOT NULL
-            AND t.business_location_id = ${locationId}
-          ORDER BY tl.ticket DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.id,
-            t.fecha_documento as fecha,
-            t.numero_documento as numero_guia,
-            tl.ticket,
-            tl.ticket2,
-            c.primer_nombre || ' ' || c.primer_apellido as propietario,
-            c.nit,
-            p.name as tipo,
-            r.name as raza,
-            col.name as color,
-            g.name as genero,
-            tl.quantity as kilos,
-            tl.valor,
-            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-            t.business_location_id
-          FROM transactions t
-          JOIN transaction_lines tl ON t.id = tl.transaction_id
-          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-          LEFT JOIN products p ON tl.product_id = p.id
-          LEFT JOIN razas r ON tl.raza_id = r.id
-          LEFT JOIN colors col ON tl.color_id = col.id
-          LEFT JOIN generos g ON tl.genero_id = g.id
-          WHERE t.activo = TRUE 
-            AND t.type = 'entry' 
-            AND tl.ticket IS NOT NULL
-            AND t.business_location_id = ${locationId}
-          ORDER BY tl.ticket DESC
-        `
-      }
-    } else {
-      if (limit !== -1) {
-        query = sql`
-          SELECT 
-            t.id,
-            t.fecha_documento as fecha,
-            t.numero_documento as numero_guia,
-            tl.ticket,
-            tl.ticket2,
-            c.primer_nombre || ' ' || c.primer_apellido as propietario,
-            c.nit,
-            p.name as tipo,
-            r.name as raza,
-            col.name as color,
-            g.name as genero,
-            tl.quantity as kilos,
-            tl.valor,
-            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-            t.business_location_id
-          FROM transactions t
-          JOIN transaction_lines tl ON t.id = tl.transaction_id
-          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-          LEFT JOIN products p ON tl.product_id = p.id
-          LEFT JOIN razas r ON tl.raza_id = r.id
-          LEFT JOIN colors col ON tl.color_id = col.id
-          LEFT JOIN generos g ON tl.genero_id = g.id
-          WHERE t.activo = TRUE 
-            AND t.type = 'entry' 
-            AND tl.ticket IS NOT NULL
-          ORDER BY tl.ticket DESC
-          LIMIT ${limit}
-        `
-      } else {
-        query = sql`
-          SELECT 
-            t.id,
-            t.fecha_documento as fecha,
-            t.numero_documento as numero_guia,
-            tl.ticket,
-            tl.ticket2,
-            c.primer_nombre || ' ' || c.primer_apellido as propietario,
-            c.nit,
-            p.name as tipo,
-            r.name as raza,
-            col.name as color,
-            g.name as genero,
-            tl.quantity as kilos,
-            tl.valor,
-            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-            t.business_location_id
-          FROM transactions t
-          JOIN transaction_lines tl ON t.id = tl.transaction_id
-          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-          LEFT JOIN products p ON tl.product_id = p.id
-          LEFT JOIN razas r ON tl.raza_id = r.id
-          LEFT JOIN colors col ON tl.color_id = col.id
-          LEFT JOIN generos g ON tl.genero_id = g.id
-          WHERE t.activo = TRUE 
-            AND t.type = 'entry' 
-            AND tl.ticket IS NOT NULL
-          ORDER BY tl.ticket DESC
-        `
-      }
+    // Ordenar por fecha de documento (más reciente primero) y luego por ID
+    query += ` ORDER BY t.fecha_documento DESC, tl.id DESC`
+
+    // Limitar resultados si se especifica
+    if (limit > 0) {
+      query += ` LIMIT $${params.length + 1}`
+      params.push(limit)
     }
 
-    const result = await query
+    const result = await sql.query(query, params)
 
-    // Verificar que result.rows existe y es un array
-    if (!result || !result.rows || !Array.isArray(result.rows)) {
-      console.error("Error: result.rows no es un array válido", result)
-      return []
-    }
-
-    // Después de obtener los resultados de la consulta SQL
-    const normalizedTickets = result.rows.map((ticket) => {
-      // Normalizar la fecha
-      if (ticket.fecha) {
-        try {
-          const date = new Date(ticket.fecha)
-          if (!isNaN(date.getTime())) {
-            // La fecha es válida, formatearla como ISO para consistencia
-            ticket.fecha = date.toISOString()
-          } else {
-            console.warn(`Fecha inválida en ticket ${ticket.id}: ${ticket.fecha}`)
-            // Establecer una fecha por defecto o null
-            ticket.fecha = null
-          }
-        } catch (error) {
-          console.error(`Error al procesar fecha en ticket ${ticket.id}:`, error)
-          ticket.fecha = null
-        }
-      }
-      return ticket
-    })
-
-    return normalizedTickets
+    // Procesar fechas para asegurar que sean strings
+    return processObjectDates(result.rows)
   } catch (error) {
-    console.error("Error al obtener tickets:", error)
-    return []
+    console.error("Error al obtener líneas de tickets:", error)
+    throw error
   }
 }
 

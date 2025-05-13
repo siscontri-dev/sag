@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format, startOfDay, endOfDay, isWithinInterval, addDays } from "date-fns"
 import { es } from "date-fns/locale"
+import { processObjectDates } from "@/lib/date-interceptor"
 
 const formatNumber = (value: number | null | undefined): string => {
   if (value === null || value === undefined || isNaN(value)) {
@@ -25,10 +26,13 @@ const formatNumber = (value: number | null | undefined): string => {
 }
 
 export default function GuiasTable({ guias = [], currentLimit = 30 }) {
+  // Procesar todas las fechas en las guías antes de usarlas
+  const processedGuias = useMemo(() => processObjectDates(guias), [guias])
+
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const [filteredGuias, setFilteredGuias] = useState(guias)
+  const [filteredGuias, setFilteredGuias] = useState(processedGuias)
   const [searchTerm, setSearchTerm] = useState("")
   const [estadoFilter, setEstadoFilter] = useState("todos")
   const [limit, setLimit] = useState(currentLimit.toString())
@@ -44,8 +48,23 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
   const sortGuias = (guiasToSort, key, direction) => {
     return [...guiasToSort].sort((a, b) => {
       if (key === "fecha_documento") {
-        const dateA = a.fecha_documento ? new Date(a.fecha_documento) : new Date(0)
-        const dateB = b.fecha_documento ? new Date(b.fecha_documento) : new Date(0)
+        // Convertir a objetos Date para comparación
+        let dateA, dateB
+
+        if (typeof a.fecha_documento === "string" && a.fecha_documento.includes("/")) {
+          const [day, month, year] = a.fecha_documento.split("/").map(Number)
+          dateA = new Date(year, month - 1, day)
+        } else {
+          dateA = new Date(a.fecha_documento || 0)
+        }
+
+        if (typeof b.fecha_documento === "string" && b.fecha_documento.includes("/")) {
+          const [day, month, year] = b.fecha_documento.split("/").map(Number)
+          dateB = new Date(year, month - 1, day)
+        } else {
+          dateB = new Date(b.fecha_documento || 0)
+        }
+
         return direction === "ascending" ? dateA - dateB : dateB - dateA
       } else if (key === "numero_documento") {
         const numA = a.numero_documento ? Number.parseInt(a.numero_documento) : 0
@@ -95,7 +114,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
 
   // Aplicar filtros cuando cambian los criterios
   useEffect(() => {
-    let result = guias
+    let result = processedGuias
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
@@ -132,11 +151,16 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       result = result.filter((guia) => {
         if (!guia.fecha_documento) return false
 
-        // Asegurarse de que la fecha es un objeto Date válido
-        let fechaGuia
         try {
-          // Convertir a fecha local para comparación
-          fechaGuia = new Date(guia.fecha_documento)
+          // Convertir a fecha para comparación
+          let fechaGuia
+
+          if (typeof guia.fecha_documento === "string" && guia.fecha_documento.includes("/")) {
+            const [day, month, year] = guia.fecha_documento.split("/").map(Number)
+            fechaGuia = new Date(year, month - 1, day)
+          } else {
+            fechaGuia = new Date(guia.fecha_documento)
+          }
 
           // Verificar si la fecha es válida
           if (isNaN(fechaGuia.getTime())) {
@@ -161,7 +185,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
     }
 
     setFilteredGuias(result)
-  }, [guias, searchTerm, estadoFilter, fechaInicio, fechaFin, sortConfig])
+  }, [processedGuias, searchTerm, estadoFilter, fechaInicio, fechaFin, sortConfig])
 
   // Determinar el tipo de animal predominante para los colores
   const tipoAnimal = useMemo(() => {
@@ -181,6 +205,21 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         ? themeColors.porcino
         : { light: "#F9FAFB", medium: "#F3F4F6", dark: "#E5E7EB", text: "#111827" }
   }, [tipoAnimal])
+
+  // Asegurarse de que fechaInicio y fechaFin sean strings para mostrar en la UI
+  const formattedFechaInicio =
+    typeof fechaInicio === "object" && fechaInicio instanceof Date
+      ? format(fechaInicio, "dd/MM/yyyy")
+      : typeof fechaInicio === "string"
+        ? fechaInicio
+        : format(new Date(), "dd/MM/yyyy")
+
+  const formattedFechaFin =
+    typeof fechaFin === "object" && fechaFin instanceof Date
+      ? format(fechaFin, "dd/MM/yyyy")
+      : typeof fechaFin === "string"
+        ? fechaFin
+        : format(new Date(), "dd/MM/yyyy")
 
   return (
     <div className="space-y-4">
@@ -263,22 +302,22 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
               <PopoverTrigger asChild>
                 <Button id="fecha-inicio" variant="outline" className="w-full justify-start text-left font-normal h-9">
                   <Calendar className="mr-2 h-4 w-4" />
-                  {fechaInicio ? format(new Date(fechaInicio), "dd/MM/yyyy") : <span>Fecha inicial</span>}
+                  {formattedFechaInicio}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   initialFocus
                   mode="single"
-                  selected={fechaInicio}
+                  selected={fechaInicio instanceof Date ? fechaInicio : new Date(fechaInicio)}
                   onSelect={(date) => {
                     setFechaInicio(date || today)
                     // Si la fecha final es anterior a la inicial, actualizarla
-                    if (date && fechaFin && date > fechaFin) {
+                    if (date && fechaFin && date > new Date(fechaFin)) {
                       setFechaFin(date)
                     }
                   }}
-                  defaultMonth={fechaInicio}
+                  defaultMonth={fechaInicio instanceof Date ? fechaInicio : new Date(fechaInicio)}
                   locale={es}
                 />
               </PopoverContent>
@@ -289,22 +328,22 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
               <PopoverTrigger asChild>
                 <Button id="fecha-fin" variant="outline" className="w-full justify-start text-left font-normal h-9">
                   <Calendar className="mr-2 h-4 w-4" />
-                  {fechaFin ? format(new Date(fechaFin), "dd/MM/yyyy") : <span>Fecha final</span>}
+                  {formattedFechaFin}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <CalendarComponent
                   initialFocus
                   mode="single"
-                  selected={fechaFin}
+                  selected={fechaFin instanceof Date ? fechaFin : new Date(fechaFin)}
                   onSelect={(date) => {
                     setFechaFin(date || today)
                     // Si la fecha inicial es posterior a la final, actualizarla
-                    if (date && fechaInicio && date < fechaInicio) {
+                    if (date && fechaInicio && date < new Date(fechaInicio)) {
                       setFechaInicio(date)
                     }
                   }}
-                  defaultMonth={fechaFin}
+                  defaultMonth={fechaFin instanceof Date ? fechaFin : new Date(fechaFin)}
                   locale={es}
                   disabled={(date) => date < new Date(fechaInicio)}
                 />
@@ -374,11 +413,10 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       {/* Selector de cantidad de documentos y contador de resultados */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <div className="text-sm text-muted-foreground">
-          Mostrando {filteredGuias.length} de {guias.length} guías
+          Mostrando {filteredGuias.length} de {processedGuias.length} guías
           {fechaInicio && fechaFin && (
             <span className="ml-2">
-              (Periodo: {format(fechaInicio instanceof Date ? fechaInicio : new Date(fechaInicio), "dd/MM/yyyy")} -
-              {format(fechaFin instanceof Date ? fechaFin : new Date(fechaFin), "dd/MM/yyyy")})
+              (Periodo: {formattedFechaInicio} - {formattedFechaFin})
             </span>
           )}
         </div>
@@ -458,11 +496,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
                         style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                       >
                         <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                        <TableCell>
-                          {typeof guia.fecha_documento === "object" && guia.fecha_documento instanceof Date
-                            ? format(guia.fecha_documento, "dd/MM/yyyy")
-                            : guia.fecha_documento || ""}
-                        </TableCell>
+                        <TableCell>{String(guia.fecha_documento || "")}</TableCell>
                         <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
                         <TableCell>{guia.dueno_anterior_nit || "N/A"}</TableCell>
                         <TableCell>{guia.quantity_m || 0}</TableCell>

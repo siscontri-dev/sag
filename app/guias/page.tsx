@@ -10,6 +10,7 @@ import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { processObjectDates } from "@/lib/date-interceptor"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -42,7 +43,9 @@ export default async function GuiasPage({
   let guias = []
   let guiasError = null
   try {
-    guias = await getTransactions("entry", tipo, limit)
+    const rawGuias = await getTransactions("entry", tipo, limit)
+    // Procesar fechas para asegurar que sean strings
+    guias = processObjectDates(rawGuias)
     console.log(`Total de guías obtenidas: ${guias.length}`)
   } catch (error) {
     console.error("Error al obtener guías:", error)
@@ -54,7 +57,9 @@ export default async function GuiasPage({
   let ticketsError = null
   try {
     // Limitar a 100 tickets para evitar problemas de rendimiento
-    tickets = await getTicketsLines(tipo, 100)
+    const rawTickets = await getTicketsLines(tipo, 100)
+    // Procesar fechas para asegurar que sean strings
+    tickets = processObjectDates(rawTickets)
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
