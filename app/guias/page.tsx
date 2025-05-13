@@ -1,163 +1,18 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ArrowLeft, AlertCircle } from "lucide-react"
+import { PlusCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
 import TicketsTable from "./tickets-table"
 import TicketsAgrupadosPorDia from "./tickets-agrupados-por-dia"
 import ExportButtons from "./export-buttons"
+import { getTransactions, getTicketsLines } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { sql } from "@vercel/postgres"
+import { AlertCircle } from "lucide-react"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
-
-// Función para obtener guías directamente usando sql de @vercel/postgres
-async function getGuias(tipo = undefined, limit = 30) {
-  try {
-    // Convertir tipo de animal a business_location_id
-    let locationId = undefined
-    if (tipo === "bovino") {
-      locationId = 1
-    } else if (tipo === "porcino") {
-      locationId = 2
-    }
-
-    // Construir la consulta usando tagged template literals
-    let query
-    if (locationId) {
-      query = sql`
-        SELECT 
-          t.*,
-          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          ca.nit AS dueno_anterior_nit,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-          cn.nit AS dueno_nuevo_nit
-        FROM 
-          transactions t
-          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-        WHERE 
-          t.activo = TRUE AND t.type = 'entry' AND t.business_location_id = ${locationId}
-        ORDER BY 
-          t.id DESC
-        LIMIT ${limit}
-      `
-    } else {
-      query = sql`
-        SELECT 
-          t.*,
-          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          ca.nit AS dueno_anterior_nit,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-          cn.nit AS dueno_nuevo_nit
-        FROM 
-          transactions t
-          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-        WHERE 
-          t.activo = TRUE AND t.type = 'entry'
-        ORDER BY 
-          t.id DESC
-        LIMIT ${limit}
-      `
-    }
-
-    const result = await query
-    return result.rows
-  } catch (error) {
-    console.error("Error al obtener guías:", error)
-    throw error
-  }
-}
-
-// Función para obtener tickets directamente usando sql de @vercel/postgres
-async function getTickets(tipo = undefined, limit = 500) {
-  try {
-    // Convertir tipo de animal a business_location_id
-    let locationId = undefined
-    if (tipo === "bovino") {
-      locationId = 1
-    } else if (tipo === "porcino") {
-      locationId = 2
-    }
-
-    // Construir la consulta usando tagged template literals
-    let query
-    if (locationId) {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-          AND t.business_location_id = ${locationId}
-        ORDER BY tl.ticket DESC
-        LIMIT ${limit}
-      `
-    } else {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-        ORDER BY tl.ticket DESC
-        LIMIT ${limit}
-      `
-    }
-
-    const result = await query
-    console.log(`Tickets obtenidos: ${result.rows.length}`)
-    return result.rows
-  } catch (error) {
-    console.error("Error al obtener tickets:", error)
-    throw error
-  }
-}
 
 export default async function GuiasPage({
   searchParams,
@@ -187,20 +42,19 @@ export default async function GuiasPage({
   let guias = []
   let guiasError = null
   try {
-    // Usar la función local que usa directamente sql de @vercel/postgres
-    guias = await getGuias(tipo, limit)
+    guias = await getTransactions("entry", tipo, limit)
     console.log(`Total de guías obtenidas: ${guias.length}`)
   } catch (error) {
     console.error("Error al obtener guías:", error)
     guiasError = error.message || "Error al obtener guías"
   }
 
-  // Obtener tickets con manejo de errores
+  // Obtener tickets con manejo de errores - usar -1 para obtener todos los tickets
   let tickets = []
   let ticketsError = null
   try {
-    // Usar la función local que usa directamente sql de @vercel/postgres
-    tickets = await getTickets(tipo, 500)
+    // Limitar a 100 tickets para evitar problemas de rendimiento
+    tickets = await getTicketsLines(tipo, 100)
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
@@ -255,19 +109,6 @@ export default async function GuiasPage({
         </div>
       </div>
 
-      {/* Alerta para la guía 154 */}
-      <Alert className="bg-amber-50 border-amber-200">
-        <AlertCircle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-800">Acceso directo a Guía #154</AlertTitle>
-        <AlertDescription className="text-amber-700">
-          Si necesita acceder específicamente a la guía #154, use este{" "}
-          <Link href="/guias/editar-154" className="font-medium underline">
-            enlace directo
-          </Link>
-          .
-        </AlertDescription>
-      </Alert>
-
       {/* Sistema de pestañas */}
       <Tabs defaultValue={activeTab} className="w-full">
         <TabsList className="mb-4 w-full bg-gray-100 p-1 rounded-lg">
@@ -317,7 +158,7 @@ export default async function GuiasPage({
                 <AlertDescription>{ticketsError}</AlertDescription>
               </Alert>
             ) : (
-              <TicketsTable tickets={tickets} currentLimit={limit} />
+              <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
             )}
           </div>
         </TabsContent>

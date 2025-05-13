@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -21,14 +21,6 @@ import TicketPrinter from "@/components/ticket-printer"
 import ExportTicketsButtons from "./export-tickets-buttons"
 
 export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
-  // Usar useMemo para procesar los tickets solo cuando cambien
-  const processedTickets = useMemo(() => {
-    return tickets.map((ticket) => {
-      // Crear una copia para no modificar el original
-      return { ...ticket }
-    })
-  }, [tickets])
-
   const [searchTerm, setSearchTerm] = useState("")
   const [ticketSearch, setTicketSearch] = useState("")
   const [guiaSearch, setGuiaSearch] = useState("")
@@ -36,11 +28,10 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
   const [fechaInicial, setFechaInicial] = useState(undefined)
   const [fechaFinal, setFechaFinal] = useState(undefined)
   const [estado, setEstado] = useState("")
-  const [filteredTickets, setFilteredTickets] = useState([])
+  const [filteredTickets, setFilteredTickets] = useState(tickets)
   const [sortConfig, setSortConfig] = useState({ key: "fecha", direction: "desc" })
   const [limit, setLimit] = useState(currentLimit)
   const [showDateFilters, setShowDateFilters] = useState(false)
-  const [debug, setDebug] = useState({ enabled: false, info: {} })
 
   // Función para normalizar texto (quitar acentos, convertir a minúsculas)
   const normalizeText = (text) => {
@@ -71,95 +62,9 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
     return searchWords.every((word) => normalizedText.includes(word))
   }
 
-  // Función para formatear fecha para mostrar en la tabla
-  const formatDisplayDate = (dateValue) => {
-    if (!dateValue) return ""
-
-    try {
-      // Si es un string ISO o fecha de PostgreSQL
-      if (typeof dateValue === "string") {
-        // Intentar crear un objeto Date
-        const date = new Date(dateValue)
-
-        // Verificar si la fecha es válida
-        if (!isNaN(date.getTime())) {
-          // Formatear como DD/MM/YYYY
-          return format(date, "dd/MM/yyyy")
-        }
-      }
-
-      // Si ya es un objeto Date
-      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-        return format(dateValue, "dd/MM/yyyy")
-      }
-
-      // Si no se pudo formatear, devolver el valor original
-      return String(dateValue)
-    } catch (error) {
-      console.error(`Error al formatear fecha: ${dateValue}`, error)
-      return String(dateValue)
-    }
-  }
-
-  // Función para convertir una fecha a objeto Date para comparaciones
-  const parseToDate = (dateValue) => {
-    if (!dateValue) return null
-
-    try {
-      // Si ya es un objeto Date
-      if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
-        return dateValue
-      }
-
-      // Si es un string
-      if (typeof dateValue === "string") {
-        // Intentar como formato ISO o PostgreSQL
-        let date = new Date(dateValue)
-
-        // Verificar si la fecha es válida
-        if (!isNaN(date.getTime())) {
-          return date
-        }
-
-        // Intentar como formato DD/MM/YYYY
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateValue)) {
-          const [day, month, year] = dateValue.split("/").map(Number)
-          date = new Date(year, month - 1, day)
-
-          if (!isNaN(date.getTime())) {
-            return date
-          }
-        }
-      }
-
-      return null
-    } catch (error) {
-      console.error(`Error al parsear fecha: ${dateValue}`, error)
-      return null
-    }
-  }
-
-  // Activar modo debug con doble clic en el título
-  const toggleDebug = () => {
-    setDebug((prev) => ({
-      enabled: !prev.enabled,
-      info: {
-        totalTickets: processedTickets.length,
-        fechasUnicas: [...new Set(processedTickets.map((t) => t.fecha))].sort(),
-        muestras: processedTickets.slice(0, 5).map((t) => ({
-          id: t.id,
-          fecha: t.fecha,
-          fechaFormateada: formatDisplayDate(t.fecha),
-          ticket: t.ticket,
-          ticket2: t.ticket2,
-        })),
-      },
-    }))
-  }
-
   // Aplicar filtros
   useEffect(() => {
-    let result = [...processedTickets]
+    let result = [...tickets]
 
     // Filtrar por número de ticket
     if (ticketSearch) {
@@ -205,8 +110,8 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
           if (!ticket.fecha) return false
 
           // Convertir a fecha y verificar validez
-          const ticketDate = parseToDate(ticket.fecha)
-          if (!ticketDate) {
+          const ticketDate = new Date(ticket.fecha)
+          if (isNaN(ticketDate.getTime())) {
             console.warn(`Fecha inválida en ticket ${ticket.id}: ${ticket.fecha}`)
             return false
           }
@@ -228,8 +133,8 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
           if (!ticket.fecha) return false
 
           // Convertir a fecha y verificar validez
-          const ticketDate = parseToDate(ticket.fecha)
-          if (!ticketDate) {
+          const ticketDate = new Date(ticket.fecha)
+          if (isNaN(ticketDate.getTime())) {
             return false
           }
 
@@ -242,7 +147,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
     }
 
     // Filtrar por estado
-    if (estado && estado !== "all") {
+    if (estado) {
       result = result.filter((ticket) => ticket.estado === estado)
     }
 
@@ -255,18 +160,13 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
 
         // Ordenar por fecha
         if (sortConfig.key === "fecha") {
-          const dateA = parseToDate(a[sortConfig.key])
-          const dateB = parseToDate(b[sortConfig.key])
-
-          // Si alguna fecha no es válida, ponerla al final
-          if (!dateA) return 1
-          if (!dateB) return -1
-
+          const dateA = new Date(a[sortConfig.key])
+          const dateB = new Date(b[sortConfig.key])
           return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA
         }
 
         // Ordenar por número de ticket (como número si es posible)
-        if (sortConfig.key === "ticket" || sortConfig.key === "ticket2") {
+        if (sortConfig.key === "ticket") {
           const numA = Number.parseInt(a[sortConfig.key], 10) || 0
           const numB = Number.parseInt(b[sortConfig.key], 10) || 0
           return sortConfig.direction === "asc" ? numA - numB : numB - numA
@@ -287,17 +187,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
     }
 
     setFilteredTickets(result)
-  }, [
-    processedTickets,
-    searchTerm,
-    ticketSearch,
-    guiaSearch,
-    propietarioSearch,
-    fechaInicial,
-    fechaFinal,
-    estado,
-    sortConfig,
-  ])
+  }, [tickets, searchTerm, ticketSearch, guiaSearch, propietarioSearch, fechaInicial, fechaFinal, estado, sortConfig])
 
   // Función para cambiar el ordenamiento
   const requestSort = (key) => {
@@ -367,9 +257,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="py-2">
-            <CardTitle className="text-sm font-medium text-gray-500" onDoubleClick={toggleDebug}>
-              Total Tickets
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">Total Tickets</CardTitle>
           </CardHeader>
           <CardContent className="py-2">
             <div className="text-2xl font-bold" style={{ color: colors.dark }}>
@@ -398,30 +286,6 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
           </CardContent>
         </Card>
       </div>
-
-      {/* Panel de depuración (visible solo cuando se activa) */}
-      {debug.enabled && (
-        <Card className="bg-gray-100 border-2 border-amber-500">
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm font-medium text-gray-700">Información de Depuración</CardTitle>
-          </CardHeader>
-          <CardContent className="py-2 text-xs font-mono">
-            <div>
-              <p>Total tickets en datos originales: {debug.info.totalTickets}</p>
-              <p>Fechas únicas encontradas:</p>
-              <ul className="ml-4 list-disc">
-                {debug.info.fechasUnicas?.map((fecha, i) => (
-                  <li key={i}>{fecha}</li>
-                ))}
-              </ul>
-              <p>Muestra de tickets:</p>
-              <pre className="bg-gray-200 p-2 rounded overflow-x-auto">
-                {JSON.stringify(debug.info.muestras, null, 2)}
-              </pre>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Filtros */}
       <Card>
@@ -464,17 +328,11 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                     )}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {fechaInicial ? format(fechaInicial, "dd/MM/yyyy", { locale: es }) : <span>Seleccionar fecha</span>}
+                    {fechaInicial ? format(fechaInicial, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-50">
-                  <CalendarComponent
-                    mode="single"
-                    selected={fechaInicial}
-                    onSelect={setFechaInicial}
-                    initialFocus
-                    locale={es}
-                  />
+                  <CalendarComponent mode="single" selected={fechaInicial} onSelect={setFechaInicial} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -490,17 +348,11 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                     className={cn("w-full justify-start text-left font-normal", !fechaFinal && "text-muted-foreground")}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {fechaFinal ? format(fechaFinal, "dd/MM/yyyy", { locale: es }) : <span>Seleccionar fecha</span>}
+                    {fechaFinal ? format(fechaFinal, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 z-50">
-                  <CalendarComponent
-                    mode="single"
-                    selected={fechaFinal}
-                    onSelect={setFechaFinal}
-                    initialFocus
-                    locale={es}
-                  />
+                  <CalendarComponent mode="single" selected={fechaFinal} onSelect={setFechaFinal} initialFocus />
                 </PopoverContent>
               </Popover>
             </div>
@@ -615,7 +467,6 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                   <SelectItem value="30">30 filas</SelectItem>
                   <SelectItem value="50">50 filas</SelectItem>
                   <SelectItem value="100">100 filas</SelectItem>
-                  <SelectItem value="500">500 filas</SelectItem>
                   <SelectItem value="-1">Todas</SelectItem>
                 </SelectContent>
               </Select>
@@ -696,7 +547,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                           className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
                           style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                         >
-                          <TableCell>{formatDisplayDate(ticket.fecha)}</TableCell>
+                          <TableCell>{formatDateString(ticket.fecha)}</TableCell>
                           <TableCell>{ticket.numero_guia || "-"}</TableCell>
                           <TableCell>{ticket.ticket2 || "-"}</TableCell>
                           <TableCell className="font-medium">{ticket.ticket}</TableCell>
@@ -716,7 +567,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                                 ticketData={{
                                   ticketNumber: Number(ticket.ticket) || 0,
                                   ticket2: Number(ticket.ticket2) || 0,
-                                  fecha: formatDisplayDate(ticket.fecha),
+                                  fecha: ticket.fecha ? new Date(ticket.fecha).toLocaleDateString("es-CO") : "",
                                   duenioAnterior: ticket.propietario || "",
                                   cedulaDuenio: ticket.nit || "",
                                   tipoAnimal: ticket.tipo || "",
@@ -763,4 +614,47 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       </Card>
     </div>
   )
+}
+
+function formatDateString(dateString: string): string {
+  if (!dateString) return ""
+
+  try {
+    // Intentar diferentes formatos de fecha
+    let date: Date
+
+    // Verificar si la fecha ya tiene el formato correcto (DD/MM/YYYY)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
+      const [day, month, year] = dateString.split("/").map(Number)
+      date = new Date(year, month - 1, day)
+    }
+    // Verificar si es formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+    else if (dateString.includes("T")) {
+      date = new Date(dateString)
+    }
+    // Verificar si es formato YYYY-MM-DD
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      const [year, month, day] = dateString.split("-").map(Number)
+      date = new Date(year, month - 1, day)
+    }
+    // Otros formatos
+    else {
+      date = new Date(dateString)
+    }
+
+    // Verificar si la fecha es válida
+    if (isNaN(date.getTime())) {
+      console.warn(`Fecha inválida: ${dateString}`)
+      return ""
+    }
+
+    return date.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  } catch (error) {
+    console.error("Error formatting date:", error)
+    return ""
+  }
 }

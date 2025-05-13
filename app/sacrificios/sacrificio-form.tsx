@@ -658,17 +658,6 @@ export default function SacrificioForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    // Validar que exista un dueño anterior
-    if (!formData.id_dueno_anterior) {
-      toast({
-        title: "Error",
-        description: "Debe seleccionar un propietario antes de guardar",
-        variant: "destructive",
-      })
-      return
-    }
-
     setIsSubmitting(true)
 
     try {
@@ -1105,7 +1094,6 @@ export default function SacrificioForm({
                       contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||
-                      "/placeholder.svg" ||
                       "/placeholder.svg"
                     }
                     alt="Logo de la marca"
@@ -1450,22 +1438,17 @@ export default function SacrificioForm({
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" type="button" asChild>
-            <Link href="/sacrificios">Cancelar</Link>
-          </Button>
-          <Button
-            type="submit"
-            disabled={isSubmitting || totalAnimales === 0 || !formData.id_dueno_anterior}
-            style={{ backgroundColor: colors.dark, color: colors.text }}
-          >
-            {isSubmitting ? "Guardando..." : "Guardar"}
-          </Button>
-        </div>
-        {!formData.id_dueno_anterior && (
-          <p className="text-red-500 text-sm text-right">Debe seleccionar un propietario antes de guardar</p>
-        )}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" type="button" asChild>
+          <Link href="/sacrificios">Cancelar</Link>
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting || totalAnimales === 0}
+          style={{ backgroundColor: colors.dark, color: colors.text }}
+        >
+          {isSubmitting ? "Guardando..." : "Guardar"}
+        </Button>
       </div>
 
       {/* Diálogo para imprimir el documento */}

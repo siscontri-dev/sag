@@ -1,119 +1,88 @@
-"use client"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { BarChart3, FileText, Printer, MilkIcon as Cow } from "lucide-react"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { themeColors } from "@/lib/theme-config"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useRouter } from "next/navigation"
-
-export default function InformesPage({
-  searchParams,
-}: {
-  searchParams: {
-    tipo?: string
-    categoria?: string
-    informe?: string
-  }
-}) {
-  // Obtener parámetros de la URL
-  const tipo = searchParams.tipo || "bovino"
-  const categoria = searchParams.categoria || "ica"
-  const informeSeleccionado = searchParams.informe || "tickets"
-
-  // Determinar colores basados en el tipo
-  const colors = tipo === "bovino" ? themeColors.bovino : themeColors.porcino
-
+export default function InformesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
-          Informes {tipo === "bovino" ? "Bovinos" : "Porcinos"}
-        </h1>
+        <h1 className="text-3xl font-bold tracking-tight">Informes</h1>
       </div>
 
-      <Tabs defaultValue={tipo} className="w-full">
-        <TabsList className="mb-4 w-full bg-gray-100 p-1 rounded-lg">
-          <TabsTrigger
-            value="bovino"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
-            onClick={() => {
-              const url = new URL(window.location.href)
-              url.searchParams.set("tipo", "bovino")
-              window.location.href = url.toString()
-            }}
-          >
-            Bovinos
-          </TabsTrigger>
-          <TabsTrigger
-            value="porcino"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
-            onClick={() => {
-              const url = new URL(window.location.href)
-              url.searchParams.set("tipo", "porcino")
-              window.location.href = url.toString()
-            }}
-          >
-            Porcinos
-          </TabsTrigger>
-        </TabsList>
-
-        <div className="mb-6">
-          <InformeSelector tipo={tipo} informeSeleccionado={informeSeleccionado} />
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informe Diario Báscula Corralaje</CardTitle>
+            <CardDescription>Resumen diario de tickets y valores para báscula y corralaje</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center py-4">
+              <BarChart3 className="h-16 w-16 text-muted-foreground" />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" asChild>
+              <Link href="/informes/bascula-corralaje">
+                <FileText className="mr-2 h-4 w-4" />
+                Ver Informe
+              </Link>
+            </Button>
+            <Button variant="outline">
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir
+            </Button>
+          </CardFooter>
+        </Card>
 
         <Card>
-          <CardContent className="pt-6">
-            <InformeContent tipo={tipo} informe={informeSeleccionado} />
+          <CardHeader>
+            <CardTitle>Boletín Movimiento Ganado Mayor</CardTitle>
+            <CardDescription>Registro de sacrificios de ganado bovino y distribución de impuestos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center py-4">
+              <Cow className="h-16 w-16 text-muted-foreground" />
+            </div>
           </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" asChild>
+              <Link href="/informes/boletin-ganado-mayor">
+                <FileText className="mr-2 h-4 w-4" />
+                Ver Boletín
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/informes/boletin-ganado-mayor">
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
-      </Tabs>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Informe de Sacrificios</CardTitle>
+            <CardDescription>Detalle de sacrificios por periodo</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex justify-center py-4">
+              <FileText className="h-16 w-16 text-muted-foreground" />
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button variant="outline" disabled>
+              <FileText className="mr-2 h-4 w-4" />
+              Ver Informe
+            </Button>
+            <Button variant="outline" disabled>
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   )
-}
-
-// Componente para el selector de informes
-function InformeSelector({ tipo, informeSeleccionado }) {
-  const router = useRouter()
-
-  const handleInformeChange = (value) => {
-    const url = new URL(window.location.href)
-    url.searchParams.set("informe", value)
-    window.location.href = url.toString()
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="informe-selector" className="text-sm font-medium">
-        Seleccionar Informe:
-      </label>
-      <Select value={informeSeleccionado} onValueChange={handleInformeChange}>
-        <SelectTrigger className="w-[300px]" id="informe-selector">
-          <SelectValue placeholder="Seleccionar informe" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="tickets">Listado de Tickets</SelectItem>
-          <SelectItem value="tickets-agrupados">Tickets Agrupados por Día</SelectItem>
-          <SelectItem value="guias">Listado de Guías ICA</SelectItem>
-          <SelectItem value="guias-propietario">Guías por Propietario</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
-
-// Componente para mostrar el contenido del informe seleccionado
-function InformeContent({ tipo, informe }) {
-  // Aquí se renderizará el componente correspondiente al informe seleccionado
-  switch (informe) {
-    case "tickets":
-      return <div>Cargando listado de tickets...</div>
-    case "tickets-agrupados":
-      return <div>Cargando tickets agrupados por día...</div>
-    case "guias":
-      return <div>Cargando listado de guías ICA...</div>
-    case "guias-propietario":
-      return <div>Cargando guías por propietario...</div>
-    default:
-      return <div>Seleccione un informe para visualizar</div>
-  }
 }

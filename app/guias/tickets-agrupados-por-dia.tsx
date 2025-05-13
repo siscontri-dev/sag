@@ -1,469 +1,269 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { formatCurrency, formatNumber } from "@/lib/utils"
-import { themeColors } from "@/lib/theme-config"
-import { Label } from "@/components/ui/label"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar as CalendarComponent } from "@/components/ui/calendar"
-import {
-  format,
-  startOfDay,
-  endOfDay,
-  isWithinInterval,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-} from "date-fns"
-import { es } from "date-fns/locale"
-import { cn } from "@/lib/utils"
-import { Calendar, Filter, ArrowUpDown } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import ExportTicketsAgrupadosButtons from "./export-tickets-agrupados-buttons"
-import { processObjectDates } from "@/lib/date-interceptor"
 
-export default function TicketsAgrupadosPorDia({ tickets = [] }) {
-  // Usar useMemo para procesar los tickets solo cuando cambien
-  const processedTickets = useMemo(() => processObjectDates(tickets), [tickets])
+interface Ticket {
+  id: string
+  ticket: string
+  ticket2: string
+  fecha: string
+  genero: string
+  valor: number
+  kilos: number
+}
 
-  // Estado para filtros
-  const today = new Date()
-  const [fechaInicio, setFechaInicio] = useState(today)
-  const [fechaFin, setFechaFin] = useState(today)
-  const [filteredTickets, setFilteredTickets] = useState(processedTickets)
-  const [sortConfig, setSortConfig] = useState({ key: "fecha", direction: "desc" })
-  const [agrupacion, setAgrupacion] = useState("dia") // dia, semana, mes
+export default function TicketsAgrupadosPorDia({ tickets, tipo, fechaDesde, fechaHasta }) {
+  const [ticketsAgrupados, setTicketsAgrupados] = useState<any[]>([])
+  const [debug, setDebug] = useState<any>({})
 
-  // Función para parsear fechas en formato DD/MM/YYYY
-  const parseDateDMY = (dateString) => {
-    if (!dateString) return null
-
-    try {
-      // Si ya es un objeto Date, devolverlo
-      if (dateString instanceof Date) {
-        return dateString
-      }
-
-      // Si es un string en formato DD/MM/YYYY
-      if (typeof dateString === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-        const [day, month, year] = dateString.split("/").map(Number)
-        return new Date(year, month - 1, day)
-      }
-
-      // Intentar parsear como fecha ISO
-      const date = new Date(dateString)
-      if (!isNaN(date.getTime())) {
-        return date
-      }
-
-      return null
-    } catch (error) {
-      console.error(`Error al parsear fecha: ${dateString}`, error)
-      return null
-    }
-  }
-
-  // Función para obtener la clave de agrupación según el tipo seleccionado
-  const getGroupKey = (date) => {
-    if (!date) return "Sin fecha"
-
-    const parsedDate = parseDateDMY(date)
-    if (!parsedDate) return "Sin fecha"
-
-    if (agrupacion === "dia") {
-      return format(parsedDate, "dd/MM/yyyy")
-    } else if (agrupacion === "semana") {
-      const startWeek = startOfWeek(parsedDate, { locale: es })
-      const endWeek = endOfWeek(parsedDate, { locale: es })
-      return `${format(startWeek, "dd/MM/yyyy")} - ${format(endWeek, "dd/MM/yyyy")}`
-    } else if (agrupacion === "mes") {
-      return format(parsedDate, "MMMM yyyy", { locale: es })
-    }
-
-    return "Sin fecha"
-  }
-
-  // Filtrar tickets por fecha
   useEffect(() => {
-    const fromDate = startOfDay(new Date(fechaInicio))
-    const toDate = endOfDay(new Date(fechaFin))
+    // Función para normalizar la fecha y evitar problemas de zona horaria
+    const normalizarFecha = (fechaStr: string) => {
+      // Asegurarse de que la fecha es válida
+      if (!fechaStr) return null
 
-    const filtered = processedTickets.filter((ticket) => {
       try {
-        if (!ticket.fecha) return false
+        // Crear objeto Date
+        const fecha = new Date(fechaStr)
 
-        const ticketDate = parseDateDMY(ticket.fecha)
-        if (!ticketDate) return false
+        // Verificar si la fecha es válida
+        if (isNaN(fecha.getTime())) {
+          console.error("Fecha inválida:", fechaStr)
+          return null
+        }
 
-        return isWithinInterval(ticketDate, {
-          start: fromDate,
-          end: toDate,
-        })
+        // Normalizar a formato YYYY-MM-DD
+        return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`
       } catch (error) {
-        console.error(`Error al procesar fecha en ticket:`, error)
-        return false
+        console.error("Error al procesar fecha:", fechaStr, error)
+        return null
       }
-    })
+    }
 
-    setFilteredTickets(filtered)
-  }, [tickets, fechaInicio, fechaFin]) // Cambiar processedTickets por tickets original
-
-  // Agrupar tickets por día, semana o mes
-  const groupedTickets = useMemo(() => {
-    const groups = {}
-
-    filteredTickets.forEach((ticket) => {
-      const key = getGroupKey(ticket.fecha)
-
-      if (!groups[key]) {
-        groups[key] = {
-          fecha: key,
-          tickets: [],
-          totalTickets: 0,
-          totalKilos: 0,
-          totalValor: 0,
-          machos: 0,
-          hembras: 0,
-        }
+    // Agrupar tickets por día
+    const agruparPorDia = () => {
+      // Objeto para depuración
+      const debugInfo = {
+        totalTickets: tickets.length,
+        fechasInvalidas: 0,
+        distribucionPorDia: {},
+        muestras: tickets.slice(0, 5).map((t) => ({
+          id: t.id,
+          ticket: t.ticket,
+          ticket2: t.ticket2,
+          fecha_original: t.fecha,
+          fecha_normalizada: normalizarFecha(t.fecha),
+          genero: t.genero,
+        })),
       }
 
-      groups[key].tickets.push(ticket)
-      groups[key].totalTickets += 1
-      groups[key].totalKilos += Number.parseFloat(ticket.kilos || 0)
-      groups[key].totalValor += Number.parseFloat(ticket.valor || 0)
+      const agrupados: Record<string, any> = {}
 
-      // Contar machos y hembras si hay información de género
-      if (ticket.genero === "M") {
-        groups[key].machos += 1
-      } else if (ticket.genero === "H") {
-        groups[key].hembras += 1
-      }
-    })
+      tickets.forEach((ticket) => {
+        // Normalizar la fecha
+        const fechaKey = normalizarFecha(ticket.fecha)
 
-    // Convertir a array y ordenar
-    const result = Object.values(groups)
-
-    if (sortConfig.key) {
-      result.sort((a, b) => {
-        if (sortConfig.key === "fecha") {
-          // Para fechas, intentar ordenar cronológicamente
-          const dateA = a.fecha === "Sin fecha" ? new Date(0) : parseDateDMY(a.fecha)
-          const dateB = b.fecha === "Sin fecha" ? new Date(0) : parseDateDMY(b.fecha)
-
-          if (!dateA) return 1
-          if (!dateB) return -1
-
-          return sortConfig.direction === "asc" ? dateA - dateB : dateB - dateA
+        if (!fechaKey) {
+          debugInfo.fechasInvalidas++
+          return
         }
 
-        // Para valores numéricos
-        const valueA = a[sortConfig.key] || 0
-        const valueB = b[sortConfig.key] || 0
-        return sortConfig.direction === "asc" ? valueA - valueB : valueB - valueA
+        // Formatear para mostrar - Corregido para mostrar DD/MM/YYYY
+        const fechaParts = fechaKey.split("-")
+        const fechaFormateada = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`
+
+        // Inicializar el grupo si no existe
+        if (!agrupados[fechaKey]) {
+          agrupados[fechaKey] = {
+            fecha: fechaFormateada,
+            fechaKey: fechaKey, // Guardar la clave para ordenar después
+            machos: {
+              tickets: [],
+              cantidad: 0,
+              valorTotal: 0,
+            },
+            hembras: {
+              tickets: [],
+              cantidad: 0,
+              valorTotal: 0,
+            },
+          }
+
+          // Para depuración
+          debugInfo.distribucionPorDia[fechaKey] = 0
+        }
+
+        debugInfo.distribucionPorDia[fechaKey]++
+
+        // Determinar el género y agregar al grupo correspondiente
+        const genero = ticket.genero?.toString().trim().toUpperCase()
+        const grupo = genero === "M" || genero === "MACHO" ? "machos" : "hembras"
+
+        // Usar ticket2 si está disponible, de lo contrario usar ticket
+        const ticketNum = ticket.ticket2 || ticket.ticket
+        if (ticketNum) {
+          agrupados[fechaKey][grupo].tickets.push(Number(ticketNum))
+        }
+
+        agrupados[fechaKey][grupo].cantidad += 1
+        agrupados[fechaKey][grupo].valorTotal += Number(ticket.valor || 0)
+      })
+
+      // Calcular rangos de tickets y valores unitarios
+      Object.values(agrupados).forEach((grupo) => {
+        // Ordenar tickets para obtener rango
+        grupo.machos.tickets.sort((a: number, b: number) => a - b)
+        grupo.hembras.tickets.sort((a: number, b: number) => a - b)
+
+        // Calcular rangos
+        grupo.machos.rango =
+          grupo.machos.tickets.length > 0
+            ? `${grupo.machos.tickets[0]} - ${grupo.machos.tickets[grupo.machos.tickets.length - 1]}`
+            : "N/A"
+
+        grupo.hembras.rango =
+          grupo.hembras.tickets.length > 0
+            ? `${grupo.hembras.tickets[0]} - ${grupo.hembras.tickets[grupo.hembras.tickets.length - 1]}`
+            : "N/A"
+
+        // Calcular valores unitarios
+        grupo.machos.valorUnitario = grupo.machos.cantidad > 0 ? grupo.machos.valorTotal / grupo.machos.cantidad : 0
+
+        grupo.hembras.valorUnitario = grupo.hembras.cantidad > 0 ? grupo.hembras.valorTotal / grupo.hembras.cantidad : 0
+      })
+
+      // Guardar información de depuración
+      setDebug(debugInfo)
+
+      // Convertir a array y ordenar por fecha (más reciente primero)
+      return Object.values(agrupados).sort((a, b) => {
+        return b.fechaKey.localeCompare(a.fechaKey) // Ordenar por la clave de fecha normalizada
       })
     }
 
-    return result
-  }, [filteredTickets, agrupacion, sortConfig])
+    setTicketsAgrupados(agruparPorDia())
+  }, [tickets])
 
-  // Calcular totales generales
-  const totales = useMemo(() => {
-    return {
-      totalTickets: groupedTickets.reduce((sum, group) => sum + group.totalTickets, 0),
-      totalKilos: groupedTickets.reduce((sum, group) => sum + group.totalKilos, 0),
-      totalValor: groupedTickets.reduce((sum, group) => sum + group.totalValor, 0),
-      totalMachos: groupedTickets.reduce((sum, group) => sum + group.machos, 0),
-      totalHembras: groupedTickets.reduce((sum, group) => sum + group.hembras, 0),
-    }
-  }, [groupedTickets])
-
-  // Función para cambiar el ordenamiento
-  const requestSort = (key) => {
-    let direction = "asc"
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc"
-    }
-    setSortConfig({ key, direction })
+  // Calcular totales
+  const totales = {
+    machos: {
+      cantidad: ticketsAgrupados.reduce((sum, item) => sum + item.machos.cantidad, 0),
+      valorTotal: ticketsAgrupados.reduce((sum, item) => sum + item.machos.valorTotal, 0),
+    },
+    hembras: {
+      cantidad: ticketsAgrupados.reduce((sum, item) => sum + item.hembras.cantidad, 0),
+      valorTotal: ticketsAgrupados.reduce((sum, item) => sum + item.hembras.valorTotal, 0),
+    },
   }
 
-  // Funciones para filtros de fecha rápidos
-  const setToday = () => {
-    setFechaInicio(today)
-    setFechaFin(today)
-  }
+  totales.machos.valorUnitario = totales.machos.cantidad > 0 ? totales.machos.valorTotal / totales.machos.cantidad : 0
 
-  const setThisWeek = () => {
-    const start = startOfWeek(today, { locale: es })
-    const end = endOfWeek(today, { locale: es })
-    setFechaInicio(start)
-    setFechaFin(end)
-  }
-
-  const setThisMonth = () => {
-    const start = startOfMonth(today)
-    const end = endOfMonth(today)
-    setFechaInicio(start)
-    setFechaFin(end)
-  }
-
-  // Determinar el tipo predominante para los colores
-  const bovinosCount = filteredTickets.filter((t) => t.business_location_id === 1).length
-  const porcinosCount = filteredTickets.filter((t) => t.business_location_id === 2).length
-  const tipoPredominante = bovinosCount >= porcinosCount ? "bovino" : "porcino"
-  const colors = themeColors[tipoPredominante]
-
-  // Formatear fechas para exportación
-  const formattedFechaDesde = format(fechaInicio, "yyyy-MM-dd")
-  const formattedFechaHasta = format(fechaFin, "yyyy-MM-dd")
+  totales.hembras.valorUnitario =
+    totales.hembras.cantidad > 0 ? totales.hembras.valorTotal / totales.hembras.cantidad : 0
 
   return (
-    <div className="space-y-4">
-      {/* Indicadores de totales */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Tickets</CardTitle>
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold" style={{ color: colors.dark }}>
-              {formatNumber(totales.totalTickets)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Kilos</CardTitle>
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold" style={{ color: colors.dark }}>
-              {formatNumber(totales.totalKilos)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="py-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Valor Total</CardTitle>
-          </CardHeader>
-          <CardContent className="py-2">
-            <div className="text-2xl font-bold" style={{ color: colors.dark }}>
-              {formatCurrency(totales.totalValor)}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
-            <div className="flex flex-wrap gap-2 mb-4 md:mb-0">
-              <Button variant="outline" size="sm" onClick={setToday}>
-                Hoy
-              </Button>
-              <Button variant="outline" size="sm" onClick={setThisWeek}>
-                Esta Semana
-              </Button>
-              <Button variant="outline" size="sm" onClick={setThisMonth}>
-                Este Mes
-              </Button>
-            </div>
-
-            {/* Botones de exportación en la parte superior */}
-            <ExportTicketsAgrupadosButtons
-              tipo={tipoPredominante === "bovino" ? "bovino" : "porcino"}
-              fechaDesde={formattedFechaDesde}
-              fechaHasta={formattedFechaHasta}
-              agrupacion={agrupacion}
-            />
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Tickets Agrupados por Día</CardTitle>
+        <ExportTicketsAgrupadosButtons tipo={tipo} agrupacion="dia" fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
+      </CardHeader>
+      <CardContent>
+        {/* Información de depuración - solo visible en desarrollo */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-4 p-2 bg-gray-100 text-xs rounded">
+            <p>Total tickets: {debug.totalTickets}</p>
+            <p>Fechas inválidas: {debug.fechasInvalidas}</p>
+            <p>Distribución por día: {JSON.stringify(debug.distribucionPorDia)}</p>
+            <p>Muestras: {JSON.stringify(debug.muestras)}</p>
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <Label htmlFor="fecha-inicial" className="text-xs mb-1 block">
-                Fecha Inicial
-              </Label>
-              <Popover placement="bottom-start">
-                <PopoverTrigger asChild>
-                  <Button
-                    id="fecha-inicial"
-                    variant={"outline"}
-                    className={cn("w-full justify-start text-left font-normal")}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {format(fechaInicio, "dd/MM/yyyy", { locale: es })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-50">
-                  <CalendarComponent
-                    mode="single"
-                    selected={fechaInicio}
-                    onSelect={setFechaInicio}
-                    initialFocus
-                    locale={es}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
-              <Label htmlFor="fecha-final" className="text-xs mb-1 block">
-                Fecha Final
-              </Label>
-              <Popover placement="bottom-start">
-                <PopoverTrigger asChild>
-                  <Button
-                    id="fecha-final"
-                    variant={"outline"}
-                    className={cn("w-full justify-start text-left font-normal")}
-                  >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {format(fechaFin, "dd/MM/yyyy", { locale: es })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-50">
-                  <CalendarComponent
-                    mode="single"
-                    selected={fechaFin}
-                    onSelect={setFechaFin}
-                    initialFocus
-                    locale={es}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-            <div>
-              <Label htmlFor="agrupacion" className="text-xs mb-1 block">
-                Agrupar por
-              </Label>
-              <Select value={agrupacion} onValueChange={setAgrupacion}>
-                <SelectTrigger id="agrupacion">
-                  <SelectValue placeholder="Agrupar por" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="dia">Día</SelectItem>
-                  <SelectItem value="semana">Semana</SelectItem>
-                  <SelectItem value="mes">Mes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead rowSpan={2} className="border">
+                  Fecha
+                </TableHead>
+                <TableHead colSpan={4} className="text-center border bg-blue-50">
+                  Machos
+                </TableHead>
+                <TableHead colSpan={4} className="text-center border bg-pink-50">
+                  Hembras
+                </TableHead>
+              </TableRow>
+              <TableRow>
+                {/* Columnas para Machos */}
+                <TableHead className="border bg-blue-50">Tickets (Rango)</TableHead>
+                <TableHead className="text-right border bg-blue-50">Cantidad</TableHead>
+                <TableHead className="text-right border bg-blue-50">Valor Unitario</TableHead>
+                <TableHead className="text-right border bg-blue-50">Valor Total</TableHead>
 
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={() => {
-                  setFechaInicio(today)
-                  setFechaFin(today)
-                  setAgrupacion("dia")
-                  setSortConfig({ key: "fecha", direction: "desc" })
-                }}
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                Limpiar Filtros
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                {/* Columnas para Hembras */}
+                <TableHead className="border bg-pink-50">Tickets (Rango)</TableHead>
+                <TableHead className="text-right border bg-pink-50">Cantidad</TableHead>
+                <TableHead className="text-right border bg-pink-50">Valor Unitario</TableHead>
+                <TableHead className="text-right border bg-pink-50">Valor Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ticketsAgrupados.map((grupo, index) => (
+                <TableRow key={index}>
+                  <TableCell className="font-medium border">{grupo.fecha}</TableCell>
 
-      {/* Tabla de tickets agrupados */}
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle>
-            Tickets Agrupados por {agrupacion === "dia" ? "Día" : agrupacion === "semana" ? "Semana" : "Mes"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <div className="overflow-x-auto">
-              <div className="max-h-[500px] overflow-y-auto">
-                <Table>
-                  <TableHeader style={{ backgroundColor: colors.light }}>
-                    <TableRow>
-                      <TableHead className="cursor-pointer" onClick={() => requestSort("fecha")}>
-                        <div className="flex items-center">
-                          Fecha
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => requestSort("totalTickets")}>
-                        <div className="flex items-center">
-                          Tickets
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => requestSort("machos")}>
-                        <div className="flex items-center">
-                          Machos
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="cursor-pointer" onClick={() => requestSort("hembras")}>
-                        <div className="flex items-center">
-                          Hembras
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-right cursor-pointer" onClick={() => requestSort("totalKilos")}>
-                        <div className="flex items-center justify-end">
-                          Kilos
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-right cursor-pointer" onClick={() => requestSort("totalValor")}>
-                        <div className="flex items-center justify-end">
-                          Valor
-                          <ArrowUpDown className="ml-1 h-4 w-4" />
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {groupedTickets.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          No se encontraron tickets con los filtros aplicados
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      groupedTickets.map((group, index) => (
-                        <TableRow
-                          key={group.fecha}
-                          className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
-                          style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
-                        >
-                          <TableCell className="font-medium">{group.fecha}</TableCell>
-                          <TableCell>{formatNumber(group.totalTickets)}</TableCell>
-                          <TableCell>{formatNumber(group.machos)}</TableCell>
-                          <TableCell>{formatNumber(group.hembras)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(group.totalKilos)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(group.totalValor)}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                    {groupedTickets.length > 0 && (
-                      <TableRow className="font-bold bg-gray-100">
-                        <TableCell className="text-right">TOTALES:</TableCell>
-                        <TableCell>{formatNumber(totales.totalTickets)}</TableCell>
-                        <TableCell>{formatNumber(totales.totalMachos)}</TableCell>
-                        <TableCell>{formatNumber(totales.totalHembras)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(totales.totalKilos)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(totales.totalValor)}</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                  {/* Datos de Machos */}
+                  <TableCell className="border">{grupo.machos.rango}</TableCell>
+                  <TableCell className="text-right border">{grupo.machos.cantidad}</TableCell>
+                  <TableCell className="text-right border">
+                    {grupo.machos.valorUnitario.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                  </TableCell>
+                  <TableCell className="text-right border">
+                    {grupo.machos.valorTotal.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                  </TableCell>
+
+                  {/* Datos de Hembras */}
+                  <TableCell className="border">{grupo.hembras.rango}</TableCell>
+                  <TableCell className="text-right border">{grupo.hembras.cantidad}</TableCell>
+                  <TableCell className="text-right border">
+                    {grupo.hembras.valorUnitario.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                  </TableCell>
+                  <TableCell className="text-right border">
+                    {grupo.hembras.valorTotal.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {/* Fila de totales */}
+              <TableRow className="bg-gray-100 font-bold">
+                <TableCell className="border">TOTALES</TableCell>
+
+                {/* Totales de Machos */}
+                <TableCell className="border">-</TableCell>
+                <TableCell className="text-right border">{totales.machos.cantidad}</TableCell>
+                <TableCell className="text-right border">
+                  {totales.machos.valorUnitario.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                </TableCell>
+                <TableCell className="text-right border">
+                  {totales.machos.valorTotal.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                </TableCell>
+
+                {/* Totales de Hembras */}
+                <TableCell className="border">-</TableCell>
+                <TableCell className="text-right border">{totales.hembras.cantidad}</TableCell>
+                <TableCell className="text-right border">
+                  {totales.hembras.valorUnitario.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                </TableCell>
+                <TableCell className="text-right border">
+                  {totales.hembras.valorTotal.toLocaleString("es-CO", { style: "currency", currency: "COP" })}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

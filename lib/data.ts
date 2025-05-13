@@ -1,6 +1,5 @@
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
-import { processObjectDates } from "./date-interceptor"
 
 // Function to get transaction statistics
 export async function getTransactionStats() {
@@ -326,8 +325,6 @@ export async function getMunicipiosByDepartamento(departamentoId: number) {
 // Function to get transaction by ID
 export async function getTransactionById(id: string) {
   try {
-    console.log(`Intentando obtener transacción con ID: ${id}`)
-
     // Query the main transaction
     const transactionResult = await sql`
       SELECT t.*, 
@@ -338,66 +335,14 @@ export async function getTransactionById(id: string) {
       FROM transactions t
       LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
       LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-      WHERE t.id = ${id}
+      WHERE t.id = ${id} AND t.activo = true
     `
 
-    console.log(`Resultado de la consulta: ${transactionResult.rows.length} filas encontradas`)
-
     if (transactionResult.rows.length === 0) {
-      // Si no se encuentra con el filtro de activo, intentar sin él para depuración
-      const checkInactiveResult = await sql`
-        SELECT id, type, activo FROM transactions WHERE id = ${id}
-      `
-
-      if (checkInactiveResult.rows.length > 0) {
-        console.log(`Guía encontrada pero inactiva: ${JSON.stringify(checkInactiveResult.rows[0])}`)
-        // Si la guía existe pero está inactiva, la activamos temporalmente
-        await sql`UPDATE transactions SET activo = TRUE WHERE id = ${id}`
-        console.log(`Guía activada temporalmente para permitir edición`)
-
-        // Volvemos a intentar obtener la guía completa
-        const retriedResult = await sql`
-          SELECT t.*, 
-                 c1.primer_nombre || ' ' || c1.primer_apellido as dueno_anterior_nombre,
-                 c1.nit as dueno_anterior_nit,
-                 c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre,
-                 c2.nit as dueno_nuevo_nit
-          FROM transactions t
-          LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
-          LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-          WHERE t.id = ${id}
-        `
-
-        if (retriedResult.rows.length > 0) {
-          const transaction = retriedResult.rows[0]
-
-          // Query the transaction lines
-          const linesResult = await sql`
-            SELECT tl.*, 
-                   p.name as product_name,
-                   r.name as raza_nombre,
-                   c.name as color_nombre
-            FROM transaction_lines tl
-            LEFT JOIN products p ON tl.product_id = p.id
-            LEFT JOIN razas r ON tl.raza_id = r.id
-            LEFT JOIN colors c ON tl.color_id = c.id
-            WHERE tl.transaction_id = ${id}
-            ORDER BY tl.id
-          `
-
-          // Add the lines to the transaction
-          transaction.transaction_lines = linesResult.rows
-
-          return transaction
-        }
-      }
-
-      console.log(`No se encontró ninguna guía con ID ${id}, ni activa ni inactiva`)
       return null
     }
 
     const transaction = transactionResult.rows[0]
-    console.log(`Guía encontrada: ID=${transaction.id}, Tipo=${transaction.type}, Activo=${transaction.activo}`)
 
     // Query the transaction lines
     const linesResult = await sql`
@@ -412,8 +357,6 @@ export async function getTransactionById(id: string) {
       WHERE tl.transaction_id = ${id}
       ORDER BY tl.id
     `
-
-    console.log(`Líneas de transacción encontradas: ${linesResult.rows.length}`)
 
     // Add the lines to the transaction
     transaction.transaction_lines = linesResult.rows
@@ -549,10 +492,10 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
       locationId = 2
     }
 
-    // Usar tagged template literals para evitar problemas de WebSocket
+    let query
     if (type && locationId) {
       if (limit !== -1) {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -569,9 +512,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
             t.id DESC
           LIMIT ${limit}
         `
-        return processObjectDates(result.rows)
       } else {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -587,11 +529,10 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
           ORDER BY 
             t.id DESC
         `
-        return processObjectDates(result.rows)
       }
     } else if (type) {
       if (limit !== -1) {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -608,9 +549,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
             t.id DESC
           LIMIT ${limit}
         `
-        return processObjectDates(result.rows)
       } else {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -620,17 +560,16 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
           FROM 
             transactions t
             LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
           WHERE 
             t.activo = TRUE AND t.type = ${type}
           ORDER BY 
             t.id DESC
         `
-        return processObjectDates(result.rows)
       }
     } else {
       if (limit !== -1) {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -647,9 +586,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
             t.id DESC
           LIMIT ${limit}
         `
-        return processObjectDates(result.rows)
       } else {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.*,
             ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -665,12 +603,14 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined, 
           ORDER BY 
             t.id DESC
         `
-        return processObjectDates(result.rows)
       }
     }
+
+    const result = await query
+    return result.rows
   } catch (error) {
     console.error("Error al obtener transacciones:", error)
-    throw error
+    return []
   }
 }
 
@@ -685,10 +625,11 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
       locationId = 2
     }
 
-    // Usar tagged template literals para evitar problemas de WebSocket
+    // Usar plantillas SQL directas en lugar de sql.query para evitar problemas de WebSocket
+    let query
     if (locationId) {
       if (limit !== -1) {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.id,
             t.fecha_documento as fecha,
@@ -719,9 +660,8 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
           ORDER BY tl.ticket DESC
           LIMIT ${limit}
         `
-        return processObjectDates(result.rows)
       } else {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.id,
             t.fecha_documento as fecha,
@@ -751,11 +691,10 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
             AND t.business_location_id = ${locationId}
           ORDER BY tl.ticket DESC
         `
-        return processObjectDates(result.rows)
       }
     } else {
       if (limit !== -1) {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.id,
             t.fecha_documento as fecha,
@@ -785,9 +724,8 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
           ORDER BY tl.ticket DESC
           LIMIT ${limit}
         `
-        return processObjectDates(result.rows)
       } else {
-        const result = await sql`
+        query = sql`
           SELECT 
             t.id,
             t.fecha_documento as fecha,
@@ -816,12 +754,43 @@ export async function getTicketsLines(tipo?: string, limit = 30) {
             AND tl.ticket IS NOT NULL
           ORDER BY tl.ticket DESC
         `
-        return processObjectDates(result.rows)
       }
     }
+
+    const result = await query
+
+    // Verificar que result.rows existe y es un array
+    if (!result || !result.rows || !Array.isArray(result.rows)) {
+      console.error("Error: result.rows no es un array válido", result)
+      return []
+    }
+
+    // Después de obtener los resultados de la consulta SQL
+    const normalizedTickets = result.rows.map((ticket) => {
+      // Normalizar la fecha
+      if (ticket.fecha) {
+        try {
+          const date = new Date(ticket.fecha)
+          if (!isNaN(date.getTime())) {
+            // La fecha es válida, formatearla como ISO para consistencia
+            ticket.fecha = date.toISOString()
+          } else {
+            console.warn(`Fecha inválida en ticket ${ticket.id}: ${ticket.fecha}`)
+            // Establecer una fecha por defecto o null
+            ticket.fecha = null
+          }
+        } catch (error) {
+          console.error(`Error al procesar fecha en ticket ${ticket.id}:`, error)
+          ticket.fecha = null
+        }
+      }
+      return ticket
+    })
+
+    return normalizedTickets
   } catch (error) {
     console.error("Error al obtener tickets:", error)
-    throw error
+    return []
   }
 }
 
