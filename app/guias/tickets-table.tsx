@@ -29,7 +29,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
   const [fechaFinal, setFechaFinal] = useState(undefined)
   const [estado, setEstado] = useState("")
   const [filteredTickets, setFilteredTickets] = useState(tickets)
-  const [sortConfig, setSortConfig] = useState({ key: "fecha", direction: "desc" })
+  const [sortConfig, setSortConfig] = useState({ key: "ticket", direction: "desc" })
   const [limit, setLimit] = useState(currentLimit)
   const [showDateFilters, setShowDateFilters] = useState(false)
 
@@ -106,21 +106,8 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       const fromDate = new Date(fechaInicial)
       fromDate.setHours(0, 0, 0, 0)
       result = result.filter((ticket) => {
-        try {
-          if (!ticket.fecha) return false
-
-          // Convertir a fecha y verificar validez
-          const ticketDate = new Date(ticket.fecha)
-          if (isNaN(ticketDate.getTime())) {
-            console.warn(`Fecha inválida en ticket ${ticket.id}: ${ticket.fecha}`)
-            return false
-          }
-
-          return ticketDate >= fromDate
-        } catch (error) {
-          console.error(`Error al procesar fecha en ticket ${ticket.id}:`, error)
-          return false
-        }
+        const ticketDate = new Date(ticket.fecha)
+        return ticketDate >= fromDate
       })
     }
 
@@ -129,20 +116,8 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       const toDate = new Date(fechaFinal)
       toDate.setHours(23, 59, 59, 999)
       result = result.filter((ticket) => {
-        try {
-          if (!ticket.fecha) return false
-
-          // Convertir a fecha y verificar validez
-          const ticketDate = new Date(ticket.fecha)
-          if (isNaN(ticketDate.getTime())) {
-            return false
-          }
-
-          return ticketDate <= toDate
-        } catch (error) {
-          console.error(`Error al procesar fecha en ticket:`, error)
-          return false
-        }
+        const ticketDate = new Date(ticket.fecha)
+        return ticketDate <= toDate
       })
     }
 
@@ -547,7 +522,15 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                           className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
                           style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                         >
-                          <TableCell>{formatDateString(ticket.fecha)}</TableCell>
+                          <TableCell>
+                            {ticket.fecha
+                              ? new Date(ticket.fecha).toLocaleDateString("es-CO", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                })
+                              : ""}
+                          </TableCell>
                           <TableCell>{ticket.numero_guia || "-"}</TableCell>
                           <TableCell>{ticket.ticket2 || "-"}</TableCell>
                           <TableCell className="font-medium">{ticket.ticket}</TableCell>
@@ -614,47 +597,4 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       </Card>
     </div>
   )
-}
-
-function formatDateString(dateString: string): string {
-  if (!dateString) return ""
-
-  try {
-    // Intentar diferentes formatos de fecha
-    let date: Date
-
-    // Verificar si la fecha ya tiene el formato correcto (DD/MM/YYYY)
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) {
-      const [day, month, year] = dateString.split("/").map(Number)
-      date = new Date(year, month - 1, day)
-    }
-    // Verificar si es formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
-    else if (dateString.includes("T")) {
-      date = new Date(dateString)
-    }
-    // Verificar si es formato YYYY-MM-DD
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-      const [year, month, day] = dateString.split("-").map(Number)
-      date = new Date(year, month - 1, day)
-    }
-    // Otros formatos
-    else {
-      date = new Date(dateString)
-    }
-
-    // Verificar si la fecha es válida
-    if (isNaN(date.getTime())) {
-      console.warn(`Fecha inválida: ${dateString}`)
-      return ""
-    }
-
-    return date.toLocaleDateString("es-CO", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
-  } catch (error) {
-    console.error("Error formatting date:", error)
-    return ""
-  }
 }

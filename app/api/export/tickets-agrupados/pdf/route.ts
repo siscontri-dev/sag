@@ -199,6 +199,17 @@ export async function GET(request: Request) {
       align: "center",
     })
 
+    const xPosTotales =
+      xPosHembras +
+      colWidths.hembras_tickets +
+      colWidths.hembras_cantidad +
+      colWidths.hembras_valor_unitario +
+      colWidths.hembras_valor_total
+    doc.text("Totales", xPosTotales, tableTop, {
+      width: colWidths.total_cantidad + colWidths.total_valor,
+      align: "center",
+    })
+
     // Dibujar subencabezados
     doc
       .fillColor("#666666")
@@ -228,6 +239,12 @@ export async function GET(request: Request) {
     doc.text("Valor Unitario", currentX, tableTop + 25, { width: colWidths.hembras_valor_unitario, align: "center" })
     currentX += colWidths.hembras_valor_unitario
     doc.text("Valor Total", currentX, tableTop + 25, { width: colWidths.hembras_valor_total, align: "center" })
+    currentX += colWidths.hembras_valor_total
+
+    // Subencabezados Totales
+    doc.text("Cantidad", currentX, tableTop + 25, { width: colWidths.total_cantidad, align: "center" })
+    currentX += colWidths.total_cantidad
+    doc.text("Valor Total", currentX, tableTop + 25, { width: colWidths.total_valor, align: "center" })
 
     // Dibujar filas de datos
     let yPos = tableTop + 45
@@ -284,6 +301,15 @@ export async function GET(request: Request) {
         width: colWidths.hembras_valor_total,
         align: "right",
       })
+      currentX += colWidths.hembras_valor_total
+
+      // Datos Totales
+      const totalCantidad = grupo.machos.cantidad + grupo.hembras.cantidad
+      const totalValor = grupo.machos.valorTotal + grupo.hembras.valorTotal
+
+      doc.text(totalCantidad.toString(), currentX, yPos, { width: colWidths.total_cantidad, align: "right" })
+      currentX += colWidths.total_cantidad
+      doc.text(formatCurrency(totalValor), currentX, yPos, { width: colWidths.total_valor, align: "right" })
 
       yPos += 20
     })
@@ -346,6 +372,15 @@ export async function GET(request: Request) {
       width: colWidths.hembras_valor_total,
       align: "right",
     })
+    currentX += colWidths.hembras_valor_total
+
+    // Totales finales
+    const granTotalCantidad = totales.machos.cantidad + totales.hembras.cantidad
+    const granTotalValor = totales.machos.valorTotal + totales.hembras.valorTotal
+
+    doc.text(granTotalCantidad.toString(), currentX, yPos, { width: colWidths.total_cantidad, align: "right" })
+    currentX += colWidths.total_cantidad
+    doc.text(formatCurrency(granTotalValor), currentX, yPos, { width: colWidths.total_valor, align: "right" })
 
     // Finalizar el documento
     doc.end()

@@ -38,149 +38,189 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
     },
   })
 
-  // Función mejorada para obtener la clave de fecha (YYYY-MM-DD)
-  const getFechaKey = (fechaInput) => {
-    try {
-      // Si es null o undefined, usar la fecha actual
-      if (fechaInput === null || fechaInput === undefined) {
-        console.warn("Fecha nula o indefinida, usando fecha actual")
+  // Reemplazar la función getFechaKey con esta versión corregida
+  const getFechaKey = (fechaStr) => {
+    // Si es un objeto Date, extraer los componentes directamente
+    if (fechaStr instanceof Date) {
+      const year = fechaStr.getFullYear()
+      const month = String(fechaStr.getMonth() + 1).padStart(2, "0")
+      const day = String(fechaStr.getDate()).padStart(2, "0")
+      return `${year}-${month}-${day}`
+    }
+
+    // Verificar si fechaStr es una cadena de texto
+    if (typeof fechaStr !== "string") {
+      console.error("getFechaKey recibió un valor no string:", fechaStr)
+
+      // Si es otro tipo de dato, convertir a string si es posible
+      try {
+        fechaStr = String(fechaStr)
+      } catch (error) {
+        console.error("No se pudo convertir a string:", error)
+        // Devolver la fecha actual como fallback
         const now = new Date()
-        return format(now, "yyyy-MM-dd")
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, "0")
+        const day = String(now.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
       }
+    }
 
-      // Si ya es un objeto Date, formatear directamente
-      if (fechaInput instanceof Date) {
-        return format(fechaInput, "yyyy-MM-dd")
-      }
-
-      // Si es string, intentar convertir a Date
-      if (typeof fechaInput === "string") {
-        // Intentar crear una fecha a partir del string
-        const fecha = new Date(fechaInput)
-
-        // Verificar si la fecha es válida
-        if (!isNaN(fecha.getTime())) {
-          return format(fecha, "yyyy-MM-dd")
-        }
-
-        // Si no es válida, intentar parsear formatos comunes
-        if (fechaInput.includes("/")) {
-          // Formato DD/MM/YYYY
-          const [day, month, year] = fechaInput.split("/")
-          const parsedDate = new Date(`${year}-${month}-${day}`)
-          if (!isNaN(parsedDate.getTime())) {
-            return format(parsedDate, "yyyy-MM-dd")
-          }
-        }
-
-        // Intentar con formato ISO
-        if (fechaInput.includes("T")) {
-          const isoDate = new Date(fechaInput)
-          if (!isNaN(isoDate.getTime())) {
-            return format(isoDate, "yyyy-MM-dd")
-          }
+    // Intentar extraer año, mes y día directamente del string de fecha
+    try {
+      // Si tiene formato ISO (YYYY-MM-DDTHH:MM:SS.sssZ)
+      if (fechaStr.includes("T")) {
+        const partes = fechaStr.split("T")[0].split("-")
+        if (partes.length === 3) {
+          return `${partes[0]}-${partes[1]}-${partes[2]}`
         }
       }
 
-      // Si llegamos aquí, no pudimos parsear la fecha
-      console.error("No se pudo parsear la fecha:", fechaInput)
-      return format(new Date(), "yyyy-MM-dd") // Fallback a fecha actual
+      // Si tiene formato simple (YYYY-MM-DD)
+      if (fechaStr.includes("-")) {
+        const partes = fechaStr.split("-")
+        if (partes.length === 3) {
+          return `${partes[0]}-${partes[1]}-${partes[2]}`
+        }
+      }
+
+      // Si tiene formato DD/MM/YYYY
+      if (fechaStr.includes("/")) {
+        const partes = fechaStr.split("/")
+        if (partes.length === 3) {
+          // Asumimos que el formato es DD/MM/YYYY y lo convertimos a YYYY-MM-DD
+          return `${partes[2]}-${partes[1]}-${partes[0]}`
+        }
+      }
+
+      // Si no se pudo extraer del string, crear un objeto Date y extraer los componentes
+      const fecha = new Date(fechaStr)
+      if (!isNaN(fecha.getTime())) {
+        const year = fecha.getFullYear()
+        const month = String(fecha.getMonth() + 1).padStart(2, "0")
+        const day = String(fecha.getDate()).padStart(2, "0")
+        return `${year}-${month}-${day}`
+      }
+
+      throw new Error("Formato de fecha no reconocido")
     } catch (error) {
-      console.error("Error al procesar fecha:", error, fechaInput)
-      return format(new Date(), "yyyy-MM-dd") // Fallback a fecha actual
+      console.error("Error al procesar fecha:", fechaStr, error)
+      // Devolver la fecha actual como fallback
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, "0")
+      const day = String(now.getDate()).padStart(2, "0")
+      return `${year}-${month}-${day}`
     }
   }
 
-  // Función mejorada para formatear fecha para UI (DD/MM/YYYY)
-  const formatFechaParaUI = (fechaInput) => {
+  // Reemplazar la función formatFechaParaUI con esta versión mejorada
+  const formatFechaParaUI = (fechaStr) => {
     try {
-      // Si es null o undefined, devolver string vacío
-      if (fechaInput === null || fechaInput === undefined) {
-        return ""
-      }
-
-      // Si ya es un objeto Date, formatear directamente
-      if (fechaInput instanceof Date) {
-        return format(fechaInput, "dd/MM/yyyy")
-      }
-
-      // Si es string, intentar convertir a Date
-      if (typeof fechaInput === "string") {
-        // Intentar crear una fecha a partir del string
-        const fecha = new Date(fechaInput)
-
-        // Verificar si la fecha es válida
-        if (!isNaN(fecha.getTime())) {
-          return format(fecha, "dd/MM/yyyy")
+      // Verificar si fechaStr es una cadena de texto
+      if (typeof fechaStr !== "string") {
+        // Si es un objeto Date, formatear directamente
+        if (fechaStr instanceof Date) {
+          return fechaStr.toLocaleDateString("es-CO", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          })
         }
 
-        // Si no es válida, intentar parsear formatos comunes
-        if (fechaInput.includes("-")) {
-          // Formato YYYY-MM-DD
-          const [year, month, day] = fechaInput.split("-")
-          return `${day}/${month}/${year}`
-        }
-
-        if (fechaInput.includes("/")) {
-          // Ya está en formato DD/MM/YYYY
-          return fechaInput
+        // Intentar convertir a string
+        try {
+          fechaStr = String(fechaStr)
+        } catch (error) {
+          console.error("No se pudo convertir a string para UI:", error)
+          return "Fecha inválida"
         }
       }
 
-      // Si llegamos aquí, no pudimos parsear la fecha
-      console.error("No se pudo formatear la fecha para UI:", fechaInput)
-      return String(fechaInput) // Devolver el input original como string
+      // Extraer año, mes y día directamente del string de fecha
+      if (fechaStr.includes("T")) {
+        const partes = fechaStr.split("T")[0].split("-")
+        if (partes.length === 3) {
+          // Formato DD/MM/YYYY
+          return `${partes[2]}/${partes[1]}/${partes[0]}`
+        }
+      }
+
+      if (fechaStr.includes("-")) {
+        const partes = fechaStr.split("-")
+        if (partes.length === 3) {
+          // Formato DD/MM/YYYY
+          return `${partes[2]}/${partes[1]}/${partes[0]}`
+        }
+      }
+
+      // Si no se puede extraer del string, usar el método tradicional
+      const fecha = new Date(fechaStr)
+      if (!isNaN(fecha.getTime())) {
+        return fecha.toLocaleDateString("es-CO", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })
+      }
+
+      return fechaStr // Devolver el string original si no se puede formatear
     } catch (error) {
-      console.error("Error al formatear fecha para UI:", error, fechaInput)
-      return String(fechaInput) // Devolver el input original como string
+      console.error("Error al formatear fecha para UI:", error)
+      return "Fecha inválida"
     }
   }
 
   // Función para agrupar tickets por día - memoizada con useCallback
   const agruparTicketsPorDia = useCallback(
     (ticketsToGroup) => {
+      // Imprimir información de depuración
       console.log(`Agrupando ${ticketsToGroup.length} tickets por día`)
 
       // Verificar distribución de géneros
       const machosCount = ticketsToGroup.filter((t) => t.genero === "M").length
       const hembrasCount = ticketsToGroup.filter((t) => t.genero === "H").length
-      console.log(`Distribución por género: Machos=${machosCount}, Hembras=${hembrasCount}`)
+      const otrosCount = ticketsToGroup.filter((t) => t.genero !== "M" && t.genero !== "H").length
+
+      console.log(`Distribución por género: Machos=${machosCount}, Hembras=${hembrasCount}, Otros=${otrosCount}`)
 
       // Primero filtramos por fecha si hay filtros
       let ticketsFiltrados = [...ticketsToGroup]
 
-      // Imprimir muestra de fechas para depuración
+      // Imprimir rango de fechas para depuración
       if (ticketsFiltrados.length > 0) {
-        const muestraTickets = ticketsFiltrados.slice(0, 5)
-        console.log(
-          "Muestra de tickets con fechas:",
-          muestraTickets.map((t) => ({
-            fecha_original: t.fecha,
-            fecha_key: getFechaKey(t.fecha),
-            fecha_ui: formatFechaParaUI(t.fecha),
-          })),
-        )
+        // Extraer las fechas originales sin procesar
+        const fechasOriginales = ticketsFiltrados.map((t) => t.fecha)
+        console.log("Muestra de fechas originales:", fechasOriginales.slice(0, 5))
+
+        // Extraer las fechas procesadas con getFechaKey
+        const fechasProcesadas = ticketsFiltrados.map((t) => getFechaKey(t.fecha))
+        console.log("Muestra de fechas procesadas:", fechasProcesadas.slice(0, 5))
+
+        // Contar tickets por fecha
+        const conteoFechas = {}
+        fechasProcesadas.forEach((f) => {
+          conteoFechas[f] = (conteoFechas[f] || 0) + 1
+        })
+        console.log("Conteo de tickets por fecha:", conteoFechas)
+
+        // Verificar rango completo de fechas
+        const fechas = ticketsFiltrados.map((t) => new Date(t.fecha))
+        const minFecha = new Date(Math.min(...fechas))
+        const maxFecha = new Date(Math.max(...fechas))
+        console.log(`Rango completo de fechas: ${minFecha.toLocaleDateString()} a ${maxFecha.toLocaleDateString()}`)
       }
 
       if (fechaInicial) {
         const fromDate = new Date(fechaInicial)
         fromDate.setHours(0, 0, 0, 0)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          try {
-            if (!ticket.fecha) return false
-            const ticketDate = new Date(ticket.fecha)
+          // Asegurarse de que ticket.fecha es una fecha válida
+          if (!ticket.fecha) return false
 
-            // Verificar si la fecha es válida
-            if (isNaN(ticketDate.getTime())) {
-              console.warn(`Fecha inválida en ticket: ${ticket.fecha}`)
-              return false
-            }
-
-            return ticketDate >= fromDate
-          } catch (error) {
-            console.error("Error al filtrar por fecha inicial:", error)
-            return false
-          }
+          // Convertir a fecha local para comparación
+          const ticketDate = new Date(ticket.fecha)
+          return ticketDate >= fromDate
         })
       }
 
@@ -188,20 +228,12 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         const toDate = new Date(fechaFinal)
         toDate.setHours(23, 59, 59, 999)
         ticketsFiltrados = ticketsFiltrados.filter((ticket) => {
-          try {
-            if (!ticket.fecha) return false
-            const ticketDate = new Date(ticket.fecha)
+          // Asegurarse de que ticket.fecha es una fecha válida
+          if (!ticket.fecha) return false
 
-            // Verificar si la fecha es válida
-            if (isNaN(ticketDate.getTime())) {
-              return false
-            }
-
-            return ticketDate <= toDate
-          } catch (error) {
-            console.error("Error al filtrar por fecha final:", error)
-            return false
-          }
+          // Convertir a fecha local para comparación
+          const ticketDate = new Date(ticket.fecha)
+          return ticketDate <= toDate
         })
       }
 
@@ -210,13 +242,26 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
       // Agrupar por día y género
       const porDia = {}
 
+      // También actualizar la parte donde se procesan los tickets para asegurar que la fecha se maneje correctamente
       ticketsFiltrados.forEach((ticket) => {
+        // Asegurarse de que ticket.fecha es una fecha válida
         if (!ticket.fecha) return
 
-        // Obtener la clave de fecha normalizada (YYYY-MM-DD)
-        const fechaKey = getFechaKey(ticket.fecha)
+        // Convertir a objeto Date si es un string
+        let fechaObj = ticket.fecha
+        if (typeof fechaObj === "string") {
+          fechaObj = new Date(fechaObj)
+        }
 
-        // Determinar el género del ticket
+        // Obtener la clave de fecha sin ajustes de zona horaria
+        const fechaKey = getFechaKey(fechaObj)
+
+        // Imprimir para depuración
+        console.log(
+          `Procesando ticket: fecha_original=${ticket.fecha}, fechaKey=${fechaKey}, ticket=${ticket.ticket}, ticket2=${ticket.ticket2}`,
+        )
+
+        // Determinar el género del ticket - normalizar a mayúsculas y manejar casos especiales
         let genero = "otros"
         if (ticket.genero) {
           const generoNormalizado = ticket.genero.toString().trim().toUpperCase()
@@ -227,7 +272,6 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
           }
         }
 
-        // Inicializar el objeto para esta fecha si no existe
         if (!porDia[fechaKey]) {
           porDia[fechaKey] = {
             fecha: fechaKey,
@@ -257,6 +301,7 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
           const ticketNum = ticket.ticket2 || ticket.ticket || 0
           if (ticketNum) {
             porDia[fechaKey][genero].tickets.push(Number.parseInt(ticketNum))
+            console.log(`Añadido ticket ${ticketNum} a ${genero} para fecha ${fechaKey}`)
           }
 
           porDia[fechaKey][genero].cantidad += 1
@@ -277,6 +322,10 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         dia.machos.tickets.sort((a, b) => a - b)
         dia.hembras.tickets.sort((a, b) => a - b)
 
+        // Imprimir para depuración
+        console.log(`Día ${dia.fecha}: Machos tickets=${dia.machos.tickets.join(",")}`)
+        console.log(`Día ${dia.fecha}: Hembras tickets=${dia.hembras.tickets.join(",")}`)
+
         dia.machos.ticketsRango =
           dia.machos.tickets.length > 0
             ? `${dia.machos.tickets[0]} - ${dia.machos.tickets[dia.machos.tickets.length - 1]}`
@@ -288,25 +337,33 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
             : ""
       })
 
-      // Convertir a array y ordenar por fecha (más reciente primero)
+      // Convertir a array y ordenar por fecha
       const resultado = Object.values(porDia).sort((a, b) => {
-        // Convertir las fechas a objetos Date para comparación
-        const fechaA = new Date(a.fecha)
-        const fechaB = new Date(b.fecha)
-        return fechaB - fechaA // Orden descendente
+        // Ordenar por fecha original (más reciente primero)
+        return new Date(b.fechaOriginal) - new Date(a.fechaOriginal)
       })
 
       console.log(`Días agrupados: ${resultado.length}`)
-
-      // Imprimir muestra de días agrupados para depuración
       if (resultado.length > 0) {
         console.log(
-          "Muestra de días agrupados:",
-          resultado.slice(0, 3).map((d) => ({
+          `Muestra de días agrupados:`,
+          resultado.map((d) => ({
             fecha: d.fecha,
             fechaFormateada: d.fechaFormateada,
-            machos: d.machos.cantidad,
-            hembras: d.hembras.cantidad,
+            machos: {
+              cantidad: d.machos.cantidad,
+              tickets:
+                d.machos.tickets.length > 0
+                  ? `${d.machos.tickets[0]}-${d.machos.tickets[d.machos.tickets.length - 1]}`
+                  : "ninguno",
+            },
+            hembras: {
+              cantidad: d.hembras.cantidad,
+              tickets:
+                d.hembras.tickets.length > 0
+                  ? `${d.hembras.tickets[0]}-${d.hembras.tickets[d.hembras.tickets.length - 1]}`
+                  : "ninguno",
+            },
           })),
         )
       }
@@ -316,12 +373,12 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         machos: {
           cantidad: resultado.reduce((sum, dia) => sum + dia.machos.cantidad, 0),
           valorTotal: resultado.reduce((sum, dia) => sum + dia.machos.valorTotal, 0),
-          valorUnitario: 0,
+          valorUnitario: 0, // Inicializar con 0
         },
         hembras: {
           cantidad: resultado.reduce((sum, dia) => sum + dia.hembras.cantidad, 0),
           valorTotal: resultado.reduce((sum, dia) => sum + dia.hembras.valorTotal, 0),
-          valorUnitario: 0,
+          valorUnitario: 0, // Inicializar con 0
         },
         total: {
           cantidad: resultado.reduce((sum, dia) => sum + dia.total.cantidad, 0),
@@ -338,33 +395,66 @@ export default function TicketsAgrupadosDia({ tickets = [] }) {
         estadisticas.hembras.valorUnitario = estadisticas.hembras.valorTotal / estadisticas.hembras.cantidad
       }
 
+      console.log(`Estadísticas calculadas:`, estadisticas)
+
       return { porDia: resultado, estadisticas }
     },
     [fechaInicial, fechaFinal],
   )
 
-  // Inicializar filteredTickets cuando cambian los tickets
+  // Inicializar filteredTickets solo una vez cuando cambian los tickets
   useEffect(() => {
     // Asegurarse de que tickets es un array
     const validTickets = Array.isArray(tickets) ? tickets : []
 
-    // Normalizar los tickets
+    // Imprimir las fechas de los tickets para depuración
+    if (validTickets.length > 0) {
+      console.log(
+        "Muestra de fechas de tickets:",
+        validTickets.slice(0, 5).map((t) => ({
+          fecha_original: t.fecha,
+          fecha_procesada: getFechaKey(t.fecha),
+          fecha_formateada: formatFechaParaUI(t.fecha),
+          ticket: t.ticket,
+          ticket2: t.ticket2,
+        })),
+      )
+
+      // Verificar rango completo de fechas
+      const fechas = validTickets.map((t) => new Date(t.fecha))
+      const minFecha = new Date(Math.min(...fechas))
+      const maxFecha = new Date(Math.max(...fechas))
+      console.log(
+        `Rango completo de fechas en tickets: ${minFecha.toLocaleDateString()} a ${maxFecha.toLocaleDateString()}`,
+      )
+      console.log(`Total de tickets recibidos: ${validTickets.length}`)
+    }
+
+    // Normalizar los géneros y asegurar que los tickets tengan valores correctos
     const ticketsNormalizados = validTickets.map((ticket) => {
-      // Asegurar que la fecha sea válida
-      let fechaValida = ticket.fecha
-
-      // Si la fecha no es válida, usar la fecha actual
-      if (!fechaValida) {
-        fechaValida = new Date().toISOString()
-      }
-
       // Asegurar que ticket y ticket2 sean números
-      return {
+      const ticketNormalizado = {
         ...ticket,
-        fecha: fechaValida,
         ticket: ticket.ticket ? Number.parseInt(ticket.ticket) : null,
         ticket2: ticket.ticket2 ? Number.parseInt(ticket.ticket2) : null,
-        genero: ticket.genero ? ticket.genero.toString().trim().toUpperCase() : Math.random() > 0.5 ? "M" : "H",
+      }
+
+      // Si no tiene género, asignar uno basado en el índice (para pruebas)
+      if (!ticketNormalizado.genero) {
+        return {
+          ...ticketNormalizado,
+          genero: Math.random() > 0.5 ? "M" : "H",
+        }
+      }
+
+      // Normalizar el género existente
+      let generoNormalizado = ticketNormalizado.genero.toString().trim().toUpperCase()
+      if (generoNormalizado === "MACHO") generoNormalizado = "M"
+      if (generoNormalizado === "HEMBRA") generoNormalizado = "H"
+
+      return {
+        ...ticketNormalizado,
+        genero: generoNormalizado,
       }
     })
 

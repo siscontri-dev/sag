@@ -17,13 +17,6 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format, startOfDay, endOfDay, isWithinInterval, addDays } from "date-fns"
 import { es } from "date-fns/locale"
 
-const formatNumber = (value: number | null | undefined): string => {
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0"
-  }
-  return Math.round(value).toLocaleString("es-CO")
-}
-
 export default function GuiasTable({ guias = [], currentLimit = 30 }) {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -106,14 +99,22 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
           ? `${guia.dueno_anterior_nombre || ""} ${guia.dueno_anterior_apellido || ""}`.toLowerCase().trim()
           : ""
 
+        const nombreNuevoCompleto = guia.dueno_nuevo_nombre
+          ? `${guia.dueno_nuevo_nombre || ""} ${guia.dueno_nuevo_apellido || ""}`.toLowerCase().trim()
+          : ""
+
         // Buscar en todos los campos relevantes
         return (
           // Búsqueda en nombres completos
           (nombreAnteriorCompleto && nombreAnteriorCompleto.includes(term)) ||
+          (nombreNuevoCompleto && nombreNuevoCompleto.includes(term)) ||
           // Búsqueda en campos individuales
           (guia.dueno_anterior_nombre && guia.dueno_anterior_nombre.toLowerCase().includes(term)) ||
           (guia.dueno_anterior_apellido && guia.dueno_anterior_apellido.toLowerCase().includes(term)) ||
           (guia.dueno_anterior_nit && guia.dueno_anterior_nit.toLowerCase().includes(term)) ||
+          (guia.dueno_nuevo_nombre && guia.dueno_nuevo_nombre.toLowerCase().includes(term)) ||
+          (guia.dueno_nuevo_apellido && guia.dueno_nuevo_apellido.toLowerCase().includes(term)) ||
+          (guia.dueno_nuevo_nit && guia.dueno_nuevo_nit.toLowerCase().includes(term)) ||
           (guia.numero_documento && guia.numero_documento.toString().includes(term))
         )
       })
@@ -132,26 +133,12 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       result = result.filter((guia) => {
         if (!guia.fecha_documento) return false
 
-        // Asegurarse de que la fecha es un objeto Date válido
-        let fechaGuia
-        try {
-          // Convertir a fecha local para comparación
-          fechaGuia = new Date(guia.fecha_documento)
+        const fechaGuia = new Date(guia.fecha_documento)
 
-          // Verificar si la fecha es válida
-          if (isNaN(fechaGuia.getTime())) {
-            console.warn(`Fecha inválida en guía ${guia.id}: ${guia.fecha_documento}`)
-            return false
-          }
-
-          return isWithinInterval(fechaGuia, {
-            start: fromDate,
-            end: toDate,
-          })
-        } catch (error) {
-          console.error(`Error al procesar fecha en guía ${guia.id}:`, error)
-          return false
-        }
+        return isWithinInterval(fechaGuia, {
+          start: fromDate,
+          end: toDate,
+        })
       })
     }
 
@@ -429,6 +416,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
                   </TableHead>
                   <TableHead className="font-semibold">Propietario</TableHead>
                   <TableHead className="font-semibold">NIT</TableHead>
+                  <TableHead className="font-semibold">Nuevo Propietario</TableHead>
                   <TableHead className="font-semibold">Machos</TableHead>
                   <TableHead className="font-semibold">Hembras</TableHead>
                   <TableHead className="font-semibold">T. Animales</TableHead>
@@ -441,7 +429,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
               <TableBody>
                 {filteredGuias.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="h-24 text-center">
+                    <TableCell colSpan={12} className="h-24 text-center">
                       <div className="text-lg font-medium">No se encontraron guías con los filtros aplicados.</div>
                     </TableCell>
                   </TableRow>
@@ -457,13 +445,16 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
                         style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                       >
                         <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                        <TableCell>{guia.fecha_documento ? formatDate(guia.fecha_documento) : ""}</TableCell>
+                        <TableCell>{formatDate(guia.fecha_documento)}</TableCell>
                         <TableCell>{guia.dueno_anterior_nombre || "N/A"}</TableCell>
                         <TableCell>{guia.dueno_anterior_nit || "N/A"}</TableCell>
+                        <TableCell>{guia.dueno_nuevo_nombre || "N/A"}</TableCell>
                         <TableCell>{guia.quantity_m || 0}</TableCell>
                         <TableCell>{guia.quantity_h || 0}</TableCell>
                         <TableCell>{totalAnimales}</TableCell>
-                        <TableCell>{guia.quantity_k ? `${formatNumber(guia.quantity_k)} kg` : "0 kg"}</TableCell>
+                        <TableCell>
+                          {guia.quantity_k ? `${guia.quantity_k.toLocaleString("es-CO")} kg` : "0 kg"}
+                        </TableCell>
                         <TableCell>
                           <Badge
                             className="px-2 py-1 rounded-full text-xs font-medium"
@@ -517,13 +508,13 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
           <Table>
             <TableBody>
               <TableRow>
-                <TableCell colSpan={4} className="text-right">
+                <TableCell colSpan={5} className="text-right">
                   Totales:
                 </TableCell>
                 <TableCell>{totales.machos}</TableCell>
                 <TableCell>{totales.hembras}</TableCell>
                 <TableCell>{totales.animales}</TableCell>
-                <TableCell>{formatNumber(totales.kilos)} kg</TableCell>
+                <TableCell>{totales.kilos.toLocaleString("es-CO")} kg</TableCell>
                 <TableCell></TableCell>
                 <TableCell className="font-bold">{formatCurrency(totales.valor)}</TableCell>
                 <TableCell></TableCell>

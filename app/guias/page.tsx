@@ -1,10 +1,14 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { PlusCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
 import TicketsTable from "./tickets-table"
 import TicketsAgrupadosPorDia from "./tickets-agrupados-por-dia"
+import GuiasPorPropietario from "./guias-por-propietario"
 import ExportButtons from "./export-buttons"
+import TicketsAgrupadosFiltros from "./tickets-agrupados-filtros"
 import { getTransactions, getTicketsLines } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -40,25 +44,26 @@ export default async function GuiasPage({
 
   // Obtener guías con manejo de errores
   let guias = []
-  let guiasError = null
+  let guiasError = false
   try {
     guias = await getTransactions("entry", tipo, limit)
     console.log(`Total de guías obtenidas: ${guias.length}`)
   } catch (error) {
     console.error("Error al obtener guías:", error)
-    guiasError = error.message || "Error al obtener guías"
+    guiasError = true
+    // Continuar con array vacío
   }
 
   // Obtener tickets con manejo de errores - usar -1 para obtener todos los tickets
   let tickets = []
-  let ticketsError = null
+  let ticketsError = false
   try {
-    // Limitar a 100 tickets para evitar problemas de rendimiento
-    tickets = await getTicketsLines(tipo, 100)
+    tickets = await getTicketsLines(tipo, -1, fechaDesde, fechaHasta) // Añadir parámetros de fecha
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
-    ticketsError = error.message || "Error al obtener tickets"
+    ticketsError = true
+    // Continuar con array vacío
   }
 
   // Determinar el tipo de animal para cada guía basado en business_location_id
@@ -109,6 +114,20 @@ export default async function GuiasPage({
         </div>
       </div>
 
+      {/* Mostrar alerta si hay errores de conexión */}
+      {(guiasError || ticketsError) && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error de conexión</AlertTitle>
+          <AlertDescription>
+            Hubo un problema al conectar con la base de datos. Algunos datos podrían no mostrarse correctamente.
+            <Button variant="outline" size="sm" className="ml-2 mt-2" onClick={() => window.location.reload()}>
+              Reintentar
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Sistema de pestañas */}
       <Tabs defaultValue={activeTab} className="w-full">
         <TabsList className="mb-4 w-full bg-gray-100 p-1 rounded-lg">
@@ -130,49 +149,76 @@ export default async function GuiasPage({
           >
             Tickets Agrupados
           </TabsTrigger>
+          <TabsTrigger
+            value="propietarios"
+            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
+          >
+            Propietarios
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lista" className="mt-2">
           <div className="space-y-4">
-            {guiasError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{guiasError}</AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <ExportButtons tipo={tipo} />
-                <GuiasTable guias={guias} currentLimit={limit} />
-              </>
+            <ExportButtons tipo={tipo} />
+            <GuiasTable guias={guias} currentLimit={limit} />
+            {guias.length === 0 && !guiasError && (
+              <div className="text-center py-8 text-gray-500">
+                No se encontraron guías. Intente cambiar los filtros o crear una nueva guía.
+              </div>
+            )}
+            {guias.length === 0 && guiasError && (
+              <div className="text-center py-8 text-gray-500">
+                Error al cargar las guías. Por favor, intente nuevamente más tarde.
+              </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="tickets" className="mt-2">
           <div className="space-y-4">
-            {ticketsError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{ticketsError}</AlertDescription>
-              </Alert>
-            ) : (
-              <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+            <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+            {tickets.length === 0 && !ticketsError && (
+              <div className="text-center py-8 text-gray-500">
+                No se encontraron tickets. Intente cambiar los filtros.
+              </div>
+            )}
+            {tickets.length === 0 && ticketsError && (
+              <div className="text-center py-8 text-gray-500">
+                Error al cargar los tickets. Por favor, intente nuevamente más tarde.
+              </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="tickets-agrupados" className="mt-2">
           <div className="space-y-4">
-            {ticketsError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{ticketsError}</AlertDescription>
-              </Alert>
-            ) : (
-              <TicketsAgrupadosPorDia tickets={tickets} />
+            <TicketsAgrupadosFiltros tipo={tipo} />
+            <TicketsAgrupadosPorDia tickets={tickets} tipo={tipo} fechaDesde={fechaDesde} fechaHasta={fechaHasta} />
+            {tickets.length === 0 && !ticketsError && (
+              <div className="text-center py-8 text-gray-500">
+                No se encontraron tickets para agrupar. Intente cambiar los filtros.
+              </div>
+            )}
+            {tickets.length === 0 && ticketsError && (
+              <div className="text-center py-8 text-gray-500">
+                Error al cargar los tickets. Por favor, intente nuevamente más tarde.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="propietarios" className="mt-2">
+          <div className="space-y-4">
+            <GuiasPorPropietario guias={guias} />
+            {guias.length === 0 && !guiasError && (
+              <div className="text-center py-8 text-gray-500">
+                No se encontraron guías para agrupar por propietario. Intente cambiar los filtros.
+              </div>
+            )}
+            {guias.length === 0 && guiasError && (
+              <div className="text-center py-8 text-gray-500">
+                Error al cargar las guías. Por favor, intente nuevamente más tarde.
+              </div>
             )}
           </div>
         </TabsContent>

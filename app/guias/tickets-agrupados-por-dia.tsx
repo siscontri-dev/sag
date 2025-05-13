@@ -15,7 +15,17 @@ interface Ticket {
   kilos: number
 }
 
-export default function TicketsAgrupadosPorDia({ tickets, tipo, fechaDesde, fechaHasta }) {
+export default function TicketsAgrupadosPorDia({
+  tickets,
+  tipo,
+  fechaDesde,
+  fechaHasta,
+}: {
+  tickets: Ticket[]
+  tipo?: string
+  fechaDesde?: string
+  fechaHasta?: string
+}) {
   const [ticketsAgrupados, setTicketsAgrupados] = useState<any[]>([])
   const [debug, setDebug] = useState<any>({})
 
@@ -71,9 +81,9 @@ export default function TicketsAgrupadosPorDia({ tickets, tipo, fechaDesde, fech
           return
         }
 
-        // Formatear para mostrar - Corregido para mostrar DD/MM/YYYY
-        const fechaParts = fechaKey.split("-")
-        const fechaFormateada = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`
+        // Formatear para mostrar
+        const fecha = new Date(fechaKey)
+        const fechaFormateada = `${String(fecha.getDate()).padStart(2, "0")}/${String(fecha.getMonth() + 1).padStart(2, "0")}/${fecha.getFullYear()}`
 
         // Inicializar el grupo si no existe
         if (!agrupados[fechaKey]) {
