@@ -1,43 +1,57 @@
-// Añadir manejo de errores y logging para diagnosticar el problema en las funciones de catálogos
+// Catálogos para razas y colores
 
-export async function getRazasByTipoAndLocation(tipo: string, locationId: number) {
+export interface CatalogItem {
+  id: number
+  nombre: string
+  tipo_animal: string
+  business_location_id: number
+  activo: boolean
+}
+
+// Función para obtener razas por tipo de animal y ubicación
+export async function getRazasByTipoAndLocation(tipo: string, locationId: number): Promise<CatalogItem[]> {
   try {
-    console.log(`Obteniendo razas para tipo=${tipo}, locationId=${locationId}`)
-    const response = await fetch(`/api/catalogs/razas/${tipo}/${locationId}`, {
-      cache: "no-store",
-    })
+    // En un entorno real, esto sería una consulta a la base de datos
+    // Por ahora, simulamos datos
+    const razas: CatalogItem[] = [
+      { id: 1, nombre: "Pietran", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 2, nombre: "Duroc", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 3, nombre: "Landrace", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 4, nombre: "Hampshire", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 5, nombre: "Brahman", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 6, nombre: "Angus", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 7, nombre: "Holstein", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 8, nombre: "Charolais", tipo_animal: "bovino", business_location_id: 1, activo: true },
+    ]
 
-    if (!response.ok) {
-      console.error(`Error al obtener razas: ${response.status} ${response.statusText}`)
-      return [] // Devolver array vacío en caso de error para evitar que falle la página
-    }
-
-    const data = await response.json()
-    console.log(`Razas obtenidas: ${data.length}`)
-    return data
+    return razas.filter((raza) => raza.tipo_animal === tipo && raza.business_location_id === locationId && raza.activo)
   } catch (error) {
     console.error("Error al obtener razas:", error)
-    return [] // Devolver array vacío en caso de error para evitar que falle la página
+    return []
   }
 }
 
-export async function getColoresByTipoAndLocation(tipo: string, locationId: number) {
+// Función para obtener colores por tipo de animal y ubicación
+export async function getColoresByTipoAndLocation(tipo: string, locationId: number): Promise<CatalogItem[]> {
   try {
-    console.log(`Obteniendo colores para tipo=${tipo}, locationId=${locationId}`)
-    const response = await fetch(`/api/catalogs/colores/${tipo}/${locationId}`, {
-      cache: "no-store",
-    })
+    // En un entorno real, esto sería una consulta a la base de datos
+    // Por ahora, simulamos datos
+    const colores: CatalogItem[] = [
+      { id: 1, nombre: "Negro", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 2, nombre: "Blanco", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 3, nombre: "Café", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 4, nombre: "Pinto", tipo_animal: "bovino", business_location_id: 1, activo: true },
+      { id: 5, nombre: "Rosado", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 6, nombre: "Blanco con manchas", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 7, nombre: "Negro con manchas", tipo_animal: "porcino", business_location_id: 2, activo: true },
+      { id: 8, nombre: "Gris", tipo_animal: "porcino", business_location_id: 2, activo: true },
+    ]
 
-    if (!response.ok) {
-      console.error(`Error al obtener colores: ${response.status} ${response.statusText}`)
-      return [] // Devolver array vacío en caso de error para evitar que falle la página
-    }
-
-    const data = await response.json()
-    console.log(`Colores obtenidos: ${data.length}`)
-    return data
+    return colores.filter(
+      (color) => color.tipo_animal === tipo && color.business_location_id === locationId && color.activo,
+    )
   } catch (error) {
     console.error("Error al obtener colores:", error)
-    return [] // Devolver array vacío en caso de error para evitar que falle la página
+    return []
   }
 }

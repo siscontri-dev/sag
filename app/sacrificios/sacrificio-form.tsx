@@ -93,17 +93,11 @@ export default function SacrificioForm({
   console.log(`Nuevo consecutivo para ${tipoAnimal}: ${nuevoConsecutivo} (último: ${ultimoConsecutivo})`)
   console.log(`Nueva planilla para ${tipoAnimal}: ${nuevaPlanilla} (última: ${ultimaPlanilla})`)
 
-  // Obtener la fecha actual en la zona horaria local (Bogotá/Lima)
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  const formattedDate = `${year}-${month}-${day}`
-
-  // Inicializar el formulario con la fecha actual
   const [formData, setFormData] = useState({
     numero_documento: sacrificio?.numero_documento || nuevoConsecutivo.toString(),
-    fecha_documento: formattedDate,
+    fecha_documento: sacrificio?.fecha_documento
+      ? new Date(sacrificio.fecha_documento).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
     id_dueno_anterior: sacrificio?.id_dueno_anterior?.toString() || "",
     id_dueno_nuevo: sacrificio?.id_dueno_nuevo?.toString() || "",
     business_location_id: locationId.toString(),
@@ -800,13 +794,13 @@ export default function SacrificioForm({
             Fecha
           </Label>
           <Input
-            type="date"
             id="fecha_documento"
             name="fecha_documento"
+            type="date"
             value={formData.fecha_documento}
             onChange={handleChange}
-            className="w-full"
             required
+            className="h-8"
           />
         </div>
         <div className="space-y-1">
@@ -1102,7 +1096,6 @@ export default function SacrificioForm({
                   <img
                     src={
                       contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url ||
-                      "/placeholder.svg" ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||

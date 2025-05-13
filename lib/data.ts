@@ -144,7 +144,6 @@ export async function getReportData() {
 
 // Función para obtener estadísticas de transacciones
 export async function getTransactionStats() {
-  noStore()
   try {
     // Obtener conteo de contactos
     const contactsResult = await sql`
@@ -214,19 +213,18 @@ export async function getTransactionStats() {
     `
 
     return {
-      contactCount: Number.parseInt(contactsResult.rows[0]?.count || "0"),
-      guiasCount: Number.parseInt(guiasResult.rows[0]?.count || "0"),
-      sacrificiosCount: Number.parseInt(sacrificiosResult.rows[0]?.count || "0"),
-      guiasBovinos: Number.parseInt(guiasBovinosResult.rows[0]?.count || "0"),
-      guiasPorcinos: Number.parseInt(guiasPortinosResult.rows[0]?.count || "0"),
-      sacrificiosBovinos: Number.parseInt(sacrificiosBovinosResult.rows[0]?.count || "0"),
-      sacrificiosPorcinos: Number.parseInt(sacrificiosPortinosResult.rows[0]?.count || "0"),
+      contactCount: Number.parseInt(contactsResult.rows[0].count) || 0,
+      guiasCount: Number.parseInt(guiasResult.rows[0].count) || 0,
+      sacrificiosCount: Number.parseInt(sacrificiosResult.rows[0].count) || 0,
+      guiasBovinos: Number.parseInt(guiasBovinosResult.rows[0].count) || 0,
+      guiasPorcinos: Number.parseInt(guiasPortinosResult.rows[0].count) || 0,
+      sacrificiosBovinos: Number.parseInt(sacrificiosBovinosResult.rows[0].count) || 0,
+      sacrificiosPorcinos: Number.parseInt(sacrificiosPortinosResult.rows[0].count) || 0,
       totalKilos: Number.parseFloat(kilosResult.rows[0]?.total || "0"),
       recentTransactions: recentTransactionsResult.rows || [],
     }
   } catch (error) {
     console.error("Error al obtener estadísticas:", error)
-    // Devolver valores por defecto para evitar errores en la UI
     return {
       contactCount: 0,
       guiasCount: 0,
@@ -243,22 +241,18 @@ export async function getTransactionStats() {
 
 // Función para obtener contactos
 export async function getContacts(businessLocationId = null) {
-  noStore()
   try {
-    console.log("Obteniendo contactos usando SQL directo...")
     if (businessLocationId) {
       const result = await sql`
         SELECT * FROM contacts 
         WHERE activo = TRUE AND business_location_id = ${businessLocationId}
         ORDER BY primer_nombre, primer_apellido
       `
-      console.log(`Contactos obtenidos: ${result.rows.length}`)
       return result.rows
     } else {
       const result = await sql`
         SELECT * FROM contacts WHERE activo = TRUE ORDER BY primer_nombre, primer_apellido
       `
-      console.log(`Contactos obtenidos: ${result.rows.length}`)
       return result.rows
     }
   } catch (error) {
@@ -303,9 +297,7 @@ export async function getLocations() {
 
 // Modificar la función getProducts para filtrar por ubicación
 export async function getProducts(tipo = undefined, locationId = undefined) {
-  noStore()
   try {
-    console.log(`Obteniendo productos usando SQL directo para tipo=${tipo}, locationId=${locationId}`)
     if (tipo && locationId) {
       const result = await sql`
         SELECT * FROM products 
@@ -314,7 +306,6 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
         AND business_location_id = ${locationId}
         ORDER BY name
       `
-      console.log(`Productos obtenidos: ${result.rows.length}`)
       return result.rows
     } else if (tipo) {
       const result = await sql`
@@ -322,13 +313,11 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
         WHERE activo = TRUE AND tipo_animal = ${tipo}
         ORDER BY name
       `
-      console.log(`Productos obtenidos: ${result.rows.length}`)
       return result.rows
     } else {
       const result = await sql`
         SELECT * FROM products WHERE activo = TRUE ORDER BY name
       `
-      console.log(`Productos obtenidos: ${result.rows.length}`)
       return result.rows
     }
   } catch (error) {
@@ -339,7 +328,6 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
 
 // Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
 export async function getTransactions(type = undefined, tipoAnimal = undefined) {
-  noStore()
   try {
     // Convertir el tipo de animal a business_location_id
     let locationId = undefined
@@ -349,9 +337,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
       locationId = 2
     }
 
-    let query
     if (type && locationId) {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -365,8 +352,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     } else if (type) {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -380,8 +368,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     } else {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -395,10 +384,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     }
-
-    const result = await query
-    return result.rows
   } catch (error) {
     console.error("Error al obtener transacciones:", error)
     return []
@@ -406,17 +393,20 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
 }
 
 // Función para obtener una transacción por ID
-export async function getTransactionById(id: string) {
+export async function getTransactionById(id) {
   try {
-    // Consultar la transacción principal
+    // Obtener la transacción
     const transactionResult = await sql`
-      SELECT t.*, 
-             c1.primer_nombre || ' ' || c1.primer_apellido as dueno_anterior_nombre,
-             c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre
-      FROM transactions t
-      LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
-      LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-      WHERE t.id = ${id} AND t.activo = true
+      SELECT 
+        t.*,
+        ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+        cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+      FROM 
+        transactions t
+        LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+        LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+      WHERE 
+        t.id = ${id}
     `
 
     if (transactionResult.rows.length === 0) {
@@ -425,27 +415,17 @@ export async function getTransactionById(id: string) {
 
     const transaction = transactionResult.rows[0]
 
-    // Consultar las líneas de la transacción
+    // Obtener las líneas de la transacción
     const linesResult = await sql`
-      SELECT tl.*, 
-             p.name as product_name,
-             r.name as raza_nombre,
-             c.name as color_nombre
-      FROM transaction_lines tl
-      LEFT JOIN products p ON tl.product_id = p.id
-      LEFT JOIN razas r ON tl.raza_id = r.id
-      LEFT JOIN colors c ON tl.color_id = c.id
-      WHERE tl.transaction_id = ${id}
-      ORDER BY tl.id
+      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
     `
 
-    // Agregar las líneas a la transacción
     transaction.transaction_lines = linesResult.rows
 
     return transaction
   } catch (error) {
-    console.error(`Error al obtener transacción ID ${id}:`, error)
-    throw new Error(`Error al obtener la transacción: ${error.message}`)
+    console.error(`Error al obtener transacción con ID ${id}:`, error)
+    return null
   }
 }
 
@@ -712,12 +692,12 @@ export async function getFinancialData() {
     `
 
     return {
-      transactions: transactionsResult.rows || [],
-      monthlyStats: (monthlyStatsResult.rows || []).map((row) => ({
+      transactions: transactionsResult.rows,
+      monthlyStats: monthlyStatsResult.rows.map((row) => ({
         ...row,
-        mes: row.mes ? row.mes.toISOString().split("T")[0].substring(0, 7) : "", // Formato YYYY-MM
+        mes: row.mes.toISOString().split("T")[0].substring(0, 7), // Formato YYYY-MM
       })),
-      animalTypeStats: animalTypeStatsResult.rows || [],
+      animalTypeStats: animalTypeStatsResult.rows,
     }
   } catch (error) {
     console.error("Error al obtener datos financieros:", error)
