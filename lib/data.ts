@@ -482,106 +482,289 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
   }
 }
 
-// Función para obtener transacciones (guías o sacrificios)
-export async function getTransactions(tipo_transaccion: "entry" | "sell" = "entry", tipo_animal?: string, limit = 30) {
+// Function to get transactions
+export async function getTransactions(type = undefined, tipoAnimal = undefined, limit = 30) {
   try {
-    let query = `
-      SELECT 
-        t.*, 
-        c1.nombre as propietario_nombre, 
-        c1.apellido as propietario_apellido,
-        c1.nit as propietario_nit,
-        c2.nombre as comprador_nombre, 
-        c2.apellido as comprador_apellido,
-        c2.nit as comprador_nit,
-        uc1.nombre as ubicacion_contacto_nombre,
-        uc2.nombre as ubicacion_contacto_nombre2
-      FROM 
-        transactions t
-      LEFT JOIN 
-        contacts c1 ON t.contact_id = c1.id
-      LEFT JOIN 
-        contacts c2 ON t.customer_id = c2.id
-      LEFT JOIN
-        ubication_contact uc1 ON t.ubication_contact_id = uc1.id
-      LEFT JOIN
-        ubication_contact uc2 ON t.ubication_contact_id2 = uc2.id
-      WHERE 
-        t.tipo_transaccion = $1
-    `
-
-    const params: any[] = [tipo_transaccion]
-
-    // Filtrar por tipo de animal si se proporciona
-    if (tipo_animal) {
-      query += ` AND t.tipo_animal = $2`
-      params.push(tipo_animal)
+    // Convert animal type to business_location_id
+    let locationId = undefined
+    if (tipoAnimal === "bovino") {
+      locationId = 1
+    } else if (tipoAnimal === "porcino") {
+      locationId = 2
     }
 
-    // Ordenar por fecha de documento (más reciente primero) y luego por ID
-    query += ` ORDER BY t.fecha_documento DESC, t.id DESC`
-
-    // Limitar resultados si se especifica
-    if (limit > 0) {
-      query += ` LIMIT $${params.length + 1}`
-      params.push(limit)
+    // Usar tagged template literals para evitar problemas de WebSocket
+    if (type && locationId) {
+      if (limit !== -1) {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
+          ORDER BY 
+            t.id DESC
+          LIMIT ${limit}
+        `
+        return processObjectDates(result.rows)
+      } else {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE AND t.type = ${type} AND t.business_location_id = ${locationId}
+          ORDER BY 
+            t.id DESC
+        `
+        return processObjectDates(result.rows)
+      }
+    } else if (type) {
+      if (limit !== -1) {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE AND t.type = ${type}
+          ORDER BY 
+            t.id DESC
+          LIMIT ${limit}
+        `
+        return processObjectDates(result.rows)
+      } else {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE AND t.type = ${type}
+          ORDER BY 
+            t.id DESC
+        `
+        return processObjectDates(result.rows)
+      }
+    } else {
+      if (limit !== -1) {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE
+          ORDER BY 
+            t.id DESC
+          LIMIT ${limit}
+        `
+        return processObjectDates(result.rows)
+      } else {
+        const result = await sql`
+          SELECT 
+            t.*,
+            ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+            ca.nit AS dueno_anterior_nit,
+            cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+            cn.nit AS dueno_nuevo_nit
+          FROM 
+            transactions t
+            LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+            LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+          WHERE 
+            t.activo = TRUE
+          ORDER BY 
+            t.id DESC
+        `
+        return processObjectDates(result.rows)
+      }
     }
-
-    const result = await sql.query(query, params)
-
-    // Procesar fechas para asegurar que sean strings
-    return processObjectDates(result.rows)
   } catch (error) {
     console.error("Error al obtener transacciones:", error)
     throw error
   }
 }
 
-// Función para obtener líneas de tickets
-export async function getTicketsLines(tipo_animal?: string, limit = 30) {
+// Function to get tickets lines
+export async function getTicketsLines(tipo?: string, limit = 30) {
   try {
-    let query = `
-      SELECT 
-        tl.*,
-        t.tipo_animal,
-        t.fecha_documento,
-        t.numero_documento,
-        c.nombre as propietario_nombre,
-        c.apellido as propietario_apellido,
-        c.nit as propietario_nit
-      FROM 
-        transaction_lines tl
-      JOIN 
-        transactions t ON tl.transaction_id = t.id
-      LEFT JOIN 
-        contacts c ON t.contact_id = c.id
-      WHERE 
-        t.tipo_transaccion = 'entry'
-    `
-
-    const params: any[] = []
-
-    // Filtrar por tipo de animal si se proporciona
-    if (tipo_animal) {
-      query += ` AND t.tipo_animal = $1`
-      params.push(tipo_animal)
+    // Convert animal type to business_location_id
+    let locationId = undefined
+    if (tipo === "bovino") {
+      locationId = 1
+    } else if (tipo === "porcino") {
+      locationId = 2
     }
 
-    // Ordenar por fecha de documento (más reciente primero) y luego por ID
-    query += ` ORDER BY t.fecha_documento DESC, tl.id DESC`
-
-    // Limitar resultados si se especifica
-    if (limit > 0) {
-      query += ` LIMIT $${params.length + 1}`
-      params.push(limit)
+    // Usar tagged template literals para evitar problemas de WebSocket
+    if (locationId) {
+      if (limit !== -1) {
+        const result = await sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+            AND t.business_location_id = ${locationId}
+          ORDER BY tl.ticket DESC
+          LIMIT ${limit}
+        `
+        return processObjectDates(result.rows)
+      } else {
+        const result = await sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+            AND t.business_location_id = ${locationId}
+          ORDER BY tl.ticket DESC
+        `
+        return processObjectDates(result.rows)
+      }
+    } else {
+      if (limit !== -1) {
+        const result = await sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+          ORDER BY tl.ticket DESC
+          LIMIT ${limit}
+        `
+        return processObjectDates(result.rows)
+      } else {
+        const result = await sql`
+          SELECT 
+            t.id,
+            t.fecha_documento as fecha,
+            t.numero_documento as numero_guia,
+            tl.ticket,
+            tl.ticket2,
+            c.primer_nombre || ' ' || c.primer_apellido as propietario,
+            c.nit,
+            p.name as tipo,
+            r.name as raza,
+            col.name as color,
+            g.name as genero,
+            tl.quantity as kilos,
+            tl.valor,
+            CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
+            t.business_location_id
+          FROM transactions t
+          JOIN transaction_lines tl ON t.id = tl.transaction_id
+          LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
+          LEFT JOIN products p ON tl.product_id = p.id
+          LEFT JOIN razas r ON tl.raza_id = r.id
+          LEFT JOIN colors col ON tl.color_id = col.id
+          LEFT JOIN generos g ON tl.genero_id = g.id
+          WHERE t.activo = TRUE 
+            AND t.type = 'entry' 
+            AND tl.ticket IS NOT NULL
+          ORDER BY tl.ticket DESC
+        `
+        return processObjectDates(result.rows)
+      }
     }
-
-    const result = await sql.query(query, params)
-
-    // Procesar fechas para asegurar que sean strings
-    return processObjectDates(result.rows)
   } catch (error) {
-    console.error("Error al obtener líneas de tickets:", error)
+    console.error("Error al obtener tickets:", error)
     throw error
   }
 }
