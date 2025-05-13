@@ -512,7 +512,9 @@ export default function TicketsAgrupadosMes({ tickets = [] }) {
                         className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
                         style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                       >
-                        <TableCell className="capitalize">{mes.mes}</TableCell>
+                        <TableCell className="capitalize">
+                          {format(new Date(mes.mesKey + "-01"), "MMMM yyyy", { locale: es })}
+                        </TableCell>
 
                         {/* Datos de Machos */}
                         <TableCell>{mes.machos.ticketsRango || "-"}</TableCell>

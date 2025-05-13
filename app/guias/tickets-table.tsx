@@ -29,7 +29,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
   const [fechaFinal, setFechaFinal] = useState(undefined)
   const [estado, setEstado] = useState("")
   const [filteredTickets, setFilteredTickets] = useState(tickets)
-  const [sortConfig, setSortConfig] = useState({ key: "ticket", direction: "desc" })
+  const [sortConfig, setSortConfig] = useState({ key: "fecha", direction: "desc" })
   const [limit, setLimit] = useState(currentLimit)
   const [showDateFilters, setShowDateFilters] = useState(false)
 
@@ -522,15 +522,7 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                           className={index % 2 === 0 ? "bg-white" : `bg-opacity-20`}
                           style={index % 2 !== 0 ? { backgroundColor: colors.light } : {}}
                         >
-                          <TableCell>
-                            {ticket.fecha
-                              ? new Date(ticket.fecha).toLocaleDateString("es-CO", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                })
-                              : ""}
-                          </TableCell>
+                          <TableCell>{ticket.fecha ? formatDate(ticket.fecha) : ""}</TableCell>
                           <TableCell>{ticket.numero_guia || "-"}</TableCell>
                           <TableCell>{ticket.ticket2 || "-"}</TableCell>
                           <TableCell className="font-medium">{ticket.ticket}</TableCell>
@@ -597,4 +589,18 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
       </Card>
     </div>
   )
+}
+
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+  } catch (error) {
+    console.error("Error formatting date:", error)
+    return ""
+  }
 }

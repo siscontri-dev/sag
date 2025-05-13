@@ -11,10 +11,8 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Home, AlertTriangle } from "lucide-react"
-import { Suspense, useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Home } from "lucide-react"
+import { Suspense } from "react"
 
 // Componente de carga
 function LoadingState() {
@@ -40,7 +38,7 @@ function LoadingState() {
 }
 
 // Componente principal con manejo de errores
-export default function EditarGuiaPage({ params }: { params: { id: string } }) {
+export default async function EditarGuiaPage({ params }: { params: { id: string } }) {
   return (
     <Suspense fallback={<LoadingState />}>
       <EditarGuiaContent params={params} />
@@ -49,132 +47,106 @@ export default function EditarGuiaPage({ params }: { params: { id: string } }) {
 }
 
 // Componente de contenido que maneja la lógica principal
-function EditarGuiaContent({ params }: { params: { id: string } }) {
+async function EditarGuiaContent({ params }: { params: { id: string } }) {
   const id = Number.parseInt(params.id)
-  const [guia, setGuia] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [contacts, setContacts] = useState<any[]>([])
-  const [products, setProducts] = useState<any[]>([])
-  const [razas, setRazas] = useState<any[]>([])
-  const [colores, setColores] = useState<any[]>([])
-  const [tipoAnimal, setTipoAnimal] = useState<string>("")
-  const [locationId, setLocationId] = useState<number>(0)
+  console.log(`Intentando editar guía con ID: ${id}`)
 
-  // Cargar los datos de la guía
-  useEffect(() => {
-    async function loadData() {
-      try {
-        console.log(`Intentando editar guía con ID: ${id}`)
-        setLoading(true)
-        setError(null)
-
-        // Cargar la guía
-        const guiaData = await getTransactionById(id)
-
-        if (!guiaData) {
-          console.log(`Guía con ID ${id} no encontrada`)
-          setError(new Error(`La guía con ID ${id} no existe o ha sido eliminada.`))
-          setLoading(false)
-          return
-        }
-
-        console.log(`Guía obtenida:`, guiaData ? `ID: ${guiaData.id}, Tipo: ${guiaData.type}` : "No encontrada")
-
-        // Verificar el tipo de guía
-        if (guiaData.type !== "entry" && guiaData.type !== "ica") {
-          console.log(`Guía con ID ${id} no es de tipo "entry" ni "ica", es de tipo "${guiaData.type}"`)
-          setError(new Error(`La guía con ID ${id} no es una guía de entrada ni una guía ICA.`))
-          setLoading(false)
-          return
-        }
-
-        setGuia(guiaData)
-
-        // Determinar el tipo de animal y la ubicación
-        const tipo = guiaData.business_location_id === 1 ? "bovino" : "porcino"
-        setTipoAnimal(tipo)
-        setLocationId(guiaData.business_location_id)
-
-        // Cargar datos adicionales
-        try {
-          const [contactsData, productsData, razasData, coloresData] = await Promise.all([
-            getContacts(),
-            getProducts(tipo, guiaData.business_location_id),
-            getRazasByTipoAndLocation(tipo, guiaData.business_location_id),
-            getColoresByTipoAndLocation(tipo, guiaData.business_location_id),
-          ])
-
-          setContacts(contactsData)
-          setProducts(productsData)
-          setRazas(razasData)
-          setColores(coloresData)
-        } catch (dataError) {
-          console.error(`Error al obtener datos adicionales:`, dataError)
-          setError(new Error(`Error al cargar datos adicionales: ${dataError.message}`))
-        }
-      } catch (err) {
-        console.error(`Error al cargar la guía:`, err)
-        setError(err instanceof Error ? err : new Error(String(err)))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadData()
-  }, [id])
-
-  // Mostrar estado de carga
-  if (loading) {
-    return <LoadingState />
-  }
-
-  // Mostrar error
-  if (error) {
+  let guia
+  try {
+    guia = await getTransactionById(id)
+    console.log(`Guía obtenida:`, guia ? `ID: ${guia.id}, Tipo: ${guia.type}` : "No encontrada")
+  } catch (error) {
+    console.error(`Error al obtener la guía con ID ${id}:`, error)
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight text-red-600">Error al cargar la guía</h1>
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            Se produjo un error al intentar cargar la guía. Por favor, inténtelo de nuevo más tarde.
-          </AlertDescription>
-        </Alert>
+        <p>Se produjo un error al intentar cargar la guía. Por favor, inténtelo de nuevo más tarde.</p>
         <div className="bg-red-50 border border-red-200 p-4 rounded-md">
           <h3 className="text-lg font-medium text-red-800">Detalles del error:</h3>
-          <p className="text-red-700 mt-2">{error.message}</p>
+          <p className="text-red-700 mt-2">{error instanceof Error ? error.message : String(error)}</p>
         </div>
         <div className="flex gap-4 mt-4">
-          <Button asChild variant="default">
-            <a href="/guias">Volver a Guías</a>
-          </Button>
-          <Button variant="outline" onClick={() => window.location.reload()}>
+          <a href="/guias" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Volver a Guías
+          </a>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+          >
             Reintentar
-          </Button>
+          </button>
         </div>
       </div>
     )
   }
 
-  // Si no hay guía (aunque debería estar cubierto por el error)
   if (!guia) {
+    console.log(`Guía con ID ${id} no encontrada`)
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight text-red-600">Guía no encontrada</h1>
         <p>La guía con ID {id} no existe o ha sido eliminada.</p>
-        <Button asChild>
-          <a href="/guias">Volver a Guías</a>
-        </Button>
+        <a href="/guias" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block mt-4">
+          Volver a Guías
+        </a>
       </div>
     )
   }
 
-  // Determinar el título y descripción según el tipo de guía
-  const esGuiaICA = guia.type === "ica"
-  const titulo = esGuiaICA ? `Editar Guía ICA #${guia.numero_documento}` : `Editar Guía #${guia.numero_documento}`
+  if (guia.type !== "entry") {
+    console.log(`Guía con ID ${id} no es de tipo "entry", es de tipo "${guia.type}"`)
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold tracking-tight text-red-600">Tipo de guía incorrecto</h1>
+        <p>La guía con ID {id} no es una guía de entrada.</p>
+        <a href="/guias" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 inline-block mt-4">
+          Volver a Guías
+        </a>
+      </div>
+    )
+  }
 
-  const descripcion = esGuiaICA ? "Actualice los datos de la guía ICA" : "Actualice los datos de la guía"
+  // Actualizar la determinación del tipo de animal
+  const tipoAnimal = guia.business_location_id === 1 ? "bovino" : "porcino"
+  const locationId = guia.business_location_id
+
+  // Obtener datos necesarios
+  let contacts, products, razas, colores
+  try {
+    // Usar las funciones existentes para obtener los datos
+    ;[contacts, products, razas, colores] = await Promise.all([
+      getContacts(),
+      getProducts(tipoAnimal, locationId),
+      getRazasByTipoAndLocation(tipoAnimal, locationId),
+      getColoresByTipoAndLocation(tipoAnimal, locationId),
+    ])
+  } catch (error) {
+    console.error(`Error al obtener datos adicionales para la guía con ID ${id}:`, error)
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold tracking-tight text-red-600">Error al cargar datos adicionales</h1>
+        <p>
+          Se produjo un error al intentar cargar los datos adicionales para la guía. Por favor, inténtelo de nuevo más
+          tarde.
+        </p>
+        <div className="bg-red-50 border border-red-200 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-red-800">Detalles del error:</h3>
+          <p className="text-red-700 mt-2">{error instanceof Error ? error.message : String(error)}</p>
+        </div>
+        <div className="flex gap-4 mt-4">
+          <a href="/guias" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            Volver a Guías
+          </a>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -191,19 +163,19 @@ function EditarGuiaContent({ params }: { params: { id: string } }) {
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink>{titulo}</BreadcrumbLink>
+            <BreadcrumbLink>Editar Guía #{guia.numero_documento}</BreadcrumbLink>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
       <h1 className="text-3xl font-bold tracking-tight">
-        {titulo} {tipoAnimal && `(${tipoAnimal === "bovino" ? "Bovinos" : "Porcinos"})`}
+        Editar Guía #{guia.numero_documento} {tipoAnimal && `(${tipoAnimal === "bovino" ? "Bovinos" : "Porcinos"})`}
       </h1>
 
       <Card>
         <CardHeader>
           <CardTitle>Información de la Guía</CardTitle>
-          <CardDescription>{descripcion}</CardDescription>
+          <CardDescription>Actualice los datos de la guía</CardDescription>
         </CardHeader>
         <CardContent>
           <GuiaForm

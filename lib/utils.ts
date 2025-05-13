@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { getCurrentDateBogota, formatDateBogota } from "./date-utils"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -17,8 +16,12 @@ export function formatDate(date: string | Date | null | undefined): string {
 
   const dateObj = typeof date === "string" ? new Date(date) : date
 
-  // Usar la función de formateo de fecha para Bogotá
-  return formatDateBogota(dateObj)
+  // Usar el formato DD/MM/YYYY para Colombia
+  return dateObj.toLocaleDateString("es-CO", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
 }
 
 export function formatNumber(value: number | null | undefined): string {
@@ -28,13 +31,4 @@ export function formatNumber(value: number | null | undefined): string {
   return Math.round(value)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-}
-
-// Función para obtener la fecha actual en formato YYYY-MM-DD para inputs de tipo date
-export function getCurrentDateForInput(): string {
-  const today = getCurrentDateBogota()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
 }
