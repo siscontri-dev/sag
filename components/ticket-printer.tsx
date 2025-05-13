@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Tipo para los datos del ticket
@@ -29,7 +29,6 @@ interface TicketPrinterProps {
   buttonSize?: "default" | "sm" | "lg" | "icon"
 }
 
-// Modifica el componente TicketPrinter para manejar mejor los casos donde ticket2 podría ser undefined, null o NaN
 export default function TicketPrinter({
   ticketData,
   buttonLabel = "",
@@ -37,19 +36,6 @@ export default function TicketPrinter({
   buttonSize = "icon",
 }: TicketPrinterProps) {
   const [showPreview, setShowPreview] = useState(false)
-  const [displayTicket2, setDisplayTicket2] = useState<string | number>("")
-
-  useEffect(() => {
-    // Asegúrate de que ticket2 sea un valor válido
-    const ticket2Value = ticketData.ticket2
-    if (ticket2Value !== undefined && ticket2Value !== null && !isNaN(Number(ticket2Value))) {
-      setDisplayTicket2(ticket2Value)
-    } else {
-      // Si ticket2 no es válido, usa el código del animal como respaldo
-      setDisplayTicket2(ticketData.ticketNumber || "")
-      console.log("Usando código del animal como respaldo para ticket2:", ticketData.ticketNumber)
-    }
-  }, [ticketData.ticket2, ticketData.ticketNumber])
 
   // URL correcta del logo
   const logoUrl = "https://i.postimg.cc/J7kB03bd/LOGO-SAG.png"
@@ -75,7 +61,7 @@ export default function TicketPrinter({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Ticket #${displayTicket2}</title>
+            <title>Ticket #${ticketData.ticketNumber}</title>
             <style>
               body {
                 font-family: 'Courier New', monospace;
@@ -147,9 +133,9 @@ export default function TicketPrinter({
               
               <div class="flex-row">
                 <span class="label">T.BASCULULA:</span>
-                <span>Nº ${displayTicket2}</span>
+                <span>Nº ${ticketData.ticket2 || ticketData.ticketNumber}</span>
                 <span class="label">VALOR:</span>
-                <span>$${formatCurrency(ticketData.valor || 6000)}</span>
+                <span>$${ticketData.valor || 6000}</span>
               </div>
               
               <div class="flex-row">
@@ -239,7 +225,7 @@ export default function TicketPrinter({
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-[400px]">
           <DialogHeader>
-            <DialogTitle>Vista previa del Ticket #{displayTicket2}</DialogTitle>
+            <DialogTitle>Vista previa del Ticket #{ticketData.ticket2 || ticketData.ticketNumber}</DialogTitle>
           </DialogHeader>
 
           <div className="bg-white p-4 rounded-lg border" style={{ width: "80mm", margin: "0 auto" }}>
@@ -248,18 +234,9 @@ export default function TicketPrinter({
             </div>
             <div className="border-t border-dashed border-gray-400 my-2"></div>
 
-            <div className="text-center mb-1">
-              <span className="text-xs">Nº </span>
-              <span className="text-sm font-bold">
-                {displayTicket2 !== undefined && displayTicket2 !== null && displayTicket2 !== ""
-                  ? displayTicket2
-                  : "Sin número"}
-              </span>
-            </div>
-
             <div className="flex justify-between text-xs">
               <div>
-                <span className="font-bold">T.BASCULULA:</span> Nº {displayTicket2}
+                <span className="font-bold">T.BASCULULA:</span> Nº {ticketData.ticket2 || ticketData.ticketNumber}
               </div>
               <div>
                 <span className="font-bold">VALOR:</span> ${formatCurrency(ticketData.valor || 6000)}

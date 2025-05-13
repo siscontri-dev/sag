@@ -1,6 +1,5 @@
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
-import { db } from "@/lib/db"
 
 // Función para obtener datos de reportes
 export async function getReportData() {
@@ -396,30 +395,39 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
 }
 
 // Función para obtener una transacción por ID
-export async function getTransactionById(id: number) {
+export async function getTransactionById(id) {
   try {
-    console.log(`Buscando transacción con ID: ${id}`)
-    const transaction = await db.transaction.findUnique({
-      where: {
-        id: id,
-      },
-      include: {
-        contact: true,
-        business_location: true,
-        transaction_sell_lines: {
-          include: {
-            product: true,
-            variations: true,
-          },
-        },
-      },
-    })
+    // Obtener la transacción
+    const transactionResult = await sql`
+      SELECT 
+        t.*,
+        ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+        cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+      FROM 
+        transactions t
+        LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+        LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+      WHERE 
+        t.id = ${id}
+    `
 
-    console.log(`Transacción encontrada:`, transaction ? `ID: ${transaction.id}` : "No encontrada")
+    if (transactionResult.rows.length === 0) {
+      return null
+    }
+
+    const transaction = transactionResult.rows[0]
+
+    // Obtener las líneas de la transacción
+    const linesResult = await sql`
+      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
+    `
+
+    transaction.transaction_lines = linesResult.rows
+
     return transaction
   } catch (error) {
-    console.error("Error al obtener la transacción por ID:", error)
-    throw error
+    console.error(`Error al obtener transacción con ID ${id}:`, error)
+    return null
   }
 }
 

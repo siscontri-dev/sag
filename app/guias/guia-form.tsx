@@ -26,8 +26,6 @@ import { createUbication } from "@/app/contactos/actions"
 import { createContact } from "@/app/contactos/actions"
 import ImageUpload from "@/components/image-upload"
 
-// Añade logs de depuración al inicio del componente GuiaForm para verificar los datos recibidos
-
 export default function GuiaForm({
   contacts = [],
   products = [],
@@ -37,14 +35,6 @@ export default function GuiaForm({
   colores = [],
   guia = null,
 }) {
-  console.log("GuiaForm - Datos recibidos:", {
-    tipoAnimal,
-    locationId,
-    guiaId: guia?.id,
-    guiaType: guia?.type,
-    lineasCount: guia?.transaction_lines?.length,
-  })
-
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -890,33 +880,19 @@ export default function GuiaForm({
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
 
     // Crear un array de datos de tickets a partir de las líneas
-    const tickets = lineas.map((linea) => {
-      // Asegurarse de que ticket2 sea un número válido
-      let ticket2Value = linea.ticket2
-
-      // Si ticket2 no existe o no es un número válido, usar el mismo valor que ticket
-      if (ticket2Value === undefined || ticket2Value === null || isNaN(Number(ticket2Value))) {
-        ticket2Value = linea.ticket
-        console.log(`Usando ticket (${linea.ticket}) como respaldo para ticket2`)
-      } else {
-        console.log(`Usando ticket2 existente: ${ticket2Value}`)
-      }
-
-      return {
-        ticketNumber: Number(linea.ticket), // Código del animal (ticket)
-        ticket2: Number(ticket2Value), // Número de báscula (ticket2)
-        fecha: new Date().toLocaleString("es-CO"),
-        duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
-        cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
-        tipoAnimal: tipoAnimal,
-        sku: linea.product_name || `Producto #${linea.product_id}`,
-        pesoKg: Number(linea.quantity || linea.kilos || 0),
-        raza: linea.raza_name || "N/A",
-        color: linea.color_name || "N/A",
-        genero: linea.es_macho ? "MACHO" : "HEMBRA",
-        valor: linea.valor || 6000,
-      }
-    })
+    const tickets = lineas.map((linea) => ({
+      ticketNumber: Number(linea.ticket), // Código del animal
+      ticket2: Number(linea.ticket2 || 0), // Número de báscula
+      fecha: new Date().toLocaleString("es-CO"),
+      duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
+      cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+      tipoAnimal: tipoAnimal,
+      sku: linea.product_name || `Producto #${linea.product_id}`,
+      pesoKg: Number(linea.quantity || linea.kilos || 0),
+      raza: linea.raza_name || "N/A",
+      color: linea.color_name || "N/A",
+      genero: linea.es_macho ? "MACHO" : "HEMBRA",
+    }))
 
     return tickets
   }
@@ -975,28 +951,15 @@ export default function GuiaForm({
         })
 
         // Actualizar las líneas con los valores de ticket2 devueltos por el servidor
-        if (result.lines && result.lines.length > 0) {
-          console.log("Líneas devueltas por el servidor:", result.lines)
-
+        if (result.lines) {
           const updatedLineas = lineas.map((linea, index) => {
-            if (index < result.lines.length) {
-              const serverLine = result.lines[index]
-              console.log(`Línea ${index}: ticket=${linea.ticket}, ticket2 del servidor=${serverLine.ticket2}`)
-
-              return {
-                ...linea,
-                ticket2:
-                  serverLine.ticket2 !== undefined && serverLine.ticket2 !== null
-                    ? Number(serverLine.ticket2)
-                    : Number(linea.ticket),
-              }
+            const serverLine = result.lines[index]
+            return {
+              ...linea,
+              ticket2: serverLine?.ticket2 || 0,
             }
-            return linea
           })
-
           setLineas(updatedLineas)
-        } else {
-          console.warn("No se recibieron líneas del servidor o el array está vacío")
         }
 
         // Preparar los tickets para imprimir
