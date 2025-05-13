@@ -36,16 +36,51 @@ const formatNumber = (value: number | null | undefined): string => {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
-// Función para formatear fechas
-const formatDate = (date: Date | string): string => {
+// Función mejorada para formatear fechas de manera consistente en todos los entornos
+const formatDate = (date: Date | string | null | undefined): string => {
   if (!date) return ""
 
   try {
-    const dateObj = typeof date === "string" ? new Date(date) : date
-    if (isNaN(dateObj.getTime())) return ""
-    return format(dateObj, "dd/MM/yyyy")
+    // Si es string, intentar diferentes formatos
+    let dateObj: Date
+
+    if (typeof date === "string") {
+      // Verificar si la fecha ya tiene el formato correcto (DD/MM/YYYY)
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+        const [day, month, year] = date.split("/").map(Number)
+        dateObj = new Date(year, month - 1, day)
+      }
+      // Verificar si es formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+      else if (date.includes("T")) {
+        dateObj = new Date(date)
+      }
+      // Verificar si es formato YYYY-MM-DD
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split("-").map(Number)
+        dateObj = new Date(year, month - 1, day)
+      }
+      // Otros formatos
+      else {
+        dateObj = new Date(date)
+      }
+    } else {
+      dateObj = date
+    }
+
+    // Verificar si la fecha es válida
+    if (isNaN(dateObj.getTime())) {
+      console.warn(`Fecha inválida: ${date}`)
+      return ""
+    }
+
+    // Formatear manualmente para evitar problemas de locale
+    const day = String(dateObj.getDate()).padStart(2, "0")
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+    const year = dateObj.getFullYear()
+
+    return `${day}/${month}/${year}`
   } catch (error) {
-    console.error("Error al formatear fecha:", error)
+    console.error(`Error al formatear fecha: ${date}`, error)
     return ""
   }
 }
@@ -88,18 +123,71 @@ export default function RecaudosTable({ sacrificios = [], tipoAnimal = "bovino" 
 
     // Filtro por fecha seleccionada
     if (fechaSeleccionada) {
-      const fechaInicio = new Date(fechaSeleccionada)
-      fechaInicio.setHours(0, 0, 0, 0)
+      // Crear fecha de inicio (00:00:00) en hora local
+      const fechaInicio = new Date(fechaSeleccionada + "T00:00:00")
 
-      const fechaFin = new Date(fechaSeleccionada)
-      fechaFin.setHours(23, 59, 59, 999)
+      // Crear fecha de fin (23:59:59) en hora local
+      const fechaFin = new Date(fechaSeleccionada + "T23:59:59.999")
 
       result = result.filter((sacrificio) => {
         try {
-          const fecha = new Date(sacrificio.fecha_documento)
-          return fecha >= fechaInicio && fecha <= fechaFin
+          if (!sacrificio.fecha_documento) return false
+
+          // Normalizar la fecha del sacrificio para comparación
+          let fechaSacrificio: Date
+
+          if (typeof sacrificio.fecha_documento === "string") {
+            // Si es una cadena ISO, convertir directamente
+            if (sacrificio.fecha_documento.includes("T")) {
+              fechaSacrificio = new Date(sacrificio.fecha_documento)
+            }
+            // Si es formato YYYY-MM-DD
+            else if (/^\d{4}-\d{2}-\d{2}$/.test(sacrificio.fecha_documento)) {
+              fechaSacrificio = new Date(sacrificio.fecha_documento + "T12:00:00")
+            }
+            // Si es formato DD/MM/YYYY
+            else if (/^\d{2}\/\d{2}\/\d{4}$/.test(sacrificio.fecha_documento)) {
+              const [day, month, year] = sacrificio.fecha_documento.split("/").map(Number)
+              fechaSacrificio = new Date(year, month - 1, day, 12, 0, 0)
+            }
+            // Otros formatos
+            else {
+              fechaSacrificio = new Date(sacrificio.fecha_documento)
+            }
+          } else {
+            fechaSacrificio = new Date(sacrificio.fecha_documento)
+          }
+
+          // Verificar si la fecha es válida
+          if (isNaN(fechaSacrificio.getTime())) {
+            console.warn(`Fecha inválida en sacrificio ${sacrificio.id}: ${sacrificio.fecha_documento}`)
+            return false
+          }
+
+          // Normalizar a solo fecha (sin hora) para comparación
+          const soloFechaSacrificio = new Date(
+            fechaSacrificio.getFullYear(),
+            fechaSacrificio.getMonth(),
+            fechaSacrificio.getDate(),
+            12,
+            0,
+            0,
+          )
+
+          const soloFechaInicio = new Date(
+            fechaInicio.getFullYear(),
+            fechaInicio.getMonth(),
+            fechaInicio.getDate(),
+            0,
+            0,
+            0,
+          )
+
+          const soloFechaFin = new Date(fechaFin.getFullYear(), fechaFin.getMonth(), fechaFin.getDate(), 23, 59, 59)
+
+          return soloFechaSacrificio >= soloFechaInicio && soloFechaSacrificio <= soloFechaFin
         } catch (error) {
-          console.error("Error al filtrar por fecha:", error)
+          console.error(`Error al procesar fecha en sacrificio ${sacrificio.id}:`, error)
           return false
         }
       })

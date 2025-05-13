@@ -11,6 +11,7 @@ export function formatCurrency(amount: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
+// Mejorar la función formatDate para manejar más casos y ser más robusta
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return ""
 
@@ -47,12 +48,12 @@ export function formatDate(date: string | Date | null | undefined): string {
       return ""
     }
 
-    // Usar el formato DD/MM/YYYY para Colombia
-    return dateObj.toLocaleDateString("es-CO", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
+    // Formatear manualmente para evitar problemas de locale
+    const day = String(dateObj.getDate()).padStart(2, "0")
+    const month = String(dateObj.getMonth() + 1).padStart(2, "0")
+    const year = dateObj.getFullYear()
+
+    return `${day}/${month}/${year}`
   } catch (error) {
     console.error(`Error al formatear fecha: ${date}`, error)
     return ""
