@@ -24,7 +24,12 @@ export function middleware(request: NextRequest) {
     // Verificar que sea un ID válido
     if (id && !isNaN(Number(id))) {
       console.log(`ID válido: ${id}`)
-      return NextResponse.next()
+
+      // Crear una nueva URL con la misma ruta pero asegurándose de que se maneje como ruta dinámica
+      const url = request.nextUrl.clone()
+
+      // No modificar la URL, solo asegurarse de que Next.js la maneje correctamente
+      return NextResponse.rewrite(url)
     }
   }
 
@@ -35,11 +40,11 @@ export function middleware(request: NextRequest) {
 // Configurar en qué rutas se ejecutará el middleware
 export const config = {
   matcher: [
-    "/guias/editar/:id*",
-    "/guias/ver/:id*",
-    "/sacrificios/editar/:id*",
-    "/sacrificios/ver/:id*",
-    "/contactos/editar/:id*",
-    "/contactos/ver/:id*",
+    "/guias/editar/:path*",
+    "/guias/ver/:path*",
+    "/sacrificios/editar/:path*",
+    "/sacrificios/ver/:path*",
+    "/contactos/editar/:path*",
+    "/contactos/ver/:path*",
   ],
 }

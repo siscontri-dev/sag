@@ -1,35 +1,83 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Home } from "lucide-react"
+import { Home, ArrowLeft, PenToolIcon as Tool } from "lucide-react"
 
 export default function NotFound() {
+  // Extraer el ID de la URL si es una página de guía
+  const getGuiaIdFromUrl = () => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname
+      const match = path.match(/\/guias\/(?:editar|ver)\/(\d+)/)
+      return match ? match[1] : null
+    }
+    return null
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 text-center">
-      <h1 className="text-6xl font-bold text-gray-900 mb-4">404</h1>
-      <h2 className="text-2xl font-semibold text-gray-700 mb-6">Página no encontrada</h2>
-      <p className="text-gray-600 mb-8 max-w-md">
-        Lo sentimos, la página que estás buscando no existe o ha sido movida.
-      </p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-md space-y-8 text-center">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900">Página no encontrada</h1>
+          <p className="mt-2 text-lg text-gray-600">
+            Lo sentimos, la página que estás buscando no existe o ha sido movida.
+          </p>
+        </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <Button variant="outline" asChild>
-          <Link href="/" className="flex items-center gap-2">
-            <Home size={16} />
-            Ir al inicio
-          </Link>
-        </Button>
+        <div className="space-y-4">
+          <Button asChild className="w-full">
+            <Link href="/">
+              <Home className="mr-2 h-4 w-4" />
+              Ir al inicio
+            </Link>
+          </Button>
 
-        <Button variant="default" asChild>
-          <Link href="javascript:history.back()" className="flex items-center gap-2">
-            <ArrowLeft size={16} />
+          <Button variant="outline" className="w-full" onClick={() => window.history.back()}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Volver atrás
-          </Link>
-        </Button>
-      </div>
+          </Button>
 
-      <div className="mt-12 text-sm text-gray-500">
-        <p>Si crees que esto es un error, por favor contacta al administrador del sistema.</p>
-        <p className="mt-2">ID de referencia: {Math.random().toString(36).substring(2, 10).toUpperCase()}</p>
+          {/* Script para detectar si es una URL de guía y mostrar el botón de reparación */}
+          <div id="repair-button-container" className="hidden">
+            <p className="text-sm text-gray-500 mt-4 mb-2">
+              ¿Problemas con una guía? Intenta usar nuestra herramienta de reparación:
+            </p>
+            <Button variant="secondary" className="w-full" id="repair-button">
+              <Tool className="mr-2 h-4 w-4" />
+              Reparar esta guía
+            </Button>
+          </div>
+
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+              (function() {
+                const path = window.location.pathname;
+                const match = path.match(/\\/guias\\/(?:editar|ver)\\/(\\d+)/);
+                
+                if (match) {
+                  const guiaId = match[1];
+                  const container = document.getElementById('repair-button-container');
+                  const button = document.getElementById('repair-button');
+                  
+                  if (container && button) {
+                    container.classList.remove('hidden');
+                    button.addEventListener('click', function() {
+                      window.location.href = '/herramientas/reparar-guia/' + guiaId;
+                    });
+                  }
+                }
+              })();
+            `,
+            }}
+          />
+        </div>
+
+        <div className="mt-8 text-sm text-gray-500">
+          <p>Si crees que esto es un error, por favor contacta al administrador del sistema.</p>
+          <p className="mt-2">ID de referencia: {Math.random().toString(36).substring(2, 10).toUpperCase()}</p>
+        </div>
       </div>
     </div>
   )

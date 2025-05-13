@@ -30,6 +30,11 @@ const nextConfig = {
         source: '/contactos/ver/:id',
         destination: '/contactos/ver/[id]',
       },
+      // Nuevas rutas para herramientas
+      {
+        source: '/herramientas/reparar-guia/:id',
+        destination: '/herramientas/reparar-guia/[id]',
+      }
     ]
   },
   // Configuración para manejar correctamente las imágenes externas
