@@ -2,20 +2,17 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import SacrificiosTable from "./sacrificios-table"
-import RecaudosTable from "./recaudos-table"
 import { getTransactions } from "@/lib/data"
 import { themeColors } from "@/lib/theme-config"
 import ExportButtons from "./export-buttons"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default async function SacrificiosPage({
   searchParams,
 }: {
-  searchParams: { tipo?: string; limit?: string; tab?: string }
+  searchParams: { tipo?: string; limit?: string }
 }) {
   const tipo = searchParams.tipo || undefined
   const limit = searchParams.limit ? Number.parseInt(searchParams.limit) : 30
-  const activeTab = searchParams.tab || "listado"
 
   // Obtener todos los sacrificios con el límite especificado
   const sacrificios = await getTransactions("exit", tipo, limit)
@@ -59,37 +56,13 @@ export default async function SacrificiosPage({
         </div>
       </div>
 
-      {/* Pestañas para Listado y Recaudos */}
-      <Tabs defaultValue={activeTab} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="listado" asChild>
-            <Link href={`/sacrificios?tipo=${tipo || ""}&limit=${limit}&tab=listado`}>Listado</Link>
-          </TabsTrigger>
-          <TabsTrigger value="recaudos" asChild>
-            <Link href={`/sacrificios?tipo=${tipo || ""}&limit=${limit}&tab=recaudos`}>Recaudos</Link>
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabla de sacrificios con filtros integrados e indicadores */}
+      <SacrificiosTable sacrificios={sacrificios} tipoAnimal={tipo} currentLimit={limit} />
 
-        <TabsContent value="listado" className="space-y-4">
-          {/* Tabla de sacrificios con filtros integrados e indicadores */}
-          <SacrificiosTable sacrificios={sacrificios} tipoAnimal={tipo} currentLimit={limit} />
-
-          {/* Botones de exportación al final de la página */}
-          <div className="flex justify-end mt-6">
-            <ExportButtons sacrificios={sacrificios} tipoAnimal={tipo} />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="recaudos" className="space-y-4">
-          {/* Tabla de recaudos con filtros por fecha específica */}
-          <RecaudosTable sacrificios={sacrificios} tipoAnimal={tipo} />
-
-          {/* Botones de exportación al final de la página */}
-          <div className="flex justify-end mt-6">
-            <ExportButtons sacrificios={sacrificios} tipoAnimal={tipo} />
-          </div>
-        </TabsContent>
-      </Tabs>
+      {/* Botones de exportación al final de la página */}
+      <div className="flex justify-end mt-6">
+        <ExportButtons tipo={tipo} />
+      </div>
     </div>
   )
 }
