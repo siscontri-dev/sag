@@ -61,7 +61,7 @@ export default function TicketPrinter({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Ticket #${ticketData.ticketNumber}</title>
+            <title>Ticket #${ticketData.ticket2 || ticketData.ticketNumber}</title>
             <style>
               body {
                 font-family: 'Courier New', monospace;
@@ -135,7 +135,7 @@ export default function TicketPrinter({
                 <span class="label">T.BASCULULA:</span>
                 <span>Nº ${ticketData.ticket2 || ticketData.ticketNumber}</span>
                 <span class="label">VALOR:</span>
-                <span>$${ticketData.valor || 6000}</span>
+                <span>$${formatCurrency(ticketData.valor || 6000)}</span>
               </div>
               
               <div class="flex-row">

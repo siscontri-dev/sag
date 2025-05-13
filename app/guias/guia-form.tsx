@@ -892,6 +892,7 @@ export default function GuiaForm({
       raza: linea.raza_name || "N/A",
       color: linea.color_name || "N/A",
       genero: linea.es_macho ? "MACHO" : "HEMBRA",
+      valor: linea.valor || 6000,
     }))
 
     return tickets

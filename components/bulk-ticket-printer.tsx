@@ -7,8 +7,8 @@ import { useState } from "react"
 
 // Tipo para los datos del ticket
 interface TicketData {
-  ticketNumber: number // Este será el ticket2 ahora
-  ticket2: number // Añadir esta propiedad
+  ticketNumber: number // Este será el código del animal (antiguo ticket)
+  ticket2: number // Este será el número de báscula
   fecha: string
   duenioAnterior: string
   cedulaDuenio: string
@@ -19,7 +19,6 @@ interface TicketData {
   color: string
   genero: string
   valor?: number
-  codigoAnimal?: number // Añadimos el código del animal (antiguo ticket)
 }
 
 // Propiedades del componente
@@ -83,7 +82,7 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Ticket #${ticketData.ticketNumber}</title>
+              <title>Ticket #${ticketData.ticket2}</title>
               <style>
                 body {
                   font-family: 'Courier New', monospace;
@@ -155,7 +154,7 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
                 
                 <div class="flex-row">
                   <span class="label">T.BASCULULA:</span>
-                  <span>Nº ${ticketData.ticketNumber}</span>
+                  <span>Nº ${ticketData.ticket2}</span>
                   <span class="label">VALOR:</span>
                   <span>$${ticketData.valor || 6000}</span>
                 </div>
@@ -178,7 +177,7 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
                 <div class="flex-row">
                   <span class="label">${ticketData.tipoAnimal.toUpperCase()}</span>
                   <span class="label">COD:</span>
-                  <span>${ticketData.codigoAnimal || ticketData.sku}</span>
+                  <span>${ticketData.ticketNumber}</span>
                   <span class="label">PESO:</span>
                   <span>${ticketData.pesoKg.toFixed(2)} kg</span>
                 </div>
