@@ -232,8 +232,9 @@ export async function exportarBoletinGanadoMayor(fechaInicio: string, fechaFin: 
 
 // Nueva función para obtener datos financieros completos
 export async function getFinancialData() {
-  noStore()
   try {
+    // Remove unstable_noStore() call to allow static rendering
+
     // Obtener todas las transacciones con sus impuestos
     const transactionsResult = await sql`
       SELECT 

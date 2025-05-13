@@ -5,6 +5,8 @@ import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from 
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 
+export const dynamic = "force-dynamic"
+
 export default async function Home() {
   let stats
   let financialData
