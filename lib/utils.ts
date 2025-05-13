@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatDateDMY } from "./date-utils"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,16 +12,17 @@ export function formatCurrency(amount: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
-// Actualizar la función formatDate para usar la zona horaria de Bogotá
+// Usar la función de formateo de fecha de la biblioteca de utilidades
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return ""
+  return formatDateDMY(date)
+}
 
-  const dateObj = typeof date === "string" ? new Date(date) : date
-
-  return new Intl.DateTimeFormat("es-CO", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: "America/Bogota",
-  }).format(dateObj)
+// Función para formatear números
+export function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined || isNaN(value)) {
+    return "0"
+  }
+  return Math.round(value)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
