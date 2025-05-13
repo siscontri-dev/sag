@@ -3,11 +3,11 @@
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Tipo para los datos del ticket
 interface TicketData {
-  ticketNumber: number
+  ticketNumber: number // Este será el código del animal (antiguo ticket)
+  ticket2?: number // Este será el número de báscula
   fecha: string
   duenioAnterior: string
   cedulaDuenio: string
@@ -23,24 +23,18 @@ interface TicketData {
 // Propiedades del componente
 interface TicketPrinterProps {
   ticketData: TicketData
-  buttonLabel?: string
-  buttonVariant?: "default" | "outline" | "ghost"
-  buttonSize?: "default" | "sm" | "lg" | "icon"
 }
 
-export default function TicketPrinter({
-  ticketData,
-  buttonLabel = "",
-  buttonVariant = "ghost",
-  buttonSize = "icon",
-}: TicketPrinterProps) {
-  const [showPreview, setShowPreview] = useState(false)
+export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
+  const [isPrinting, setIsPrinting] = useState(false)
 
   // URL correcta del logo
   const logoUrl = "https://i.postimg.cc/J7kB03bd/LOGO-SAG.png"
 
-  // Función para imprimir el ticket directamente
+  // Función para imprimir el ticket
   const printTicket = () => {
+    setIsPrinting(true)
+
     // Crear un iframe oculto para la impresión
     const printFrame = document.createElement("iframe")
     printFrame.style.position = "fixed"
@@ -60,7 +54,7 @@ export default function TicketPrinter({
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Ticket #${ticketData.ticketNumber}</title>
+            <title>Ticket #${ticketData.ticket2 || ticketData.ticketNumber}</title>
             <style>
               body {
                 font-family: 'Courier New', monospace;
@@ -132,9 +126,9 @@ export default function TicketPrinter({
               
               <div class="flex-row">
                 <span class="label">T.BASCULULA:</span>
-                <span>Nº ${ticketData.ticketNumber}</span>
+                <span>Nº ${ticketData.ticket2 || ticketData.ticketNumber}</span>
                 <span class="label">VALOR:</span>
-                <span>$${ticketData.valor || 6000}</span>
+                <span>$${formatCurrency(ticketData.valor || 6000)}</span>
               </div>
               
               <div class="flex-row">
@@ -155,7 +149,7 @@ export default function TicketPrinter({
               <div class="flex-row">
                 <span class="label">${ticketData.tipoAnimal.toUpperCase()}</span>
                 <span class="label">COD:</span>
-                <span>${ticketData.sku}</span>
+                <span>${ticketData.ticketNumber}</span>
                 <span class="label">PESO:</span>
                 <span>${ticketData.pesoKg.toFixed(2)} kg</span>
               </div>
@@ -192,97 +186,40 @@ export default function TicketPrinter({
         try {
           printFrame.contentWindow?.focus()
           printFrame.contentWindow?.print()
+
+          // Esperar a que se complete la impresión
+          const checkPrintingComplete = () => {
+            if (printFrame.contentWindow?.document.readyState === "complete") {
+              // Eliminar el iframe
+              document.body.removeChild(printFrame)
+              setIsPrinting(false)
+            } else {
+              setTimeout(checkPrintingComplete, 100)
+            }
+          }
+
+          checkPrintingComplete()
         } catch (error) {
           console.error("Error al imprimir:", error)
+          setIsPrinting(false)
         }
-
-        // Eliminar el iframe después de imprimir
-        setTimeout(() => {
-          document.body.removeChild(printFrame)
-        }, 1000)
       }, 500)
     }
   }
 
+  // Función segura para formatear moneda
+  const formatCurrency = (amount: number | undefined): string => {
+    if (amount === undefined || amount === null) {
+      return "0"
+    }
+    return amount.toLocaleString("es-CO", {
+      minimumFractionDigits: 0,
+    })
+  }
+
   return (
-    <>
-      <Button variant={buttonVariant} size={buttonSize} onClick={() => setShowPreview(true)} title="Imprimir ticket">
-        <Printer className="h-4 w-4" />
-        {buttonLabel}
-      </Button>
-
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>Vista previa del Ticket #{ticketData.ticketNumber}</DialogTitle>
-          </DialogHeader>
-
-          <div className="bg-white p-4 rounded-lg border" style={{ width: "80mm", margin: "0 auto" }}>
-            <div className="text-center mb-2">
-              <img src={logoUrl || "/placeholder.svg"} alt="Logo" className="w-full h-auto mx-auto mb-1" />
-            </div>
-            <div className="border-t border-dashed border-gray-400 my-2"></div>
-
-            <div className="flex justify-between text-xs">
-              <div>
-                <span className="font-bold">T.BASCULULA:</span> Nº {ticketData.ticketNumber}
-              </div>
-              <div>
-                <span className="font-bold">VALOR:</span> ${ticketData.valor || 6000}
-              </div>
-            </div>
-
-            <div className="text-xs">
-              <span className="font-bold">FECHA:</span> {ticketData.fecha}
-            </div>
-
-            <div className="text-xs">
-              <span className="font-bold">USUARIO:</span> {ticketData.duenioAnterior}
-            </div>
-
-            <div className="text-xs">
-              <span className="font-bold">CC/NIT:</span> {ticketData.cedulaDuenio}
-            </div>
-
-            <div className="flex justify-between text-xs">
-              <span className="font-bold">{ticketData.tipoAnimal.toUpperCase()}</span>
-              <div>
-                <span className="font-bold">COD:</span> {ticketData.sku}
-              </div>
-              <div>
-                <span className="font-bold">PESO:</span> {ticketData.pesoKg.toFixed(2)} kg
-              </div>
-            </div>
-
-            <div className="border-t border-dashed border-gray-400 my-2"></div>
-
-            <div className="flex justify-between text-xs">
-              <div className="text-center w-1/3">
-                <div className="font-bold">RAZA</div>
-                <div>{ticketData.raza}</div>
-              </div>
-              <div className="text-center w-1/3">
-                <div className="font-bold">COLOR</div>
-                <div>{ticketData.color}</div>
-              </div>
-              <div className="text-center w-1/3">
-                <div className="font-bold">GENERO</div>
-                <div>{ticketData.genero}</div>
-              </div>
-            </div>
-
-            <div className="border-t border-dashed border-gray-400 my-2"></div>
-            <div className="text-center text-[10px]">Sistema de Gestión de Bovinos y Porcinos</div>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowPreview(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={printTicket}>Imprimir</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Button variant="ghost" size="icon" onClick={printTicket} disabled={isPrinting} title="Imprimir ticket">
+      <Printer className="h-4 w-4" />
+    </Button>
   )
 }

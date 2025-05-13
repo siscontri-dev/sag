@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Home } from "lucide-react"
 
-// Modificar para usar business_location_id en lugar de id_location
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default async function NuevaGuiaPage({
   searchParams,
 }: {
@@ -22,7 +24,7 @@ export default async function NuevaGuiaPage({
   // Determinar la ubicación basada en el tipo de animal
   const locationId = tipo === "bovino" ? 1 : 2
 
-  // Obtener datos necesarios
+  // Obtener datos necesarios usando las funciones existentes
   const [contacts, products, razas, colores] = await Promise.all([
     getContacts(),
     getProducts(tipo, locationId),

@@ -5,9 +5,39 @@ import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from 
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 
+// Modificar la función Home para manejar mejor los errores:
+
 export default async function Home() {
-  const stats = await getTransactionStats()
-  const financialData = await getFinancialData()
+  let stats
+  let financialData
+
+  try {
+    stats = await getTransactionStats()
+  } catch (error) {
+    console.error("Error al cargar estadísticas:", error)
+    stats = {
+      contactCount: 0,
+      guiasCount: 0,
+      sacrificiosCount: 0,
+      guiasBovinos: 0,
+      guiasPorcinos: 0,
+      sacrificiosBovinos: 0,
+      sacrificiosPorcinos: 0,
+      totalKilos: 0,
+      recentTransactions: [],
+    }
+  }
+
+  try {
+    financialData = await getFinancialData()
+  } catch (error) {
+    console.error("Error al cargar datos financieros:", error)
+    financialData = {
+      transactions: [],
+      monthlyStats: [],
+      animalTypeStats: [],
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -25,10 +55,6 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium">Gestión de Bovinos</h3>
-                <p className="text-sm text-muted-foreground">Administra guías y sacrificios de bovinos</p>
-              </div>
               <img src="/images/vaca.png" alt="Bovino" className="h-16 w-16" />
             </div>
             <div className="space-y-3">
