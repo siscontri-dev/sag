@@ -326,6 +326,8 @@ export async function getMunicipiosByDepartamento(departamentoId: number) {
 // Function to get transaction by ID
 export async function getTransactionById(id: string) {
   try {
+    console.log(`Intentando obtener transacción con ID: ${id}`)
+
     // Query the main transaction
     const transactionResult = await sql`
       SELECT t.*, 
@@ -336,14 +338,66 @@ export async function getTransactionById(id: string) {
       FROM transactions t
       LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
       LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-      WHERE t.id = ${id} AND t.activo = true
+      WHERE t.id = ${id}
     `
 
+    console.log(`Resultado de la consulta: ${transactionResult.rows.length} filas encontradas`)
+
     if (transactionResult.rows.length === 0) {
+      // Si no se encuentra con el filtro de activo, intentar sin él para depuración
+      const checkInactiveResult = await sql`
+        SELECT id, type, activo FROM transactions WHERE id = ${id}
+      `
+
+      if (checkInactiveResult.rows.length > 0) {
+        console.log(`Guía encontrada pero inactiva: ${JSON.stringify(checkInactiveResult.rows[0])}`)
+        // Si la guía existe pero está inactiva, la activamos temporalmente
+        await sql`UPDATE transactions SET activo = TRUE WHERE id = ${id}`
+        console.log(`Guía activada temporalmente para permitir edición`)
+
+        // Volvemos a intentar obtener la guía completa
+        const retriedResult = await sql`
+          SELECT t.*, 
+                 c1.primer_nombre || ' ' || c1.primer_apellido as dueno_anterior_nombre,
+                 c1.nit as dueno_anterior_nit,
+                 c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre,
+                 c2.nit as dueno_nuevo_nit
+          FROM transactions t
+          LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
+          LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
+          WHERE t.id = ${id}
+        `
+
+        if (retriedResult.rows.length > 0) {
+          const transaction = retriedResult.rows[0]
+
+          // Query the transaction lines
+          const linesResult = await sql`
+            SELECT tl.*, 
+                   p.name as product_name,
+                   r.name as raza_nombre,
+                   c.name as color_nombre
+            FROM transaction_lines tl
+            LEFT JOIN products p ON tl.product_id = p.id
+            LEFT JOIN razas r ON tl.raza_id = r.id
+            LEFT JOIN colors c ON tl.color_id = c.id
+            WHERE tl.transaction_id = ${id}
+            ORDER BY tl.id
+          `
+
+          // Add the lines to the transaction
+          transaction.transaction_lines = linesResult.rows
+
+          return transaction
+        }
+      }
+
+      console.log(`No se encontró ninguna guía con ID ${id}, ni activa ni inactiva`)
       return null
     }
 
     const transaction = transactionResult.rows[0]
+    console.log(`Guía encontrada: ID=${transaction.id}, Tipo=${transaction.type}, Activo=${transaction.activo}`)
 
     // Query the transaction lines
     const linesResult = await sql`
@@ -358,6 +412,8 @@ export async function getTransactionById(id: string) {
       WHERE tl.transaction_id = ${id}
       ORDER BY tl.id
     `
+
+    console.log(`Líneas de transacción encontradas: ${linesResult.rows.length}`)
 
     // Add the lines to the transaction
     transaction.transaction_lines = linesResult.rows

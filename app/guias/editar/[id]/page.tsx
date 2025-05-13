@@ -53,8 +53,8 @@ async function EditarGuiaContent({ params }: { params: { id: string } }) {
 
   let guia
   try {
-    guia = await getTransactionById(id)
-    console.log(`Guía obtenida:`, guia ? `ID: ${guia.id}, Tipo: ${guia.type}` : "No encontrada")
+    guia = await getTransactionById(id.toString())
+    console.log(`Guía obtenida:`, guia ? `ID: ${guia.id}, Tipo: ${guia.type}, Activo: ${guia.activo}` : "No encontrada")
   } catch (error) {
     console.error(`Error al obtener la guía con ID ${id}:`, error)
     return (
@@ -81,7 +81,65 @@ async function EditarGuiaContent({ params }: { params: { id: string } }) {
   }
 
   if (!guia) {
-    console.log(`Guía con ID ${id} no encontrada`)
+    console.log(`Guía con ID ${id} no encontrada, verificando en la base de datos directamente`)
+
+    // Intento adicional: consultar directamente la base de datos
+    try {
+      const { sql } = require("@vercel/postgres")
+      const result = await sql`SELECT id, type, activo FROM transactions WHERE id = ${id}`
+
+      if (result.rows.length > 0) {
+        const dbGuia = result.rows[0]
+        console.log(`Guía encontrada en la base de datos: ${JSON.stringify(dbGuia)}`)
+
+        return (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold tracking-tight text-amber-600">
+              Guía encontrada pero no se puede editar
+            </h1>
+            <p>La guía con ID {id} existe en la base de datos pero no se puede cargar para edición.</p>
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
+              <h3 className="text-lg font-medium text-amber-800">Detalles de la guía:</h3>
+              <p className="text-amber-700 mt-2">ID: {dbGuia.id}</p>
+              <p className="text-amber-700">Tipo: {dbGuia.type}</p>
+              <p className="text-amber-700">Activo: {dbGuia.activo ? "Sí" : "No"}</p>
+            </div>
+            <div className="flex gap-4 mt-4">
+              <a href="/guias" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                Volver a Guías
+              </a>
+              <button
+                onClick={() => {
+                  // Intentar activar la guía si está inactiva
+                  if (!dbGuia.activo) {
+                    fetch(`/api/activar-guia/${id}`, { method: "POST" })
+                      .then((response) => response.json())
+                      .then((data) => {
+                        if (data.success) {
+                          window.location.reload()
+                        } else {
+                          alert("No se pudo activar la guía: " + data.error)
+                        }
+                      })
+                      .catch((err) => {
+                        alert("Error al activar la guía: " + err.message)
+                      })
+                  } else {
+                    window.location.reload()
+                  }
+                }}
+                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700"
+              >
+                {!dbGuia.activo ? "Activar y Reintentar" : "Reintentar"}
+              </button>
+            </div>
+          </div>
+        )
+      }
+    } catch (dbError) {
+      console.error(`Error al verificar la guía directamente en la base de datos:`, dbError)
+    }
+
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold tracking-tight text-red-600">Guía no encontrada</h1>
