@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { X } from "lucide-react"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 
 // Tipo para los datos del ticket
 interface TicketData {
@@ -33,8 +33,6 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPrinting, setIsPrinting] = useState(false)
   const [displayTickets, setDisplayTickets] = useState<TicketData[]>([])
-  const [hasStartedPrinting, setHasStartedPrinting] = useState(false)
-  const printingRef = useRef(false)
 
   // Efecto para procesar los tickets y asegurarse de que ticket2 sea válido
   useEffect(() => {
@@ -63,12 +61,10 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
 
   // Función para imprimir el ticket actual
   const printCurrentTicket = () => {
-    if (currentIndex >= displayTickets.length || printingRef.current) {
+    if (currentIndex >= displayTickets.length) {
       return
     }
 
-    // Marcar que estamos imprimiendo para evitar múltiples impresiones
-    printingRef.current = true
     setIsPrinting(true)
 
     // Obtener el ticket actual
@@ -82,7 +78,6 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
     printFrame.style.width = "0"
     printFrame.style.height = "0"
     printFrame.style.border = "0"
-    printFrame.id = `print-frame-${Date.now()}`
 
     document.body.appendChild(printFrame)
 
@@ -228,30 +223,30 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
           printFrame.contentWindow?.print()
 
           // Esperar a que se complete la impresión
-          setTimeout(() => {
-            // Eliminar el iframe
-            if (document.body.contains(printFrame)) {
+          const checkPrintingComplete = () => {
+            if (printFrame.contentWindow?.document.readyState === "complete") {
+              // Eliminar el iframe
               document.body.removeChild(printFrame)
-            }
 
-            // Avanzar al siguiente ticket o finalizar
-            if (currentIndex < displayTickets.length - 1) {
-              setCurrentIndex(currentIndex + 1)
-            } else {
-              // Todos los tickets han sido impresos
-              setIsPrinting(false)
-              if (onComplete) {
-                onComplete()
+              // Avanzar al siguiente ticket o finalizar
+              if (currentIndex < displayTickets.length - 1) {
+                setCurrentIndex(currentIndex + 1)
+              } else {
+                // Todos los tickets han sido impresos
+                setIsPrinting(false)
+                if (onComplete) {
+                  onComplete()
+                }
               }
+            } else {
+              setTimeout(checkPrintingComplete, 100)
             }
+          }
 
-            // Desmarcar que estamos imprimiendo
-            printingRef.current = false
-          }, 1000)
+          checkPrintingComplete()
         } catch (error) {
           console.error("Error al imprimir:", error)
           setIsPrinting(false)
-          printingRef.current = false
         }
       }, 500)
     }
@@ -269,26 +264,16 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
 
   // Efecto para imprimir automáticamente cuando cambia el índice actual
   useEffect(() => {
-    if (open && !isPrinting && currentIndex < displayTickets.length && !hasStartedPrinting) {
-      setHasStartedPrinting(true)
+    if (open && !isPrinting && currentIndex < displayTickets.length) {
       printCurrentTicket()
     }
-  }, [open, currentIndex, isPrinting, displayTickets.length, hasStartedPrinting])
-
-  // Efecto para imprimir el siguiente ticket cuando se completa la impresión actual
-  useEffect(() => {
-    if (open && !isPrinting && currentIndex > 0 && currentIndex < displayTickets.length && hasStartedPrinting) {
-      printCurrentTicket()
-    }
-  }, [open, currentIndex, isPrinting, displayTickets.length, hasStartedPrinting])
+  }, [open, currentIndex, isPrinting, displayTickets.length])
 
   // Reiniciar el estado cuando se abre el diálogo
   useEffect(() => {
     if (open) {
       setCurrentIndex(0)
       setIsPrinting(false)
-      setHasStartedPrinting(false)
-      printingRef.current = false
     }
   }, [open])
 
@@ -316,7 +301,7 @@ export default function BulkTicketPrinter({ tickets, open, onOpenChange, onCompl
                 </p>
               </div>
 
-              <div className className="bg-white p-4 rounded-lg border" style={{ width: "80mm", margin: "0 auto" }}>
+              <div className="bg-white p-4 rounded-lg border" style={{ width: "80mm", margin: "0 auto" }}>
                 <div className="text-center mb-2">
                   <img src={logoUrl || "/placeholder.svg"} alt="Logo" className="w-full h-auto mx-auto mb-1" />
                 </div>

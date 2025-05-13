@@ -93,17 +93,11 @@ export default function SacrificioForm({
   console.log(`Nuevo consecutivo para ${tipoAnimal}: ${nuevoConsecutivo} (último: ${ultimoConsecutivo})`)
   console.log(`Nueva planilla para ${tipoAnimal}: ${nuevaPlanilla} (última: ${ultimaPlanilla})`)
 
-  // Obtener la fecha actual en la zona horaria local (Bogotá/Lima)
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  const formattedDate = `${year}-${month}-${day}`
-
-  // Inicializar el formulario con la fecha actual
   const [formData, setFormData] = useState({
     numero_documento: sacrificio?.numero_documento || nuevoConsecutivo.toString(),
-    fecha_documento: formattedDate,
+    fecha_documento: sacrificio?.fecha_documento
+      ? new Date(sacrificio.fecha_documento).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
     id_dueno_anterior: sacrificio?.id_dueno_anterior?.toString() || "",
     id_dueno_nuevo: sacrificio?.id_dueno_nuevo?.toString() || "",
     business_location_id: locationId.toString(),
@@ -115,8 +109,6 @@ export default function SacrificioForm({
     consignante: sacrificio?.consignante || "", // Ahora será el ID del consignante
     planilla: sacrificio?.planilla?.toString() || nuevaPlanilla.toString(), // Nuevo campo con valor automático
     observaciones: sacrificio?.observaciones || "",
-    refrigeration: sacrificio?.refrigeration?.toString() || "0", // Nuevo campo para refrigeración
-    extra_hour: sacrificio?.extra_hour?.toString() || "0", // Nuevo campo para hora extra
   })
 
   // Estado para las ubicaciones
@@ -136,30 +128,16 @@ export default function SacrificioForm({
   const cantidadHembras = Number.parseInt(formData.cantidad_hembras) || 0
   const totalAnimales = cantidadMachos + cantidadHembras
   const totalKilos = Number.parseInt(formData.total_kilos) || 0
-  const refrigeration = Number.parseFloat(formData.refrigeration) || 0
-  const extraHour = Number.parseFloat(formData.extra_hour) || 0
 
   // Separar los impuestos por categoría
-  const impuestoDeguello = impuestos.filter((imp) => imp.nombre.toLowerCase().includes("degüello"))
-
-  const impuestoFondo = impuestos.filter(
-    (imp) =>
-      imp.nombre.toLowerCase().includes("fondo") ||
-      imp.nombre.toLowerCase().includes("fedegan") ||
-      imp.nombre.toLowerCase().includes("porcicultura"),
+  const impuestosOficiales = impuestos.filter(
+    (imp) => imp.nombre.toLowerCase().includes("degüello") || imp.nombre.toLowerCase().includes("fondo"),
   )
 
   const servicioMatadero = impuestos.filter((imp) => imp.nombre.toLowerCase().includes("matadero"))
 
   // Calcular valores de impuestos
-  const impuestoDeguelloCalculado = impuestoDeguello.map((impuesto) => {
-    return {
-      ...impuesto,
-      valor_calculado: impuesto.valor * totalAnimales,
-    }
-  })
-
-  const impuestoFondoCalculado = impuestoFondo.map((impuesto) => {
+  const impuestosOficialesCalculados = impuestosOficiales.map((impuesto) => {
     return {
       ...impuesto,
       valor_calculado: impuesto.valor * totalAnimales,
@@ -174,19 +152,12 @@ export default function SacrificioForm({
   })
 
   // Calcular subtotales y total general
-  const subtotalOficial =
-    impuestoDeguelloCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0) +
-    impuestoFondoCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0)
-  const subtotalMatadero =
-    servicioMataderoCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0) + refrigeration + extraHour
+  const subtotalOficial = impuestosOficialesCalculados.reduce((sum, imp) => sum + imp.valor_calculado, 0)
+  const subtotalMatadero = servicioMataderoCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0)
   const totalGeneral = subtotalOficial + subtotalMatadero
 
   // Todos los impuestos calculados para enviar al servidor
-  const todosImpuestosCalculados = [
-    ...impuestoDeguelloCalculado,
-    ...impuestoFondoCalculado,
-    ...servicioMataderoCalculado,
-  ]
+  const todosImpuestosCalculados = [...impuestosOficialesCalculados, ...servicioMataderoCalculado]
 
   // Añadir efectos para cargar departamentos y municipios
   // Efecto para cargar departamentos cuando se abre el modal de contacto
@@ -538,6 +509,14 @@ export default function SacrificioForm({
     }
   }
 
+  // Añadir función para manejar cambios en la imagen de la ubicación
+  // const handleNewUbicacionImageChange = (imageUrl) => {
+  //   setNewUbicacionNuevoData((prev) => ({
+  //   ...prev,
+  //   imagen_url: imageUrl,
+  //   }))
+  // }
+
   // Añadir función para manejar la creación de una nueva ubicación para el dueño nuevo
   const handleCreateUbicacionNuevo = async () => {
     if (
@@ -572,6 +551,8 @@ export default function SacrificioForm({
       ubicacionFormData.append("id_municipio", newUbicacionNuevoData.id_municipio)
       ubicacionFormData.append("area_hectareas", newUbicacionNuevoData.area_hectareas || "")
       ubicacionFormData.append("es_principal", newUbicacionNuevoData.es_principal ? "true" : "false")
+      // ubicacionFormData.append("marca", newUbicacionNuevoData.marca || "") // Añadir marca
+      // ubicacionFormData.append("imagen_url", newUbicacionNuevoData.imagen_url || "") // Añadir imagen_url
 
       // Llamar a la función del servidor para crear la ubicación
       const contactId = Number(formData.id_dueno_nuevo)
@@ -623,7 +604,7 @@ export default function SacrificioForm({
   const handleChange = (e) => {
     const { name, value } = e.target
 
-    // Para campos numéricos, solo permitir números y punto decimal
+    // Para campos numéricos, solo permitir números
     if (
       name === "cantidad_machos" ||
       name === "cantidad_hembras" ||
@@ -634,13 +615,6 @@ export default function SacrificioForm({
       // Reemplazar cualquier carácter que no sea número
       const numericValue = value.replace(/[^0-9]/g, "")
       setFormData((prev) => ({ ...prev, [name]: numericValue }))
-    } else if (name === "refrigeration" || name === "extra_hour") {
-      // Para campos con decimales, permitir números y punto decimal
-      const numericValue = value.replace(/[^0-9.]/g, "")
-      // Evitar múltiples puntos decimales
-      const parts = numericValue.split(".")
-      const formattedValue = parts.length > 1 ? `${parts[0]}.${parts.slice(1).join("")}` : numericValue
-      setFormData((prev) => ({ ...prev, [name]: formattedValue }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -680,8 +654,6 @@ export default function SacrificioForm({
         observaciones: formData.observaciones, // Campo para recibos de báscula
         ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
         ubication_contact_id2: selectedUbicacionNuevo ? Number(selectedUbicacionNuevo) : null, // Ubicación del dueño nuevo
-        refrigeration: Number(formData.refrigeration), // Nuevo campo para refrigeración
-        extra_hour: Number(formData.extra_hour), // Nuevo campo para hora extra
         impuestos: todosImpuestosCalculados.map((imp) => ({
           impuesto_id: imp.id,
           valor: imp.valor,
@@ -741,6 +713,38 @@ export default function SacrificioForm({
     setFilteredContactosNuevos(contactosNuevos.filter((contact) => contact.type === 2 || contact.type === 3))
   }, [contactosNuevos])
 
+  // 1. Primero, modificar los efectos para filtrar contactos por business_location_id
+  // Reemplazar estas líneas:
+  // useEffect(() => {
+  //   setFilteredContactosAnteriores(contactosAnteriores.filter((contact) => contact.type === 1))
+  // }, [contactosAnteriores])
+
+  // useEffect(() => {
+  //   setFilteredContactosNuevos(contactosNuevos.filter((contact) => contact.type === 2 || contact.type === 3))
+  // }, [contactosNuevos])
+
+  // Por estas líneas que incluyen el filtro por business_location_id:
+  // useEffect(() => {
+  //   setFilteredContactosAnteriores(
+  //     contactosAnteriores.filter(
+  //       (contact) => contact.type === 1 && contact.business_location_id === Number(formData.business_location_id),
+  //     ),
+  //   )
+  // }, [contactosAnteriores, formData.business_location_id])
+
+  // useEffect(() => {
+  //   setFilteredContactosNuevos(
+  //     contactosNuevos.filter(
+  //       (contact) =>
+  //         (contact.type === 2 || contact.type === 3) &&
+  //         contact.business_location_id === Number(formData.business_location_id),
+  //     ),
+  //   )
+  // }, [contactosNuevos, formData.business_location_id])
+
+  // Modificar los efectos para filtrar contactos correctamente según business_location_id
+  // Reemplazar los efectos actuales (aproximadamente líneas 371-383) con estos:
+
   // Para filtrar contactos anteriores (propietarios)
   useEffect(() => {
     // Filtrar contactos según business_location_id
@@ -790,13 +794,13 @@ export default function SacrificioForm({
             Fecha
           </Label>
           <Input
-            type="date"
             id="fecha_documento"
             name="fecha_documento"
+            type="date"
             value={formData.fecha_documento}
             onChange={handleChange}
-            className="w-full"
             required
+            className="h-8"
           />
         </div>
         <div className="space-y-1">
@@ -1094,6 +1098,14 @@ export default function SacrificioForm({
                       contactosNuevos.find((c) => c.id.toString() === formData.id_dueno_nuevo)?.imagen_url ||
                       "/placeholder.svg" ||
                       "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
+                      "/placeholder.svg" ||
                       "/placeholder.svg"
                     }
                     alt="Logo de la marca"
@@ -1331,24 +1343,14 @@ export default function SacrificioForm({
                   </tr>
                 </thead>
                 <tbody>
-                  {impuestoDeguelloCalculado.map((impuesto, index) => (
-                    <tr key={`deguello-${impuesto.id}`} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                  {impuestosOficialesCalculados.map((impuesto, index) => (
+                    <tr key={impuesto.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                       <td className="border p-2">{impuesto.nombre}</td>
                       <td className="border p-2">{formatCurrency(impuesto.valor)}</td>
                       <td className="border p-2">{totalAnimales}</td>
                       <td className="border p-2">{formatCurrency(impuesto.valor_calculado)}</td>
                     </tr>
                   ))}
-
-                  {impuestoFondoCalculado.map((impuesto, index) => (
-                    <tr key={`fondo-${impuesto.id}`} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="border p-2">{impuesto.nombre}</td>
-                      <td className="border p-2">{formatCurrency(impuesto.valor)}</td>
-                      <td className="border p-2">{totalAnimales}</td>
-                      <td className="border p-2">{formatCurrency(impuesto.valor_calculado)}</td>
-                    </tr>
-                  ))}
-
                   <tr className="bg-green-50 font-medium">
                     <td className="border p-2" colSpan={3}>
                       Subtotal Impuestos
@@ -1359,10 +1361,10 @@ export default function SacrificioForm({
               </table>
             </div>
 
-            {/* Liquidación (antes Servicio de matadero) */}
+            {/* Servicio de matadero */}
             <div className="mt-4 border rounded-lg overflow-hidden">
               <div className="bg-blue-50 p-3 border-b">
-                <h3 className="font-medium text-blue-800">Liquidación</h3>
+                <h3 className="font-medium text-blue-800">Servicio de matadero</h3>
               </div>
               <table className="w-full border-collapse">
                 <thead>
@@ -1382,43 +1384,6 @@ export default function SacrificioForm({
                       <td className="border p-2">{formatCurrency(impuesto.valor_calculado)}</td>
                     </tr>
                   ))}
-
-                  {/* Nuevos conceptos: Refrigeración y Hora Extra */}
-                  <tr className="bg-white">
-                    <td className="border p-2">Refrigeración</td>
-                    <td className="border p-2">
-                      <Input
-                        id="refrigeration"
-                        name="refrigeration"
-                        type="text"
-                        inputMode="decimal"
-                        value={formData.refrigeration}
-                        onChange={handleChange}
-                        className="h-8 text-center"
-                        placeholder="0.00"
-                      />
-                    </td>
-                    <td className="border p-2">{totalAnimales}</td>
-                    <td className="border p-2">{formatCurrency(refrigeration)}</td>
-                  </tr>
-                  <tr className="bg-gray-50">
-                    <td className="border p-2">Hora Extra</td>
-                    <td className="border p-2">
-                      <Input
-                        id="extra_hour"
-                        name="extra_hour"
-                        type="text"
-                        inputMode="decimal"
-                        value={formData.extra_hour}
-                        onChange={handleChange}
-                        className="h-8 text-center"
-                        placeholder="0.00"
-                      />
-                    </td>
-                    <td className="border p-2">{totalAnimales}</td>
-                    <td className="border p-2">{formatCurrency(extraHour)}</td>
-                  </tr>
-
                   <tr className="bg-blue-50 font-medium">
                     <td className="border p-2" colSpan={3}>
                       Subtotal Servicio
@@ -1485,15 +1450,11 @@ export default function SacrificioForm({
           tipo_animal: tipoAnimal === "bovino" ? "BOVINO" : "PORCINO",
           impuestos: {
             deguello:
-              impuestoDeguelloCalculado.find((imp) => imp.nombre.toLowerCase().includes("degüello"))?.valor_calculado ||
-              0,
+              impuestosOficialesCalculados.find((imp) => imp.nombre.toLowerCase().includes("degüello"))
+                ?.valor_calculado || 0,
             fedegan:
-              impuestoFondoCalculado.find(
-                (imp) =>
-                  imp.nombre.toLowerCase().includes("fondo") ||
-                  imp.nombre.toLowerCase().includes("fedegan") ||
-                  imp.nombre.toLowerCase().includes("porcicultura"),
-              )?.valor_calculado || 0,
+              impuestosOficialesCalculados.find((imp) => imp.nombre.toLowerCase().includes("fondo"))?.valor_calculado ||
+              0,
             otros: servicioMataderoCalculado.reduce((sum, imp) => sum + imp.valor_calculado, 0),
           },
           total: totalGeneral,
@@ -1830,6 +1791,8 @@ export default function SacrificioForm({
                   Establecer como ubicación principal
                 </Label>
               </div>
+
+              {/* Añadir campos para marca e imagen */}
             </div>
           </div>
           <DialogFooter>

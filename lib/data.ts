@@ -330,7 +330,6 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
 
 // Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
 export async function getTransactions(type = undefined, tipoAnimal = undefined) {
-  noStore()
   try {
     // Convertir el tipo de animal a business_location_id
     let locationId = undefined
@@ -340,9 +339,8 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
       locationId = 2
     }
 
-    let query
     if (type && locationId) {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -356,8 +354,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     } else if (type) {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -371,8 +370,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     } else {
-      query = sql`
+      const result = await sql`
         SELECT 
           t.*,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -386,58 +386,114 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         ORDER BY 
           t.fecha_documento DESC
       `
+      return result.rows
     }
-
-    const result = await query
-    return result.rows
   } catch (error) {
     console.error("Error al obtener transacciones:", error)
     return []
   }
 }
 
-// Función para obtener una transacción por ID
-export async function getTransactionById(id: string) {
-  try {
-    // Consultar la transacción principal
-    const transactionResult = await sql`
-      SELECT t.*, 
-             c1.primer_nombre || ' ' || c1.primer_apellido as dueno_anterior_nombre,
-             c2.primer_nombre || ' ' || c2.primer_apellido as dueno_nuevo_nombre
-      FROM transactions t
-      LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
-      LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-      WHERE t.id = ${id} AND t.activo = true
-    `
+// Función para obtener una transacción por ID con reintentos
+export async function getTransactionById(id) {
+  const MAX_RETRIES = 3
+  let retryCount = 0
+  let lastError = null
 
-    if (transactionResult.rows.length === 0) {
-      return null
+  while (retryCount < MAX_RETRIES) {
+    try {
+      console.log(`Intento ${retryCount + 1} de obtener transacción con ID ${id}`)
+
+      // Dividir las consultas para reducir la complejidad y el tiempo de ejecución
+
+      // 1. Obtener la transacción básica
+      const transactionResult = await sql`
+        SELECT 
+          t.id,
+          t.type,
+          t.business_location_id,
+          t.numero_documento,
+          t.fecha_documento,
+          t.id_dueno_anterior,
+          t.id_dueno_nuevo,
+          t.total,
+          t.activo,
+          t.impuesto1,
+          t.impuesto2,
+          t.impuesto3,
+          t.quantity_m,
+          t.quantity_h,
+          t.quantity_k
+        FROM 
+          transactions t
+        WHERE 
+          t.id = ${id}
+      `
+
+      if (transactionResult.rows.length === 0) {
+        console.log(`No se encontró la transacción con ID ${id}`)
+        return null
+      }
+
+      const transaction = transactionResult.rows[0]
+      console.log(`Transacción básica encontrada con ID ${id}`)
+
+      // 2. Obtener los nombres de los dueños en una consulta separada
+      const ownersResult = await sql`
+        SELECT 
+          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+        FROM 
+          transactions t
+          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
+          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
+        WHERE 
+          t.id = ${id}
+      `
+
+      if (ownersResult.rows.length > 0) {
+        transaction.dueno_anterior_nombre = ownersResult.rows[0].dueno_anterior_nombre
+        transaction.dueno_nuevo_nombre = ownersResult.rows[0].dueno_nuevo_nombre
+      }
+
+      // 3. Obtener las líneas de transacción en una consulta simplificada
+      const linesResult = await sql`
+        SELECT 
+          id, 
+          transaction_id, 
+          product_id, 
+          quantity, 
+          ticket, 
+          ticket2, 
+          raza_id, 
+          color_id, 
+          valor
+        FROM 
+          transaction_lines 
+        WHERE 
+          transaction_id = ${id}
+      `
+
+      console.log(`Líneas encontradas para la transacción con ID ${id}: ${linesResult.rows.length}`)
+      transaction.transaction_lines = linesResult.rows
+
+      return transaction
+    } catch (error) {
+      lastError = error
+      console.error(`Error en intento ${retryCount + 1} al obtener transacción con ID ${id}:`, error)
+      retryCount++
+
+      // Esperar antes de reintentar (backoff exponencial)
+      if (retryCount < MAX_RETRIES) {
+        const waitTime = Math.pow(2, retryCount) * 500 // 1s, 2s, 4s
+        console.log(`Esperando ${waitTime}ms antes de reintentar...`)
+        await new Promise((resolve) => setTimeout(resolve, waitTime))
+      }
     }
-
-    const transaction = transactionResult.rows[0]
-
-    // Consultar las líneas de la transacción
-    const linesResult = await sql`
-      SELECT tl.*, 
-             p.name as product_name,
-             r.name as raza_nombre,
-             c.name as color_nombre
-      FROM transaction_lines tl
-      LEFT JOIN products p ON tl.product_id = p.id
-      LEFT JOIN razas r ON tl.raza_id = r.id
-      LEFT JOIN colors c ON tl.color_id = c.id
-      WHERE tl.transaction_id = ${id}
-      ORDER BY tl.id
-    `
-
-    // Agregar las líneas a la transacción
-    transaction.transaction_lines = linesResult.rows
-
-    return transaction
-  } catch (error) {
-    console.error(`Error al obtener transacción ID ${id}:`, error)
-    throw new Error(`Error al obtener la transacción: ${error.message}`)
   }
+
+  console.error(`Todos los intentos fallaron al obtener transacción con ID ${id}`)
+  throw lastError
 }
 
 // Función para obtener departamentos

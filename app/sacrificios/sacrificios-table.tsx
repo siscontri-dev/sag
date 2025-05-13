@@ -1,4 +1,6 @@
 "use client"
+
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -6,31 +8,6 @@ import { formatCurrency } from "@/lib/utils"
 import { Search } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
-import { Edit, Eye } from "lucide-react"
-
-const themeColors = {
-  estado: {
-    confirmado: {
-      bg: "#dcfce7",
-      text: "#16a34a",
-    },
-    anulado: {
-      bg: "#fee2e2",
-      text: "#dc2626",
-    },
-    borrador: {
-      bg: "#fffbeb",
-      text: "#d97706",
-    },
-  },
-}
-
-const formatDate = (date: Date | string): string => {
-  if (typeof date === "string") {
-    date = new Date(date)
-  }
-  return date.toLocaleDateString("es-CO")
-}
 
 export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovino", contactosNuevos = [] }) {
   const [searchTerm, setSearchTerm] = useState("")
@@ -66,69 +43,104 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
       <CardContent>
         <div className="rounded-md border">
           <Table>
-            <TableHeader className="bg-gray-50">
+            <TableHeader>
               <TableRow>
-                <TableHead className="font-semibold">Guía</TableHead>
-                <TableHead className="font-semibold">Fecha</TableHead>
-                <TableHead className="font-semibold">Propietario</TableHead>
-                <TableHead className="font-semibold">Animales</TableHead>
-                <TableHead className="font-semibold">Kilos</TableHead>
-                <TableHead className="font-semibold">Degüello</TableHead>
-                <TableHead className="font-semibold">Fondo</TableHead>
-                <TableHead className="font-semibold">Matadero</TableHead>
-                <TableHead className="font-semibold">Refrigeración</TableHead>
-                <TableHead className="font-semibold">Horas Extras</TableHead>
-                <TableHead className="font-semibold">Estado</TableHead>
-                <TableHead className="font-semibold">Total</TableHead>
-                <TableHead className="text-right font-semibold">Acciones</TableHead>
+                <TableHead>Guía</TableHead>
+                <TableHead>Consec</TableHead>
+                <TableHead>Planilla</TableHead>
+                <TableHead>Fecha</TableHead>
+                <TableHead>Dueño Anterior</TableHead>
+                <TableHead>Consignante</TableHead>
+                <TableHead>Marca</TableHead>
+                <TableHead>Recibos báscula</TableHead>
+                <TableHead>Machos</TableHead>
+                <TableHead>Hembras</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Kilos</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sacrificios.length === 0 ? (
+              {filteredSacrificios.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={13} className="h-24 text-center">
-                    No se encontraron sacrificios
+                  <TableCell colSpan={14} className="text-center py-4">
+                    No hay guías de degüello registradas
                   </TableCell>
                 </TableRow>
               ) : (
-                sacrificios.map((sacrificio) => (
-                  <TableRow key={sacrificio.id} className="border-b hover:bg-gray-50">
-                    <TableCell className="px-4 py-2">{sacrificio.numero_documento}</TableCell>
-                    <TableCell className="px-4 py-2">{formatDate(sacrificio.fecha_documento)}</TableCell>
-                    <TableCell className="px-4 py-2">{sacrificio.dueno_anterior_nombre}</TableCell>
-                    <TableCell className="px-4 py-2">
-                      {sacrificio.quantity_m + sacrificio.quantity_h} ({sacrificio.quantity_m}M/{sacrificio.quantity_h}
-                      H)
+                filteredSacrificios.map((sacrificio) => (
+                  <TableRow key={sacrificio.id}>
+                    <TableCell className="font-medium">{sacrificio.numero_documento}</TableCell>
+                    <TableCell>{sacrificio.consec || "-"}</TableCell>
+                    <TableCell>{sacrificio.planilla || "-"}</TableCell>
+                    <TableCell>
+                      {new Date(sacrificio.fecha_documento).toLocaleDateString("es-CO", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                      })}
                     </TableCell>
-                    <TableCell className="px-4 py-2">{sacrificio.quantity_k} kg</TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.impuesto1 || 0)}</TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.impuesto2 || 0)}</TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.impuesto3 || 0)}</TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.refrigeration || 0)}</TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.extra_hour || 0)}</TableCell>
-                    <TableCell className="px-4 py-2">
+                    <TableCell>{sacrificio.dueno_anterior_nombre}</TableCell>
+                    <TableCell>{sacrificio.consignante || "-"}</TableCell>
+                    <TableCell>
+                      {sacrificio.id_dueno_nuevo ? (
+                        <div className="flex items-center gap-2">
+                          {contactosNuevos?.find((c) => c.id === sacrificio.id_dueno_nuevo)?.imagen_url && (
+                            <img
+                              src={
+                                contactosNuevos.find((c) => c.id === sacrificio.id_dueno_nuevo)?.imagen_url ||
+                                "/placeholder.svg" ||
+                                "/placeholder.svg" ||
+                                "/placeholder.svg"
+                              }
+                              alt="Logo de marca"
+                              className="h-8 w-8 object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = "/abstract-logo.png"
+                              }}
+                            />
+                          )}
+                          <span>{contactosNuevos?.find((c) => c.id === sacrificio.id_dueno_nuevo)?.marca || "-"}</span>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>{sacrificio.observaciones || "-"}</TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_m}</TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_h}</TableCell>
+                    <TableCell className="text-center">
+                      {Number(sacrificio.quantity_m) + Number(sacrificio.quantity_h)}
+                    </TableCell>
+                    <TableCell className="text-center">{sacrificio.quantity_k}</TableCell>
+                    <TableCell>{formatCurrency(sacrificio.total)}</TableCell>
+                    <TableCell>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs ${
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
                           sacrificio.estado === "confirmado"
                             ? "bg-green-100 text-green-800"
-                            : "bg-amber-100 text-amber-800"
+                            : sacrificio.estado === "anulado"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {sacrificio.estado === "confirmado" ? "Confirmado" : "Borrador"}
+                        {sacrificio.estado === "confirmado"
+                          ? "Confirmado"
+                          : sacrificio.estado === "anulado"
+                            ? "Anulado"
+                            : "Borrador"}
                       </span>
                     </TableCell>
-                    <TableCell className="px-4 py-2">{formatCurrency(sacrificio.total)}</TableCell>
-                    <TableCell className="px-4 py-2 text-center">
-                      <div className="flex justify-center space-x-2">
-                        <Link href={`/sacrificios/ver/${sacrificio.id}`} className="text-blue-600 hover:text-blue-800">
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                        <Link
-                          href={`/sacrificios/editar/${sacrificio.id}`}
-                          className="text-amber-600 hover:text-amber-800"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Link>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/sacrificios/ver/${sacrificio.id}`}>Ver</Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/sacrificios/editar/${sacrificio.id}`}>Editar</Link>
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
