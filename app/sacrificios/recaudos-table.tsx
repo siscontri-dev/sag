@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import ExportRecaudosButtons from "./export-recaudos-buttons"
-import { isDateInRange, getCurrentDateYMD, getYesterdayDateYMD } from "@/lib/date-utils"
+import { isDateInRange, getCurrentDateYMD, getYesterdayDateYMD, formatNumber } from "@/lib/date-utils"
 
 const themeColors = {
   estado: {
@@ -24,16 +24,6 @@ const themeColors = {
       text: "#d97706",
     },
   },
-}
-
-// Función para formatear números con separador de miles y sin decimales
-const formatNumber = (value: number | null | undefined): string => {
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0"
-  }
-  return Math.round(value)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
 export default function RecaudosTable({ sacrificios = [], tipoAnimal = "bovino" }) {

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import ExportButtons from "./export-buttons"
-import { formatDateDMY, isDateInRange } from "@/lib/date-utils"
+import { formatDateDMY, isDateInRange, formatNumber } from "@/lib/date-utils"
 
 const themeColors = {
   estado: {
@@ -27,18 +27,6 @@ const themeColors = {
       text: "#d97706",
     },
   },
-}
-
-// Modificar la función formatNumber para manejar valores no numéricos
-const formatNumber = (value: number | null | undefined): string => {
-  // Si el valor es null, undefined o NaN, devolver "0"
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0"
-  }
-  // Redondear y formatear con comas
-  return Math.round(value)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
 // Función mejorada para búsqueda de texto que normaliza y tokeniza

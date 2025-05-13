@@ -2,10 +2,36 @@
  * Biblioteca de utilidades para el manejo de fechas
  * Esta biblioteca proporciona funciones robustas para manejar fechas
  * de manera consistente en todos los entornos (desarrollo y producción)
+ *
+ * Configurada específicamente para la zona horaria de Bogotá (UTC-5)
  */
 
+// Constante para la zona horaria de Bogotá (UTC-5)
+const BOGOTA_TIMEZONE_OFFSET = -5 * 60 // -5 horas en minutos
+
 /**
- * Normaliza una fecha en cualquier formato a un objeto Date estándar
+ * Ajusta una fecha a la zona horaria de Bogotá
+ * @param date Fecha a ajustar
+ * @returns Fecha ajustada a la zona horaria de Bogotá
+ */
+export function adjustToBogotaTimezone(date: Date): Date {
+  // Crear una nueva fecha para no modificar la original
+  const newDate = new Date(date)
+
+  // Obtener la diferencia entre la zona horaria local y UTC en minutos
+  const localTimezoneOffset = newDate.getTimezoneOffset()
+
+  // Calcular la diferencia entre la zona horaria local y Bogotá en minutos
+  const offsetDiff = localTimezoneOffset - BOGOTA_TIMEZONE_OFFSET
+
+  // Ajustar la fecha sumando la diferencia en milisegundos
+  newDate.setMinutes(newDate.getMinutes() + offsetDiff)
+
+  return newDate
+}
+
+/**
+ * Normaliza una fecha en cualquier formato a un objeto Date estándar en zona horaria de Bogotá
  * @param date Fecha en cualquier formato (string, Date, null, undefined)
  * @returns Objeto Date normalizado o null si la fecha es inválida
  */
@@ -19,6 +45,7 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       // Formato DD/MM/YYYY
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
         const [day, month, year] = date.split("/").map(Number)
+        // Crear la fecha con hora 12:00:00 para evitar problemas con cambios de día
         dateObj = new Date(year, month - 1, day, 12, 0, 0)
       }
       // Formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
@@ -28,6 +55,7 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       // Formato YYYY-MM-DD
       else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         const [year, month, day] = date.split("-").map(Number)
+        // Crear la fecha con hora 12:00:00 para evitar problemas con cambios de día
         dateObj = new Date(year, month - 1, day, 12, 0, 0)
       }
       // Otros formatos
@@ -44,7 +72,8 @@ export function normalizeDate(date: string | Date | null | undefined): Date | nu
       return null
     }
 
-    return dateObj
+    // Ajustar a la zona horaria de Bogotá
+    return adjustToBogotaTimezone(dateObj)
   } catch (error) {
     console.error(`[date-utils] Error al normalizar fecha: ${date}`, error)
     return null
@@ -156,7 +185,9 @@ export function isDateInRange(
  * @returns String en formato YYYY-MM-DD
  */
 export function getCurrentDateYMD(): string {
-  return formatDateYMD(new Date())
+  // Ajustar la fecha actual a la zona horaria de Bogotá
+  const now = adjustToBogotaTimezone(new Date())
+  return formatDateYMD(now)
 }
 
 /**
@@ -164,7 +195,9 @@ export function getCurrentDateYMD(): string {
  * @returns String en formato DD/MM/YYYY
  */
 export function getCurrentDateDMY(): string {
-  return formatDateDMY(new Date())
+  // Ajustar la fecha actual a la zona horaria de Bogotá
+  const now = adjustToBogotaTimezone(new Date())
+  return formatDateDMY(now)
 }
 
 /**
@@ -172,7 +205,8 @@ export function getCurrentDateDMY(): string {
  * @returns String en formato YYYY-MM-DD
  */
 export function getYesterdayDateYMD(): string {
-  const yesterday = new Date()
+  // Ajustar la fecha actual a la zona horaria de Bogotá
+  const yesterday = adjustToBogotaTimezone(new Date())
   yesterday.setDate(yesterday.getDate() - 1)
   return formatDateYMD(yesterday)
 }
@@ -182,7 +216,8 @@ export function getYesterdayDateYMD(): string {
  * @returns String en formato DD/MM/YYYY
  */
 export function getYesterdayDateDMY(): string {
-  const yesterday = new Date()
+  // Ajustar la fecha actual a la zona horaria de Bogotá
+  const yesterday = adjustToBogotaTimezone(new Date())
   yesterday.setDate(yesterday.getDate() - 1)
   return formatDateDMY(yesterday)
 }
@@ -199,6 +234,7 @@ export function debugDate(label: string, date: string | Date | null | undefined)
   }
 
   const dateObj = typeof date === "string" ? new Date(date) : date
+  const bogotaDate = adjustToBogotaTimezone(dateObj)
 
   console.log(`[DEBUG] ${label}:`)
   console.log(`  Original: ${date}`)
@@ -207,6 +243,9 @@ export function debugDate(label: string, date: string | Date | null | undefined)
   console.log(`  getTime(): ${dateObj.getTime()}`)
   console.log(`  toISOString(): ${dateObj.toISOString()}`)
   console.log(`  toLocaleDateString(): ${dateObj.toLocaleDateString()}`)
+  console.log(`  Zona horaria local: UTC${-dateObj.getTimezoneOffset() / 60}`)
+  console.log(`  Ajustado a Bogotá: ${bogotaDate}`)
+  console.log(`  Bogotá toISOString(): ${bogotaDate.toISOString()}`)
   console.log(`  Normalizado: ${formatDateDMY(date)}`)
 }
 
