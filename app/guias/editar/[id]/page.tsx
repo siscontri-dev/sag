@@ -12,7 +12,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Home } from "lucide-react"
-import { Suspense } from "react"
+import { Suspense, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 // Componente de carga
 function LoadingState() {
@@ -38,7 +39,25 @@ function LoadingState() {
 }
 
 // Componente principal con manejo de errores
-export default async function EditarGuiaPage({ params }: { params: { id: string } }) {
+export default function EditarGuiaPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+
+    // Verificar que el ID sea un número válido
+    if (isNaN(Number(params.id))) {
+      console.error(`ID inválido: ${params.id}`)
+      router.push("/guias")
+    }
+  }, [params.id, router])
+
+  // Si estamos en el servidor o el cliente aún no está listo, mostrar el estado de carga
+  if (!isClient) {
+    return <LoadingState />
+  }
+
   return (
     <Suspense fallback={<LoadingState />}>
       <EditarGuiaContent params={params} />
