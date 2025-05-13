@@ -125,11 +125,7 @@ export async function createGuia(data: GuiaData) {
       success: true,
       message: "Guía creada correctamente",
       transactionId,
-      lines: linesResult.rows.map((line) => ({
-        ...line,
-        ticket: line.ticket,
-        ticket2: line.ticket2,
-      })),
+      lines: linesResult.rows,
     }
   } catch (error) {
     // Revertir la transacción en caso de error
@@ -218,11 +214,7 @@ export async function updateGuia(id: number, data: GuiaData) {
     return {
       success: true,
       message: "Guía actualizada correctamente",
-      lines: linesResult.rows.map((line) => ({
-        ...line,
-        ticket: line.ticket,
-        ticket2: line.ticket2,
-      })),
+      lines: linesResult.rows,
     }
   } catch (error) {
     // Revertir la transacción en caso de error
