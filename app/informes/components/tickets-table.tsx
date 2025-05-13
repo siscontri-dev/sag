@@ -4,70 +4,60 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, FileDown, Printer, Filter, X, Eye, Edit } from "lucide-react"
+import { Search, FileDown, Printer, Filter, X } from "lucide-react"
 import { formatDisplayDate, parseToDate } from "@/lib/date-utils"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
-import Link from "next/link"
-import PrintTicketDialog from "@/components/print-ticket-dialog"
 
-export default function GuiasTable({ guias = [], currentLimit = 30 }) {
-  const [filteredGuias, setFilteredGuias] = useState(guias)
+export default function TicketsTable({ tickets = [] }) {
+  const [filteredTickets, setFilteredTickets] = useState(tickets)
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState({ from: null, to: null })
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedGuiaId, setSelectedGuiaId] = useState(null)
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
 
   // Aplicar filtros cuando cambian
   useEffect(() => {
-    let result = [...guias]
+    let result = [...tickets]
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
       result = result.filter(
-        (guia) =>
-          (guia.dueno_anterior_nombre && guia.dueno_anterior_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_anterior_nit && guia.dueno_anterior_nit.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nombre && guia.dueno_nuevo_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nit && guia.dueno_nuevo_nit.toLowerCase().includes(term)) ||
-          (guia.numero_documento && guia.numero_documento.toLowerCase().includes(term)),
+        (ticket) =>
+          (ticket.propietario && ticket.propietario.toLowerCase().includes(term)) ||
+          (ticket.nit && ticket.nit.toLowerCase().includes(term)) ||
+          (ticket.ticket && ticket.ticket.toString().includes(term)) ||
+          (ticket.numero_guia && ticket.numero_guia.toLowerCase().includes(term)),
       )
     }
 
     // Filtrar por rango de fechas
     if (dateRange.from || dateRange.to) {
-      result = result.filter((guia) => {
-        const guiaDate = parseToDate(guia.fecha_documento)
+      result = result.filter((ticket) => {
+        const ticketDate = parseToDate(ticket.fecha)
 
-        if (!guiaDate) return true
+        if (!ticketDate) return true
 
         if (dateRange.from && dateRange.to) {
-          return guiaDate >= dateRange.from && guiaDate <= dateRange.to
+          return ticketDate >= dateRange.from && ticketDate <= dateRange.to
         } else if (dateRange.from) {
-          return guiaDate >= dateRange.from
+          return ticketDate >= dateRange.from
         } else if (dateRange.to) {
-          return guiaDate <= dateRange.to
+          return ticketDate <= dateRange.to
         }
 
         return true
       })
     }
 
-    setFilteredGuias(result)
-  }, [guias, searchTerm, dateRange])
+    setFilteredTickets(result)
+  }, [tickets, searchTerm, dateRange])
 
   // Limpiar filtros
   const clearFilters = () => {
     setSearchTerm("")
     setDateRange({ from: null, to: null })
-  }
-
-  // Abrir diálogo de impresión
-  const openPrintDialog = (guiaId) => {
-    setSelectedGuiaId(guiaId)
-    setIsPrintDialogOpen(true)
   }
 
   return (
@@ -78,7 +68,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar guía, propietario, NIT..."
+                placeholder="Buscar ticket, propietario, NIT..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -136,48 +126,48 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Guía ICA</TableHead>
+              <TableHead>Ticket</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Propietario Anterior</TableHead>
+              <TableHead>Guía</TableHead>
+              <TableHead>Propietario</TableHead>
               <TableHead>NIT</TableHead>
-              <TableHead>Propietario Nuevo</TableHead>
-              <TableHead>NIT</TableHead>
-              <TableHead>Acciones</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Raza</TableHead>
+              <TableHead>Color</TableHead>
+              <TableHead>Género</TableHead>
+              <TableHead>Kilos</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredGuias.length > 0 ? (
-              filteredGuias.map((guia) => (
-                <TableRow key={guia.id}>
-                  <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                  <TableCell>{formatDisplayDate(guia.fecha_documento)}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nombre}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nit}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nombre}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nit}</TableCell>
+            {filteredTickets.length > 0 ? (
+              filteredTickets.map((ticket) => (
+                <TableRow key={`${ticket.id}-${ticket.ticket}`}>
+                  <TableCell className="font-medium">{ticket.ticket}</TableCell>
+                  <TableCell>{formatDisplayDate(ticket.fecha)}</TableCell>
+                  <TableCell>{ticket.numero_guia}</TableCell>
+                  <TableCell>{ticket.propietario}</TableCell>
+                  <TableCell>{ticket.nit}</TableCell>
+                  <TableCell>{ticket.tipo}</TableCell>
+                  <TableCell>{ticket.raza}</TableCell>
+                  <TableCell>{ticket.color}</TableCell>
+                  <TableCell>{ticket.genero}</TableCell>
+                  <TableCell>{ticket.kilos}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/ver/${guia.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/editar/${guia.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openPrintDialog(guia.id)}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {typeof ticket.valor === "number"
+                      ? new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(ticket.valor)
+                      : ticket.valor}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={ticket.estado === "activo" ? "default" : "destructive"}>{ticket.estado}</Badge>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No se encontraron guías con los filtros aplicados
+                <TableCell colSpan={12} className="h-24 text-center">
+                  No se encontraron tickets con los filtros aplicados
                 </TableCell>
               </TableRow>
             )}
@@ -186,13 +176,8 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       </div>
 
       <div className="text-sm text-muted-foreground">
-        Mostrando {filteredGuias.length} de {guias.length} guías
+        Mostrando {filteredTickets.length} de {tickets.length} tickets
       </div>
-
-      {/* Diálogo de impresión de tickets */}
-      {isPrintDialogOpen && selectedGuiaId && (
-        <PrintTicketDialog guiaId={selectedGuiaId} open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen} />
-      )}
     </div>
   )
 }

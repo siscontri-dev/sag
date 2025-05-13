@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils"
 
 // Importar componentes
 import TicketPrinter from "@/components/ticket-printer"
-import ExportTicketsButtons from "./export-tickets-buttons"
 
 export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
   // Usar useMemo para procesar los tickets solo cuando cambien
@@ -438,14 +437,6 @@ export default function TicketsTable({ tickets = [], currentLimit = 30 }) {
                 Este Mes
               </Button>
             </div>
-
-            {/* Botones de exportación en la parte superior */}
-            <ExportTicketsButtons
-              tipo={tipoPredominante === "bovino" ? "bovino" : "porcino"}
-              estado={estado}
-              fechaDesde={formattedFechaDesde}
-              fechaHasta={formattedFechaHasta}
-            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

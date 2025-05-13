@@ -4,41 +4,36 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, FileDown, Printer, Filter, X, Eye, Edit } from "lucide-react"
+import { Search, FileDown, Printer, Filter, X, ChevronDown, ChevronRight } from "lucide-react"
 import { formatDisplayDate, parseToDate } from "@/lib/date-utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
-import Link from "next/link"
-import PrintTicketDialog from "@/components/print-ticket-dialog"
 
-export default function GuiasTable({ guias = [], currentLimit = 30 }) {
-  const [filteredGuias, setFilteredGuias] = useState(guias)
+export default function GuiasPorPropietario({ guias = [] }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState({ from: null, to: null })
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedGuiaId, setSelectedGuiaId] = useState(null)
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
+  const [agrupados, setAgrupados] = useState([])
+  const [expandedPropietarios, setExpandedPropietarios] = useState({})
 
-  // Aplicar filtros cuando cambian
+  // Agrupar guías por propietario
   useEffect(() => {
-    let result = [...guias]
+    // Filtrar guías primero
+    let filteredGuias = [...guias]
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      result = result.filter(
+      filteredGuias = filteredGuias.filter(
         (guia) =>
           (guia.dueno_anterior_nombre && guia.dueno_anterior_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_anterior_nit && guia.dueno_anterior_nit.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nombre && guia.dueno_nuevo_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nit && guia.dueno_nuevo_nit.toLowerCase().includes(term)) ||
-          (guia.numero_documento && guia.numero_documento.toLowerCase().includes(term)),
+          (guia.dueno_anterior_nit && guia.dueno_anterior_nit.toLowerCase().includes(term)),
       )
     }
 
     // Filtrar por rango de fechas
     if (dateRange.from || dateRange.to) {
-      result = result.filter((guia) => {
+      filteredGuias = filteredGuias.filter((guia) => {
         const guiaDate = parseToDate(guia.fecha_documento)
 
         if (!guiaDate) return true
@@ -55,7 +50,34 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       })
     }
 
-    setFilteredGuias(result)
+    // Agrupar por propietario
+    const grupos = {}
+
+    filteredGuias.forEach((guia) => {
+      const propietarioId = guia.id_dueno_anterior || "sin_propietario"
+      const propietarioNombre = guia.dueno_anterior_nombre || "Sin propietario"
+      const propietarioNit = guia.dueno_anterior_nit || "N/A"
+
+      if (!grupos[propietarioId]) {
+        grupos[propietarioId] = {
+          id: propietarioId,
+          nombre: propietarioNombre,
+          nit: propietarioNit,
+          cantidad: 0,
+          guias: [],
+        }
+      }
+
+      grupos[propietarioId].cantidad += 1
+      grupos[propietarioId].guias.push(guia)
+    })
+
+    // Convertir a array y ordenar por nombre
+    const result = Object.values(grupos).sort((a, b) => {
+      return a.nombre.localeCompare(b.nombre)
+    })
+
+    setAgrupados(result)
   }, [guias, searchTerm, dateRange])
 
   // Limpiar filtros
@@ -64,10 +86,12 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
     setDateRange({ from: null, to: null })
   }
 
-  // Abrir diálogo de impresión
-  const openPrintDialog = (guiaId) => {
-    setSelectedGuiaId(guiaId)
-    setIsPrintDialogOpen(true)
+  // Alternar expansión de propietario
+  const togglePropietario = (propietarioId) => {
+    setExpandedPropietarios({
+      ...expandedPropietarios,
+      [propietarioId]: !expandedPropietarios[propietarioId],
+    })
   }
 
   return (
@@ -78,7 +102,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar guía, propietario, NIT..."
+                placeholder="Buscar por propietario, NIT..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -136,47 +160,47 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Guía ICA</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Propietario Anterior</TableHead>
+              <TableHead></TableHead>
+              <TableHead>Propietario</TableHead>
               <TableHead>NIT</TableHead>
-              <TableHead>Propietario Nuevo</TableHead>
-              <TableHead>NIT</TableHead>
-              <TableHead>Acciones</TableHead>
+              <TableHead>Cantidad de Guías</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredGuias.length > 0 ? (
-              filteredGuias.map((guia) => (
-                <TableRow key={guia.id}>
-                  <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                  <TableCell>{formatDisplayDate(guia.fecha_documento)}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nombre}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nit}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nombre}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nit}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/ver/${guia.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/editar/${guia.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openPrintDialog(guia.id)}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+            {agrupados.length > 0 ? (
+              agrupados.map((propietario) => (
+                <>
+                  <TableRow
+                    key={propietario.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => togglePropietario(propietario.id)}
+                  >
+                    <TableCell className="w-10">
+                      {expandedPropietarios[propietario.id] ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{propietario.nombre}</TableCell>
+                    <TableCell>{propietario.nit}</TableCell>
+                    <TableCell>{propietario.cantidad}</TableCell>
+                  </TableRow>
+
+                  {expandedPropietarios[propietario.id] &&
+                    propietario.guias.map((guia) => (
+                      <TableRow key={`${propietario.id}-${guia.id}`} className="bg-muted/20">
+                        <TableCell></TableCell>
+                        <TableCell className="pl-8">Guía: {guia.numero_documento}</TableCell>
+                        <TableCell>Fecha: {formatDisplayDate(guia.fecha_documento)}</TableCell>
+                        <TableCell>{guia.dueno_nuevo_nombre ? `Para: ${guia.dueno_nuevo_nombre}` : ""}</TableCell>
+                      </TableRow>
+                    ))}
+                </>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   No se encontraron guías con los filtros aplicados
                 </TableCell>
               </TableRow>
@@ -185,14 +209,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         </Table>
       </div>
 
-      <div className="text-sm text-muted-foreground">
-        Mostrando {filteredGuias.length} de {guias.length} guías
-      </div>
-
-      {/* Diálogo de impresión de tickets */}
-      {isPrintDialogOpen && selectedGuiaId && (
-        <PrintTicketDialog guiaId={selectedGuiaId} open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen} />
-      )}
+      <div className="text-sm text-muted-foreground">Mostrando {agrupados.length} propietarios</div>
     </div>
   )
 }

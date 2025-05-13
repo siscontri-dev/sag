@@ -1,94 +1,80 @@
-"use client"
-
 import { sql } from "@vercel/postgres"
 import { notFound } from "next/navigation"
-import { formatDate, formatCurrency } from "@/lib/utils"
-import { changeGuiaStatus } from "@/app/guias/actions"
-import Link from "next/link"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { ArrowLeft, Edit } from "lucide-react"
-import TicketPrinter from "@/components/ticket-printer"
+import { formatCurrency, formatDate } from "@/lib/utils"
+import PrintGuiaDeguelloButton from "@/components/print-guia-deguello-button"
 import PrintAllTickets from "./print-all-tickets"
 
-// Función para obtener los datos de una guía específica
-async function getGuia(id: number) {
-  try {
-    const result = await sql`
-      SELECT 
-        t.*,
-        c1.nombre AS dueno_anterior_nombre,
-        c1.identificacion AS dueno_anterior_identificacion,
-        c2.nombre AS dueno_nuevo_nombre,
-        c2.identificacion AS dueno_nuevo_identificacion,
-        l.name AS location_name,
-        u.name AS ubicacion_name
-      FROM transactions t
-      LEFT JOIN contacts c1 ON t.id_dueno_anterior = c1.id
-      LEFT JOIN contacts c2 ON t.id_dueno_nuevo = c2.id
-      LEFT JOIN business_locations l ON t.business_location_id = l.id
-      LEFT JOIN contact_locations u ON t.ubication_contact_id = u.id
-      WHERE t.id = ${id} AND t.activo = true
-    `
-
-    if (result.rows.length === 0) {
-      return null
-    }
-
-    // Obtener las líneas de la guía
-    const linesResult = await sql`
-      SELECT 
-        tl.*,
-        p.name AS product_name,
-        r.nombre AS raza_nombre,
-        c.nombre AS color_nombre,
-        g.nombre AS genero_nombre
-      FROM transaction_lines tl
-      LEFT JOIN products p ON tl.product_id = p.id
-      LEFT JOIN razas r ON tl.raza_id = r.id
-      LEFT JOIN colors c ON tl.color_id = c.id
-      LEFT JOIN generos g ON tl.genero_id = g.id
-      WHERE tl.transaction_id = ${id} AND tl.activo = true
-      ORDER BY tl.id ASC
-    `
-
-    return {
-      ...result.rows[0],
-      lines: linesResult.rows,
-    }
-  } catch (error) {
-    console.error("Error al obtener guía:", error)
-    return null
-  }
-}
-
 export default async function VerGuiaPage({ params }: { params: { id: string } }) {
-  const id = Number.parseInt(params.id)
-  const guia = await getGuia(id)
+  const id = params.id
 
-  if (!guia) {
+  // Obtener los datos de la guía
+  const result = await sql`
+    SELECT 
+      t.*,
+      ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
+      ca.nit AS dueno_anterior_nit,
+      cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+      cn.nit AS dueno_nuevo_nit,
+      ua.nombre_finca AS ubicacion_anterior_nombre,
+      un.nombre_finca AS ubicacion_nueva_nombre,
+      bl.name AS location_name
+    FROM 
+      transactions t
+    LEFT JOIN 
+      contacts ca ON t.id_dueno_anterior = ca.id
+    LEFT JOIN 
+      contacts cn ON t.id_dueno_nuevo = cn.id
+    LEFT JOIN 
+      ubication_contact ua ON t.ubication_contact_id = ua.id
+    LEFT JOIN 
+      ubication_contact un ON t.ubication_contact_id2 = un.id
+    LEFT JOIN
+      business_locations bl ON t.business_location_id = bl.id
+    WHERE 
+      t.id = ${id}
+      AND t.activo = TRUE
+  `
+
+  if (result.rows.length === 0) {
     notFound()
   }
 
-  // Preparar los datos para la impresión de tickets
-  const ticketsData = guia.lines.map((line) => ({
-    ticketNumber: Number(line.ticket),
-    ticket2: line.ticket2 ? Number(line.ticket2) : undefined,
-    transaction_id: Number(guia.id),
-    fecha: formatDate(guia.fecha_documento),
-    duenioAnterior: guia.dueno_anterior_nombre || "N/A",
-    cedulaDuenio: guia.dueno_anterior_identificacion || "N/A",
-    tipoAnimal: line.product_name || "Animal",
-    sku: line.product_id?.toString() || "",
-    pesoKg: Number(line.quantity || 0),
-    raza: line.raza_nombre || "N/A",
-    color: line.color_nombre || "N/A",
-    genero: line.genero_nombre || "N/A",
-    valor: Number(line.valor || 0),
-  }))
+  const guia = result.rows[0]
+
+  // Obtener las líneas de la transacción
+  const linesResult = await sql`
+    SELECT 
+      tl.*,
+      p.name AS product_name,
+      r.name AS raza_nombre,
+      c.name AS color_nombre,
+      g.name AS genero_nombre
+    FROM 
+      transaction_lines tl
+    LEFT JOIN 
+      products p ON tl.product_id = p.id
+    LEFT JOIN 
+      razas r ON tl.raza_id = r.id
+    LEFT JOIN 
+      colores c ON tl.color_id = c.id
+    LEFT JOIN 
+      generos g ON tl.genero_id = g.id
+    WHERE 
+      tl.transaction_id = ${id}
+  `
+
+  const lineas = linesResult.rows
+
+  // Determinar el tipo de animal basado en business_location_id
+  const tipoAnimal = guia.business_location_id === 1 ? "porcino" : "bovino"
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Link href="/guias">
             <Button variant="outline" size="icon">
@@ -99,164 +85,170 @@ export default async function VerGuiaPage({ params }: { params: { id: string } }
         </div>
         <div className="flex gap-2">
           <Link href={`/guias/editar/${id}`}>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Edit className="h-4 w-4" />
+            <Button variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-2" />
               Editar
             </Button>
           </Link>
-          <PrintAllTickets guiaId={Number(id)} tickets={ticketsData} />
+
+          {/* Botón para imprimir tickets */}
+          <PrintAllTickets guiaId={Number(id)} />
+
+          {/* Nuevo botón para imprimir guía de degüello */}
+          <PrintGuiaDeguelloButton guiaId={Number(id)} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-4">Información General</h2>
-          <div className="grid grid-cols-2 gap-4">
+      {/* Resto del contenido de la página... */}
+
+      {/* Información general */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Información General</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-gray-500">Número de Documento</p>
-              <p className="font-medium">{guia.numero_documento}</p>
+              <p className="text-sm font-medium text-gray-500">Número de Documento</p>
+              <p>{guia.numero_documento}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Fecha</p>
-              <p className="font-medium">{formatDate(guia.fecha_documento)}</p>
+              <p className="text-sm font-medium text-gray-500">Fecha</p>
+              <p>{formatDate(guia.fecha_documento)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Estado</p>
-              <p className="font-medium">{guia.estado}</p>
+              <p className="text-sm font-medium text-gray-500">Estado</p>
+              <p className="capitalize">{guia.estado}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Tipo</p>
-              <p className="font-medium">{guia.type}</p>
+              <p className="text-sm font-medium text-gray-500">Tipo</p>
+              <p className="capitalize">{tipoAnimal}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Ubicación</p>
-              <p className="font-medium">{guia.location_name}</p>
+              <p className="text-sm font-medium text-gray-500">Ubicación</p>
+              <p>{guia.location_name}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-500">Ubicación Específica</p>
-              <p className="font-medium">{guia.ubicacion_name || "No especificada"}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total</p>
-              <p className="font-medium">{formatCurrency(Number.parseFloat(guia.total))}</p>
+              <p className="text-sm font-medium text-gray-500">Total</p>
+              <p className="font-semibold">{formatCurrency(guia.total)}</p>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-lg font-semibold mb-4">Información de Contactos</h2>
-          <div className="grid grid-cols-1 gap-4">
+      {/* Información del propietario */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Información del Propietario</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-sm text-gray-500">Dueño Anterior</p>
-              <p className="font-medium">
-                {guia.dueno_anterior_nombre} ({guia.dueno_anterior_identificacion})
-              </p>
+              <h3 className="font-medium mb-2">Dueño Anterior</h3>
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Nombre</p>
+                  <p>{guia.dueno_anterior_nombre || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">NIT/Cédula</p>
+                  <p>{guia.dueno_anterior_nit || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Finca</p>
+                  <p>{guia.ubicacion_anterior_nombre || "N/A"}</p>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Dueño Nuevo</p>
-              <p className="font-medium">
-                {guia.dueno_nuevo_nombre} ({guia.dueno_nuevo_identificacion})
-              </p>
-            </div>
+
+            {guia.id_dueno_nuevo && (
+              <div>
+                <h3 className="font-medium mb-2">Dueño Nuevo</h3>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Nombre</p>
+                    <p>{guia.dueno_nuevo_nombre || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">NIT/Cédula</p>
+                    <p>{guia.dueno_nuevo_nit || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Finca</p>
+                    <p>{guia.ubicacion_nueva_nombre || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="text-lg font-semibold mb-4">Líneas de la Guía</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Código
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  T.Báscula
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Producto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cantidad
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Raza</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Color
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Género
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Valor
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {guia.lines.map((line, index) => (
-                <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{line.ticket}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {line.ticket2 || "N/A"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{line.product_name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {Number.parseFloat(line.quantity).toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {line.raza_nombre || "No especificada"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {line.color_nombre || "No especificado"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {line.genero_nombre || "No especificado"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatCurrency(Number.parseFloat(line.valor))}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <TicketPrinter
-                      ticketData={{
-                        ticketNumber: line.ticket,
-                        ticket2: line.ticket2,
-                        transaction_id: line.transaction_id,
-                        fecha: formatDate(guia.fecha_documento),
-                        duenioAnterior: guia.dueno_anterior_nombre,
-                        cedulaDuenio: guia.dueno_anterior_identificacion,
-                        tipoAnimal: line.product_name || "Animal",
-                        sku: line.product_id.toString(),
-                        pesoKg: Number.parseFloat(line.quantity),
-                        raza: line.raza_nombre || "No especificada",
-                        color: line.color_nombre || "No especificado",
-                        genero: line.genero_nombre || "No especificado",
-                        valor: Number.parseFloat(line.valor),
-                      }}
-                    />
-                  </td>
+      {/* Detalle de animales */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Detalle de Animales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border p-2 text-left">Código</th>
+                  <th className="border p-2 text-left">T.Báscula</th>
+                  <th className="border p-2 text-left">Animal</th>
+                  <th className="border p-2 text-left">Kilos</th>
+                  <th className="border p-2 text-left">Raza</th>
+                  <th className="border p-2 text-left">Color</th>
+                  <th className="border p-2 text-left">Género</th>
+                  <th className="border p-2 text-left">Valor</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {lineas.map((linea, index) => (
+                  <tr key={linea.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                    <td className="border p-2">{linea.ticket}</td>
+                    <td className="border p-2">{linea.ticket2}</td>
+                    <td className="border p-2">{linea.product_name}</td>
+                    <td className="border p-2">{linea.quantity}</td>
+                    <td className="border p-2">{linea.raza_nombre || "N/A"}</td>
+                    <td className="border p-2">{linea.color_nombre || "N/A"}</td>
+                    <td className="border p-2">{linea.genero_nombre || "N/A"}</td>
+                    <td className="border p-2">{formatCurrency(linea.valor)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-gray-100 font-medium">
+                  <td colSpan={3} className="border p-2 text-right">
+                    Totales:
+                  </td>
+                  <td className="border p-2">{guia.quantity_k}</td>
+                  <td colSpan={3} className="border p-2 text-right">
+                    Total Valor:
+                  </td>
+                  <td className="border p-2">{formatCurrency(guia.total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
-      <div className="flex justify-between">
-        <div className="flex gap-2">
-          <Button
-            variant="destructive"
-            onClick={async () => {
-              await changeGuiaStatus(id, "Anulada")
-              window.location.reload()
-            }}
-          >
-            Anular Guía
-          </Button>
-        </div>
-      </div>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">Total Animales</p>
+              <p className="text-xl font-bold text-blue-800">{guia.quantity_m + guia.quantity_h}</p>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <p className="text-sm font-medium text-green-800">Machos</p>
+              <p className="text-xl font-bold text-green-800">{guia.quantity_m}</p>
+            </div>
+            <div className="bg-pink-50 p-3 rounded-lg">
+              <p className="text-sm font-medium text-pink-800">Hembras</p>
+              <p className="text-xl font-bold text-pink-800">{guia.quantity_h}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

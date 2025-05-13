@@ -4,59 +4,82 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, FileDown, Printer, Filter, X, Eye, Edit } from "lucide-react"
+import { Search, FileDown, Printer, Filter, X } from "lucide-react"
 import { formatDisplayDate, parseToDate } from "@/lib/date-utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
-import Link from "next/link"
-import PrintTicketDialog from "@/components/print-ticket-dialog"
 
-export default function GuiasTable({ guias = [], currentLimit = 30 }) {
-  const [filteredGuias, setFilteredGuias] = useState(guias)
+export default function TicketsAgrupados({ tickets = [] }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState({ from: null, to: null })
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedGuiaId, setSelectedGuiaId] = useState(null)
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
+  const [agrupados, setAgrupados] = useState([])
 
-  // Aplicar filtros cuando cambian
+  // Agrupar tickets por fecha
   useEffect(() => {
-    let result = [...guias]
+    // Filtrar tickets primero
+    let filteredTickets = [...tickets]
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
       const term = searchTerm.toLowerCase()
-      result = result.filter(
-        (guia) =>
-          (guia.dueno_anterior_nombre && guia.dueno_anterior_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_anterior_nit && guia.dueno_anterior_nit.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nombre && guia.dueno_nuevo_nombre.toLowerCase().includes(term)) ||
-          (guia.dueno_nuevo_nit && guia.dueno_nuevo_nit.toLowerCase().includes(term)) ||
-          (guia.numero_documento && guia.numero_documento.toLowerCase().includes(term)),
+      filteredTickets = filteredTickets.filter(
+        (ticket) =>
+          (ticket.propietario && ticket.propietario.toLowerCase().includes(term)) ||
+          (ticket.nit && ticket.nit.toLowerCase().includes(term)),
       )
     }
 
     // Filtrar por rango de fechas
     if (dateRange.from || dateRange.to) {
-      result = result.filter((guia) => {
-        const guiaDate = parseToDate(guia.fecha_documento)
+      filteredTickets = filteredTickets.filter((ticket) => {
+        const ticketDate = parseToDate(ticket.fecha)
 
-        if (!guiaDate) return true
+        if (!ticketDate) return true
 
         if (dateRange.from && dateRange.to) {
-          return guiaDate >= dateRange.from && guiaDate <= dateRange.to
+          return ticketDate >= dateRange.from && ticketDate <= dateRange.to
         } else if (dateRange.from) {
-          return guiaDate >= dateRange.from
+          return ticketDate >= dateRange.from
         } else if (dateRange.to) {
-          return guiaDate <= dateRange.to
+          return ticketDate <= dateRange.to
         }
 
         return true
       })
     }
 
-    setFilteredGuias(result)
-  }, [guias, searchTerm, dateRange])
+    // Agrupar por fecha
+    const grupos = {}
+
+    filteredTickets.forEach((ticket) => {
+      const fecha = formatDisplayDate(ticket.fecha)
+
+      if (!grupos[fecha]) {
+        grupos[fecha] = {
+          fecha,
+          cantidad: 0,
+          kilos: 0,
+          valor: 0,
+          tickets: [],
+        }
+      }
+
+      grupos[fecha].cantidad += 1
+      grupos[fecha].kilos += Number(ticket.kilos) || 0
+      grupos[fecha].valor += Number(ticket.valor) || 0
+      grupos[fecha].tickets.push(ticket)
+    })
+
+    // Convertir a array y ordenar por fecha (más reciente primero)
+    const result = Object.values(grupos).sort((a, b) => {
+      const dateA = parseToDate(a.fecha)
+      const dateB = parseToDate(b.fecha)
+      return dateB - dateA
+    })
+
+    setAgrupados(result)
+  }, [tickets, searchTerm, dateRange])
 
   // Limpiar filtros
   const clearFilters = () => {
@@ -64,10 +87,11 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
     setDateRange({ from: null, to: null })
   }
 
-  // Abrir diálogo de impresión
-  const openPrintDialog = (guiaId) => {
-    setSelectedGuiaId(guiaId)
-    setIsPrintDialogOpen(true)
+  // Calcular totales
+  const totales = {
+    cantidad: agrupados.reduce((sum, grupo) => sum + grupo.cantidad, 0),
+    kilos: agrupados.reduce((sum, grupo) => sum + grupo.kilos, 0),
+    valor: agrupados.reduce((sum, grupo) => sum + grupo.valor, 0),
   }
 
   return (
@@ -78,7 +102,7 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
             <div className="relative w-64">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar guía, propietario, NIT..."
+                placeholder="Buscar por propietario, NIT..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -136,63 +160,44 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Guía ICA</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Propietario Anterior</TableHead>
-              <TableHead>NIT</TableHead>
-              <TableHead>Propietario Nuevo</TableHead>
-              <TableHead>NIT</TableHead>
-              <TableHead>Acciones</TableHead>
+              <TableHead>Cantidad de Tickets</TableHead>
+              <TableHead>Total Kilos</TableHead>
+              <TableHead>Total Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredGuias.length > 0 ? (
-              filteredGuias.map((guia) => (
-                <TableRow key={guia.id}>
-                  <TableCell className="font-medium">{guia.numero_documento}</TableCell>
-                  <TableCell>{formatDisplayDate(guia.fecha_documento)}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nombre}</TableCell>
-                  <TableCell>{guia.dueno_anterior_nit}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nombre}</TableCell>
-                  <TableCell>{guia.dueno_nuevo_nit}</TableCell>
+            {agrupados.length > 0 ? (
+              agrupados.map((grupo) => (
+                <TableRow key={grupo.fecha}>
+                  <TableCell className="font-medium">{grupo.fecha}</TableCell>
+                  <TableCell>{grupo.cantidad}</TableCell>
+                  <TableCell>{grupo.kilos.toLocaleString("es-CO")}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/ver/${guia.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/editar/${guia.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openPrintDialog(guia.id)}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(grupo.valor)}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
-                  No se encontraron guías con los filtros aplicados
+                <TableCell colSpan={4} className="h-24 text-center">
+                  No se encontraron tickets con los filtros aplicados
+                </TableCell>
+              </TableRow>
+            )}
+            {agrupados.length > 0 && (
+              <TableRow className="bg-muted/50 font-medium">
+                <TableCell>TOTALES</TableCell>
+                <TableCell>{totales.cantidad}</TableCell>
+                <TableCell>{totales.kilos.toLocaleString("es-CO")}</TableCell>
+                <TableCell>
+                  {new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(totales.valor)}
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
       </div>
-
-      <div className="text-sm text-muted-foreground">
-        Mostrando {filteredGuias.length} de {guias.length} guías
-      </div>
-
-      {/* Diálogo de impresión de tickets */}
-      {isPrintDialogOpen && selectedGuiaId && (
-        <PrintTicketDialog guiaId={selectedGuiaId} open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen} />
-      )}
     </div>
   )
 }

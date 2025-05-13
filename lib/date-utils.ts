@@ -333,3 +333,21 @@ export function forceDateDMY(date: string | Date | null | undefined): string {
     return String(date) || ""
   }
 }
+
+/**
+ * Formatea una fecha para mostrarla en la interfaz de usuario
+ * @param date Fecha en cualquier formato (string, Date, null, undefined)
+ * @returns String en formato DD/MM/YYYY o cadena vacía si la fecha es inválida
+ */
+export function formatDisplayDate(date: string | Date | null | undefined): string {
+  return formatDateDMY(date)
+}
+
+/**
+ * Parsea una fecha en cualquier formato a un objeto Date
+ * @param date Fecha en cualquier formato (string, Date, null, undefined)
+ * @returns Objeto Date o null si la fecha es inválida
+ */
+export function parseToDate(date: string | Date | null | undefined): Date | null {
+  return normalizeDate(date)
+}

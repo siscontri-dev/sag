@@ -9,7 +9,6 @@ import { themeColors } from "@/lib/theme-config"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { processObjectDates } from "@/lib/date-interceptor"
 import { sql } from "@vercel/postgres"
 
 export const dynamic = "force-dynamic"
@@ -67,7 +66,7 @@ async function getGuias(tipo = undefined, limit = 30) {
     }
 
     const result = await query
-    return processObjectDates(result.rows)
+    return result.rows
   } catch (error) {
     console.error("Error al obtener guías:", error)
     throw error
@@ -75,7 +74,7 @@ async function getGuias(tipo = undefined, limit = 30) {
 }
 
 // Función para obtener tickets directamente usando sql de @vercel/postgres
-async function getTickets(tipo = undefined, limit = 100) {
+async function getTickets(tipo = undefined, limit = 500) {
   try {
     // Convertir tipo de animal a business_location_id
     let locationId = undefined
@@ -153,7 +152,8 @@ async function getTickets(tipo = undefined, limit = 100) {
     }
 
     const result = await query
-    return processObjectDates(result.rows)
+    console.log(`Tickets obtenidos: ${result.rows.length}`)
+    return result.rows
   } catch (error) {
     console.error("Error al obtener tickets:", error)
     throw error
@@ -201,7 +201,7 @@ export default async function GuiasPage({
   let ticketsError = null
   try {
     // Usar la función local que usa directamente sql de @vercel/postgres
-    tickets = await getTickets(tipo, 100)
+    tickets = await getTickets(tipo, 500)
     console.log(`Total de tickets obtenidos: ${tickets.length}`)
   } catch (error) {
     console.error("Error al obtener tickets:", error)
@@ -305,7 +305,7 @@ export default async function GuiasPage({
                 <AlertDescription>{ticketsError}</AlertDescription>
               </Alert>
             ) : (
-              <TicketsTable tickets={tickets.slice(0, limit)} currentLimit={limit} />
+              <TicketsTable tickets={tickets} currentLimit={limit} />
             )}
           </div>
         </TabsContent>

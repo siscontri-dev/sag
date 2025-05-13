@@ -4,20 +4,17 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, FileDown, Printer, Filter, X, Eye, Edit } from "lucide-react"
+import { Search, FileDown, Printer, Filter, X, Eye } from "lucide-react"
 import { formatDisplayDate, parseToDate } from "@/lib/date-utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
 import Link from "next/link"
-import PrintTicketDialog from "@/components/print-ticket-dialog"
 
-export default function GuiasTable({ guias = [], currentLimit = 30 }) {
+export default function GuiasTable({ guias = [] }) {
   const [filteredGuias, setFilteredGuias] = useState(guias)
   const [searchTerm, setSearchTerm] = useState("")
   const [dateRange, setDateRange] = useState({ from: null, to: null })
   const [showFilters, setShowFilters] = useState(false)
-  const [selectedGuiaId, setSelectedGuiaId] = useState(null)
-  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false)
 
   // Aplicar filtros cuando cambian
   useEffect(() => {
@@ -62,12 +59,6 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
   const clearFilters = () => {
     setSearchTerm("")
     setDateRange({ from: null, to: null })
-  }
-
-  // Abrir diálogo de impresión
-  const openPrintDialog = (guiaId) => {
-    setSelectedGuiaId(guiaId)
-    setIsPrintDialogOpen(true)
   }
 
   return (
@@ -156,21 +147,11 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
                   <TableCell>{guia.dueno_nuevo_nombre}</TableCell>
                   <TableCell>{guia.dueno_nuevo_nit}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/ver/${guia.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/guias/editar/${guia.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => openPrintDialog(guia.id)}>
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link href={`/guias/ver/${guia.id}`}>
+                        <Eye className="h-4 w-4" />
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
@@ -188,11 +169,6 @@ export default function GuiasTable({ guias = [], currentLimit = 30 }) {
       <div className="text-sm text-muted-foreground">
         Mostrando {filteredGuias.length} de {guias.length} guías
       </div>
-
-      {/* Diálogo de impresión de tickets */}
-      {isPrintDialogOpen && selectedGuiaId && (
-        <PrintTicketDialog guiaId={selectedGuiaId} open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen} />
-      )}
     </div>
   )
 }
