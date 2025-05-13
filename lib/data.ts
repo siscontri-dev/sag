@@ -1,5 +1,6 @@
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
+import { db } from "@/lib/db"
 
 // Función para obtener datos de reportes
 export async function getReportData() {
@@ -394,106 +395,32 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
   }
 }
 
-// Función para obtener una transacción por ID con reintentos
-export async function getTransactionById(id) {
-  const MAX_RETRIES = 3
-  let retryCount = 0
-  let lastError = null
+// Función para obtener una transacción por ID
+export async function getTransactionById(id: number) {
+  try {
+    console.log(`Buscando transacción con ID: ${id}`)
+    const transaction = await db.transaction.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        contact: true,
+        business_location: true,
+        transaction_sell_lines: {
+          include: {
+            product: true,
+            variations: true,
+          },
+        },
+      },
+    })
 
-  while (retryCount < MAX_RETRIES) {
-    try {
-      console.log(`Intento ${retryCount + 1} de obtener transacción con ID ${id}`)
-
-      // Dividir las consultas para reducir la complejidad y el tiempo de ejecución
-
-      // 1. Obtener la transacción básica
-      const transactionResult = await sql`
-        SELECT 
-          t.id,
-          t.type,
-          t.business_location_id,
-          t.numero_documento,
-          t.fecha_documento,
-          t.id_dueno_anterior,
-          t.id_dueno_nuevo,
-          t.total,
-          t.activo,
-          t.impuesto1,
-          t.impuesto2,
-          t.impuesto3,
-          t.quantity_m,
-          t.quantity_h,
-          t.quantity_k
-        FROM 
-          transactions t
-        WHERE 
-          t.id = ${id}
-      `
-
-      if (transactionResult.rows.length === 0) {
-        console.log(`No se encontró la transacción con ID ${id}`)
-        return null
-      }
-
-      const transaction = transactionResult.rows[0]
-      console.log(`Transacción básica encontrada con ID ${id}`)
-
-      // 2. Obtener los nombres de los dueños en una consulta separada
-      const ownersResult = await sql`
-        SELECT 
-          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
-        FROM 
-          transactions t
-          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-        WHERE 
-          t.id = ${id}
-      `
-
-      if (ownersResult.rows.length > 0) {
-        transaction.dueno_anterior_nombre = ownersResult.rows[0].dueno_anterior_nombre
-        transaction.dueno_nuevo_nombre = ownersResult.rows[0].dueno_nuevo_nombre
-      }
-
-      // 3. Obtener las líneas de transacción en una consulta simplificada
-      const linesResult = await sql`
-        SELECT 
-          id, 
-          transaction_id, 
-          product_id, 
-          quantity, 
-          ticket, 
-          ticket2, 
-          raza_id, 
-          color_id, 
-          valor
-        FROM 
-          transaction_lines 
-        WHERE 
-          transaction_id = ${id}
-      `
-
-      console.log(`Líneas encontradas para la transacción con ID ${id}: ${linesResult.rows.length}`)
-      transaction.transaction_lines = linesResult.rows
-
-      return transaction
-    } catch (error) {
-      lastError = error
-      console.error(`Error en intento ${retryCount + 1} al obtener transacción con ID ${id}:`, error)
-      retryCount++
-
-      // Esperar antes de reintentar (backoff exponencial)
-      if (retryCount < MAX_RETRIES) {
-        const waitTime = Math.pow(2, retryCount) * 500 // 1s, 2s, 4s
-        console.log(`Esperando ${waitTime}ms antes de reintentar...`)
-        await new Promise((resolve) => setTimeout(resolve, waitTime))
-      }
-    }
+    console.log(`Transacción encontrada:`, transaction ? `ID: ${transaction.id}` : "No encontrada")
+    return transaction
+  } catch (error) {
+    console.error("Error al obtener la transacción por ID:", error)
+    throw error
   }
-
-  console.error(`Todos los intentos fallaron al obtener transacción con ID ${id}`)
-  throw lastError
 }
 
 // Función para obtener departamentos

@@ -26,6 +26,8 @@ import { createUbication } from "@/app/contactos/actions"
 import { createContact } from "@/app/contactos/actions"
 import ImageUpload from "@/components/image-upload"
 
+// Añade logs de depuración al inicio del componente GuiaForm para verificar los datos recibidos
+
 export default function GuiaForm({
   contacts = [],
   products = [],
@@ -40,10 +42,7 @@ export default function GuiaForm({
     locationId,
     guiaId: guia?.id,
     guiaType: guia?.type,
-    dueno_anterior: guia?.id_dueno_anterior,
-    dueno_anterior_nombre: guia?.dueno_anterior_nombre,
     lineasCount: guia?.transaction_lines?.length,
-    ubication_contact_id: guia?.ubication_contact_id,
   })
 
   const { toast } = useToast()
@@ -169,24 +168,6 @@ export default function GuiaForm({
 
   // Estado para generar ticket
   const [isGeneratingTicket, setIsGeneratingTicket] = useState(false)
-
-  // Inicializar el nombre del propietario si estamos editando
-  useEffect(() => {
-    if (guia && guia.id_dueno_anterior && guia.dueno_anterior_nombre) {
-      // Buscar el contacto en la lista de contactos
-      const contacto = contacts.find((c) => c.id.toString() === guia.id_dueno_anterior.toString())
-
-      if (contacto) {
-        // Si encontramos el contacto, usamos sus datos
-        setSearchDuenoAnterior(`${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`)
-      } else {
-        // Si no encontramos el contacto, usamos el nombre que viene en la guía
-        setSearchDuenoAnterior(guia.dueno_anterior_nombre)
-      }
-
-      console.log("Inicializando propietario:", guia.dueno_anterior_nombre)
-    }
-  }, [guia, contacts])
 
   // Efecto para actualizar el precio del ticket cuando cambia el producto
   useEffect(() => {
@@ -320,22 +301,13 @@ export default function GuiaForm({
           if (response.ok) {
             const data = await response.json()
             setFincas(data)
-            console.log("Fincas cargadas:", data)
-            console.log("Finca seleccionada en guía:", guia?.ubication_contact_id)
-
             // Si hay fincas, seleccionar la predeterminada o la primera
             if (data.length > 0) {
-              // Si estamos editando y hay una finca seleccionada en la guía
-              if (guia && guia.ubication_contact_id) {
-                setSelectedFinca(guia.ubication_contact_id.toString())
+              const predeterminada = data.find((f) => f.es_principal)
+              if (predeterminada) {
+                setSelectedFinca(predeterminada.id.toString())
               } else {
-                // Si no, seleccionar la finca principal o la primera
-                const predeterminada = data.find((f) => f.es_principal)
-                if (predeterminada) {
-                  setSelectedFinca(predeterminada.id.toString())
-                } else {
-                  setSelectedFinca(data[0].id.toString())
-                }
+                setSelectedFinca(data[0].id.toString())
               }
             } else {
               setSelectedFinca("")
@@ -354,7 +326,7 @@ export default function GuiaForm({
       setFincas([])
       setSelectedFinca("")
     }
-  }, [formData.id_dueno_anterior, guia])
+  }, [formData.id_dueno_anterior])
 
   // Función para manejar la creación de una nueva finca
   const handleCreateFinca = async () => {
