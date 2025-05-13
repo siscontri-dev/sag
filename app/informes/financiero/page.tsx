@@ -1,11 +1,7 @@
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
-import { getFinancialData } from "@/lib/data"
-import { unstable_noStore as noStore } from "next/cache"
-
-export const dynamic = "force-dynamic"
+import { getFinancialData } from "../actions"
 
 export default async function FinancialDashboardPage() {
-  noStore()
   const data = await getFinancialData()
 
   return (

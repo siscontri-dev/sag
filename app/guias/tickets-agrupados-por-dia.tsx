@@ -15,17 +15,7 @@ interface Ticket {
   kilos: number
 }
 
-export default function TicketsAgrupadosPorDia({
-  tickets,
-  tipo,
-  fechaDesde,
-  fechaHasta,
-}: {
-  tickets: Ticket[]
-  tipo?: string
-  fechaDesde?: string
-  fechaHasta?: string
-}) {
+export default function TicketsAgrupadosPorDia({ tickets, tipo, fechaDesde, fechaHasta }) {
   const [ticketsAgrupados, setTicketsAgrupados] = useState<any[]>([])
   const [debug, setDebug] = useState<any>({})
 

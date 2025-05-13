@@ -769,9 +769,7 @@ export default function GuiaForm({
   // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
   const [ticketButtonDisabled, setTicketButtonDisabled] = useState(false)
 
-  // Modificar la función handleGenerateTicket para usar un enfoque diferente
-  // En lugar de intentar establecer el valor del ticket, simplemente generamos un valor
-  // para mostrar visualmente, pero no lo usamos para guardar
+  // Modificar la función generateTicket para bloquear el botón after usarlo
   const handleGenerateTicket = async () => {
     try {
       setIsGeneratingTicket(true)
@@ -785,10 +783,9 @@ export default function GuiaForm({
       }
 
       const data = await response.json()
-      console.log("Ticket generado en guía (solo visual):", data)
+      console.log("Ticket generado en guía:", data)
 
-      // Actualizar el campo de ticket en la nueva línea con un valor temporal
-      // Este valor es solo para mostrar en la interfaz, no se usará para guardar
+      // Actualizar el campo de ticket en la nueva línea
       setNuevaLinea((prev) => ({
         ...prev,
         ticket: data.ticket.toString(),
@@ -799,7 +796,7 @@ export default function GuiaForm({
 
       toast({
         title: "Ticket generado",
-        description: `Ticket #${data.ticket} generado correctamente (solo visual)`,
+        description: `Ticket #${data.ticket} generado correctamente`,
       })
     } catch (error) {
       console.error("Error al generar ticket:", error)
@@ -933,6 +930,15 @@ export default function GuiaForm({
 
   const totales = calcularTotales()
 
+  // Estado para generar ticket
+  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
+  // Modificar la función generateTicket para bloquear el botón after usarlo
+
+  // Modificar el botón para usar el nuevo estado ticketButtonDisabled
+  // Buscar el botón que tiene onClick={generateTicket} y modificarlo así:
+
+  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
+
   const prepareTicketsForPrinting = () => {
     // Obtener el dueño anterior
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
@@ -1003,7 +1009,6 @@ export default function GuiaForm({
         ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
         ubication_contact_id2: null, // Ya no se usa
         lineas: lineas.map((linea) => ({
-          // Usar siempre el código de ticket visual tal como se muestra en la interfaz
           ticket: Number(linea.ticket),
           product_id: Number(linea.product_id),
           quantity: Number(linea.kilos || linea.quantity),
@@ -1037,14 +1042,10 @@ export default function GuiaForm({
           const updatedLineas = lineas.map((linea, index) => {
             if (index < result.lines.length) {
               const serverLine = result.lines[index]
-              console.log(
-                `Línea ${index}: ticket=${linea.ticket}, ticket del servidor=${serverLine.ticket}, ticket2 del servidor=${serverLine.ticket2}`,
-              )
+              console.log(`Línea ${index}: ticket=${linea.ticket}, ticket2 del servidor=${serverLine.ticket2}`)
 
               return {
                 ...linea,
-                // Actualizar el ticket con el valor real asignado por el servidor
-                ticket: serverLine.ticket !== undefined ? Number(serverLine.ticket) : Number(linea.ticket),
                 ticket2:
                   serverLine.ticket2 !== undefined && serverLine.ticket2 !== null
                     ? Number(serverLine.ticket2)
@@ -1420,7 +1421,6 @@ export default function GuiaForm({
                         onClick={handleGenerateTicket}
                         disabled={isGeneratingTicket || ticketButtonDisabled}
                         className="whitespace-nowrap px-2"
-                        title="Generar código visual (será reemplazado al guardar)"
                       >
                         {isGeneratingTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : "A"}
                       </Button>
