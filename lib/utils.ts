@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatDateDMY, formatNumber as formatNumberUtil } from "./date-utils"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,60 +12,12 @@ export function formatCurrency(amount: number): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 }
 
-// Mejorar la función formatDate para manejar más casos y ser más robusta
+// Usar la función de formateo de fecha de la biblioteca de utilidades
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return ""
-
-  try {
-    // Si es string, intentar diferentes formatos
-    let dateObj: Date
-
-    if (typeof date === "string") {
-      // Verificar si la fecha ya tiene el formato correcto (DD/MM/YYYY)
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-        const [day, month, year] = date.split("/").map(Number)
-        dateObj = new Date(year, month - 1, day)
-      }
-      // Verificar si es formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
-      else if (date.includes("T")) {
-        dateObj = new Date(date)
-      }
-      // Verificar si es formato YYYY-MM-DD
-      else if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const [year, month, day] = date.split("-").map(Number)
-        dateObj = new Date(year, month - 1, day)
-      }
-      // Otros formatos
-      else {
-        dateObj = new Date(date)
-      }
-    } else {
-      dateObj = date
-    }
-
-    // Verificar si la fecha es válida
-    if (isNaN(dateObj.getTime())) {
-      console.warn(`Fecha inválida: ${date}`)
-      return ""
-    }
-
-    // Formatear manualmente para evitar problemas de locale
-    const day = String(dateObj.getDate()).padStart(2, "0")
-    const month = String(dateObj.getMonth() + 1).padStart(2, "0")
-    const year = dateObj.getFullYear()
-
-    return `${day}/${month}/${year}`
-  } catch (error) {
-    console.error(`Error al formatear fecha: ${date}`, error)
-    return ""
-  }
+  return formatDateDMY(date)
 }
 
+// Usar la función de formateo de números de la biblioteca de utilidades
 export function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined || isNaN(value)) {
-    return "0"
-  }
-  return Math.round(value)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+  return formatNumberUtil(value)
 }

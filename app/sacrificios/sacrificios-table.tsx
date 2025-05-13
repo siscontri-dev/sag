@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import ExportButtons from "./export-buttons"
+import { formatDateDMY, isDateInRange } from "@/lib/date-utils"
 
 const themeColors = {
   estado: {
@@ -26,13 +27,6 @@ const themeColors = {
       text: "#d97706",
     },
   },
-}
-
-const formatDate = (date: Date | string): string => {
-  if (typeof date === "string") {
-    date = new Date(date)
-  }
-  return date.toLocaleDateString("es-CO")
 }
 
 // Modificar la función formatNumber para manejar valores no numéricos
@@ -157,21 +151,17 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
     }
 
     // Filtro de fecha
-    if (fechaInicio) {
-      const inicio = new Date(fechaInicio)
-      inicio.setHours(0, 0, 0, 0)
-      result = result.filter((sacrificio) => {
-        const fecha = new Date(sacrificio.fecha_documento)
-        return fecha >= inicio
-      })
-    }
+    if (fechaInicio || fechaFin) {
+      const inicio = fechaInicio ? `${fechaInicio}T00:00:00` : null
+      const fin = fechaFin ? `${fechaFin}T23:59:59.999` : null
 
-    if (fechaFin) {
-      const fin = new Date(fechaFin)
-      fin.setHours(23, 59, 59, 999)
       result = result.filter((sacrificio) => {
-        const fecha = new Date(sacrificio.fecha_documento)
-        return fecha <= fin
+        try {
+          return isDateInRange(sacrificio.fecha_documento, inicio, fin)
+        } catch (error) {
+          console.error(`Error al filtrar por fecha: ${sacrificio.id}`, error)
+          return false
+        }
       })
     }
 
@@ -527,7 +517,7 @@ export default function SacrificiosTable({ sacrificios = [], tipoAnimal = "bovin
                       {filteredSacrificios.map((sacrificio) => (
                         <TableRow key={sacrificio.id} className="border-b hover:bg-gray-50">
                           <TableCell className="px-4 py-2">{sacrificio.numero_documento}</TableCell>
-                          <TableCell className="px-4 py-2">{formatDate(sacrificio.fecha_documento)}</TableCell>
+                          <TableCell className="px-4 py-2">{formatDateDMY(sacrificio.fecha_documento)}</TableCell>
                           <TableCell className="px-4 py-2">{sacrificio.dueno_anterior_nombre}</TableCell>
                           <TableCell className="px-4 py-2">{sacrificio.dueno_anterior_nit || "N/A"}</TableCell>
                           <TableCell className="px-4 py-2">{sacrificio.dueno_nuevo_nombre || "N/A"}</TableCell>
