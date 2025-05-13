@@ -68,17 +68,11 @@ export default function GuiaForm({
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
-  // Obtener la fecha actual en la zona horaria local (Bogotá/Lima)
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = String(today.getMonth() + 1).padStart(2, "0")
-  const day = String(today.getDate()).padStart(2, "0")
-  const formattedDate = `${year}-${month}-${day}`
-
-  // Inicializar el formulario con la fecha actual
   const [formData, setFormData] = useState({
     numero_documento: guia?.numero_documento || "",
-    fecha_documento: guia?.fecha_documento ? new Date(guia.fecha_documento).toISOString().split("T")[0] : formattedDate,
+    fecha_documento: guia?.fecha_documento
+      ? new Date(guia.fecha_documento).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     business_location_id: locationId.toString(),
     estado: guia?.estado || "confirmado",
@@ -146,8 +140,8 @@ export default function GuiaForm({
     guia?.transaction_lines?.map((line) => ({
       ...line,
       product_name: products.find((p) => p.id === line.product_id)?.name || `Producto #${line.product_id}`,
-      raza_name: razas.find((r) => r.id === line.raza_id)?.name || "N/A",
-      color_name: colores.find((c) => c.id === line.color_id)?.name || "N/A",
+      raza_name: razas.find((r) => r.id === line.raza_id)?.nombre || "N/A",
+      color_name: colores.find((c) => c.id === line.color_id)?.nombre || "N/A",
       es_macho: line.es_macho || false,
     })) || [],
   )
@@ -790,7 +784,7 @@ export default function GuiaForm({
         ticket: data.ticket.toString(),
       }))
 
-      // Bloquear el botón después de usarlo
+      // Bloquear el botón after usarlo
       setTicketButtonDisabled(true)
 
       toast({
@@ -842,8 +836,8 @@ export default function GuiaForm({
       ...nuevaLinea,
       id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
       product_name: product?.name || "Producto",
-      raza_name: raza?.name || "Raza",
-      color_name: color?.name || "Color",
+      raza_name: raza?.nombre || "Raza",
+      color_name: color?.nombre || "Color",
       price_ticket: precioTicket,
       quantity: Number.parseFloat(nuevaLinea.kilos), // Para mantener compatibilidad con el modelo existente
       valor: precioTicket, // Usar solo el precio del ticket como valor, no multiplicar por kilos
@@ -975,7 +969,7 @@ export default function GuiaForm({
   }
 
   // Modificar la función handleSubmit para usar los valores de ticket2 devueltos por el servidor
-  const handleSubmit = async (e, showPrintDialog = true) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
 
@@ -1052,22 +1046,12 @@ export default function GuiaForm({
           console.warn("No se recibieron líneas del servidor o el array está vacío")
         }
 
-        // Si showPrintDialog es true, mostrar el diálogo de impresión
-        if (showPrintDialog) {
-          // Preparar los tickets para imprimir
-          const tickets = prepareTicketsForPrinting()
-          setTicketsToPrint(tickets)
+        // Preparar los tickets para imprimir
+        const tickets = prepareTicketsForPrinting()
+        setTicketsToPrint(tickets)
 
-          // Mostrar el diálogo de impresión
-          setShowPrintDialog(true)
-        } else {
-          // Si no se muestra el diálogo de impresión, redirigir según el contexto
-          if (guia) {
-            router.push("/guias")
-          } else {
-            router.push("/guias/nueva")
-          }
-        }
+        // Mostrar el diálogo de impresión
+        setShowPrintDialog(true)
       } else {
         throw new Error(result.message || "Error al guardar la guía")
       }
@@ -1082,10 +1066,10 @@ export default function GuiaForm({
     }
   }
 
-  // Modificar la función handlePrintComplete para forzar la redirección
+  // Función para manejar la finalización de la impresión
   const handlePrintComplete = () => {
-    // Forzar la redirección a la página de nueva guía
-    router.push("/guias/nueva")
+    // Redirigir a la página de guías
+    router.push("/guias")
   }
 
   // Manejar tecla Enter para agregar línea
@@ -1107,7 +1091,7 @@ export default function GuiaForm({
   }
 
   return (
-    <form className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {/* Sección de información general - Reducida en tamaño y con colores pastel */}
       <div
         className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 rounded-lg"
@@ -1134,13 +1118,13 @@ export default function GuiaForm({
             Fecha
           </Label>
           <Input
-            type="date"
             id="fecha_documento"
             name="fecha_documento"
+            type="date"
             value={formData.fecha_documento}
             onChange={handleChange}
-            className="h-8"
             required
+            className="h-8"
           />
         </div>
         <div className="space-y-1">
@@ -1469,7 +1453,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {razas.map((raza) => (
                           <SelectItem key={raza.id} value={raza.id.toString()}>
-                            {raza.name}
+                            {raza.nombre}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1488,7 +1472,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {colores.map((color) => (
                           <SelectItem key={color.id} value={color.id.toString()}>
-                            {color.name}
+                            {color.nombre}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1572,38 +1556,20 @@ export default function GuiaForm({
             <Link href="/guias">Cancelar</Link>
           </Button>
           <Button
-            type="button"
-            onClick={(e) => handleSubmit(e, false)}
-            disabled={isSubmitting || lineas.length === 0}
-            style={{ backgroundColor: colors.medium, color: colors.text }}
-          >
-            {isSubmitting ? "Guardando..." : guia ? "Solo Actualizar" : "Solo Guardar"}
-          </Button>
-          <Button
-            type="button"
-            onClick={(e) => handleSubmit(e, true)}
+            type="submit"
             disabled={isSubmitting || lineas.length === 0}
             style={{ backgroundColor: colors.dark, color: colors.text }}
           >
-            {isSubmitting ? "Guardando..." : guia ? "Actualizar e Imprimir" : "Guardar e Imprimir"}
+            {isSubmitting ? "Guardando..." : guia ? "Actualizar" : "Guardar"}
           </Button>
         </div>
       </div>
-
-      {/* Modificar el componente BulkTicketPrinter para asegurar que se cierre y redirija correctamente
-      Buscar donde se usa el componente BulkTicketPrinter y reemplazarlo con esto: */}
 
       {/* Diálogo para imprimir tickets */}
       <BulkTicketPrinter
         tickets={ticketsToPrint}
         open={showPrintDialog}
-        onOpenChange={(open) => {
-          setShowPrintDialog(open)
-          if (!open) {
-            // Si se cierra el diálogo, forzar la redirección a nueva guía
-            router.push("/guias/nueva")
-          }
-        }}
+        onOpenChange={setShowPrintDialog}
         onComplete={handlePrintComplete}
       />
 
@@ -1859,7 +1825,7 @@ export default function GuiaForm({
                 </Label>
                 <Select
                   value={newContactData.id_departamento}
-                  onChange={(value) => handleNewContactSelectChange("id_departamento", value)}
+                  onValueChange={(value) => handleNewContactSelectChange("id_departamento", value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione departamento" />

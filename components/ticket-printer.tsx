@@ -2,12 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { Printer } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 // Tipo para los datos del ticket
 interface TicketData {
-  ticketNumber: number // Este será el código del animal (antiguo ticket)
-  ticket2?: number // Este será el número de báscula
+  ticketNumber: number
   fecha: string
   duenioAnterior: string
   cedulaDuenio: string
@@ -18,23 +18,44 @@ interface TicketData {
   color: string
   genero: string
   valor?: number
+  ticket2?: number // Añadimos el campo ticket2
 }
 
 // Propiedades del componente
 interface TicketPrinterProps {
   ticketData: TicketData
+  buttonLabel?: string
+  buttonVariant?: "default" | "outline" | "ghost"
+  buttonSize?: "default" | "sm" | "lg" | "icon"
 }
 
-export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
-  const [isPrinting, setIsPrinting] = useState(false)
+// Modifica el componente TicketPrinter para manejar mejor los casos donde ticket2 podría ser undefined, null o NaN
+export default function TicketPrinter({
+  ticketData,
+  buttonLabel = "",
+  buttonVariant = "ghost",
+  buttonSize = "icon",
+}: TicketPrinterProps) {
+  const [showPreview, setShowPreview] = useState(false)
+  const [displayTicket2, setDisplayTicket2] = useState<string | number>("")
+
+  useEffect(() => {
+    // Asegúrate de que ticket2 sea un valor válido
+    const ticket2Value = ticketData.ticket2
+    if (ticket2Value !== undefined && ticket2Value !== null && !isNaN(Number(ticket2Value))) {
+      setDisplayTicket2(ticket2Value)
+    } else {
+      // Si ticket2 no es válido, usa el código del animal como respaldo
+      setDisplayTicket2(ticketData.ticketNumber || "")
+      console.log("Usando código del animal como respaldo para ticket2:", ticketData.ticketNumber)
+    }
+  }, [ticketData.ticket2, ticketData.ticketNumber])
 
   // URL correcta del logo
   const logoUrl = "https://i.postimg.cc/J7kB03bd/LOGO-SAG.png"
 
-  // Función para imprimir el ticket
+  // Función para imprimir el ticket directamente
   const printTicket = () => {
-    setIsPrinting(true)
-
     // Crear un iframe oculto para la impresión
     const printFrame = document.createElement("iframe")
     printFrame.style.position = "fixed"
@@ -54,7 +75,7 @@ export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Ticket #${ticketData.ticket2 || ticketData.ticketNumber}</title>
+            <title>Ticket #${displayTicket2}</title>
             <style>
               body {
                 font-family: 'Courier New', monospace;
@@ -126,7 +147,7 @@ export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
               
               <div class="flex-row">
                 <span class="label">T.BASCULULA:</span>
-                <span>Nº ${ticketData.ticket2 || ticketData.ticketNumber}</span>
+                <span>Nº ${displayTicket2}</span>
                 <span class="label">VALOR:</span>
                 <span>$${formatCurrency(ticketData.valor || 6000)}</span>
               </div>
@@ -186,23 +207,14 @@ export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
         try {
           printFrame.contentWindow?.focus()
           printFrame.contentWindow?.print()
-
-          // Esperar a que se complete la impresión
-          const checkPrintingComplete = () => {
-            if (printFrame.contentWindow?.document.readyState === "complete") {
-              // Eliminar el iframe
-              document.body.removeChild(printFrame)
-              setIsPrinting(false)
-            } else {
-              setTimeout(checkPrintingComplete, 100)
-            }
-          }
-
-          checkPrintingComplete()
         } catch (error) {
           console.error("Error al imprimir:", error)
-          setIsPrinting(false)
         }
+
+        // Eliminar el iframe después de imprimir
+        setTimeout(() => {
+          document.body.removeChild(printFrame)
+        }, 1000)
       }, 500)
     }
   }
@@ -218,8 +230,93 @@ export default function TicketPrinter({ ticketData }: TicketPrinterProps) {
   }
 
   return (
-    <Button variant="ghost" size="icon" onClick={printTicket} disabled={isPrinting} title="Imprimir ticket">
-      <Printer className="h-4 w-4" />
-    </Button>
+    <>
+      <Button variant={buttonVariant} size={buttonSize} onClick={() => setShowPreview(true)} title="Imprimir ticket">
+        <Printer className="h-4 w-4" />
+        {buttonLabel}
+      </Button>
+
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Vista previa del Ticket #{displayTicket2}</DialogTitle>
+          </DialogHeader>
+
+          <div className="bg-white p-4 rounded-lg border" style={{ width: "80mm", margin: "0 auto" }}>
+            <div className="text-center mb-2">
+              <img src={logoUrl || "/placeholder.svg"} alt="Logo" className="w-full h-auto mx-auto mb-1" />
+            </div>
+            <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+            <div className="text-center mb-1">
+              <span className="text-xs">Nº </span>
+              <span className="text-sm font-bold">
+                {displayTicket2 !== undefined && displayTicket2 !== null && displayTicket2 !== ""
+                  ? displayTicket2
+                  : "Sin número"}
+              </span>
+            </div>
+
+            <div className="flex justify-between text-xs">
+              <div>
+                <span className="font-bold">T.BASCULULA:</span> Nº {displayTicket2}
+              </div>
+              <div>
+                <span className="font-bold">VALOR:</span> ${formatCurrency(ticketData.valor || 6000)}
+              </div>
+            </div>
+
+            <div className="text-xs">
+              <span className="font-bold">FECHA:</span> {ticketData.fecha}
+            </div>
+
+            <div className="text-xs">
+              <span className="font-bold">USUARIO:</span> {ticketData.duenioAnterior}
+            </div>
+
+            <div className="text-xs">
+              <span className="font-bold">CC/NIT:</span> {ticketData.cedulaDuenio}
+            </div>
+
+            <div className="flex justify-between text-xs">
+              <span className="font-bold">{ticketData.tipoAnimal.toUpperCase()}</span>
+              <div>
+                <span className="font-bold">COD:</span> {ticketData.ticketNumber}
+              </div>
+              <div>
+                <span className="font-bold">PESO:</span> {ticketData.pesoKg.toFixed(2)} kg
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-gray-400 my-2"></div>
+
+            <div className="flex justify-between text-xs">
+              <div className="text-center w-1/3">
+                <div className="font-bold">RAZA</div>
+                <div>{ticketData.raza}</div>
+              </div>
+              <div className="text-center w-1/3">
+                <div className="font-bold">COLOR</div>
+                <div>{ticketData.color}</div>
+              </div>
+              <div className="text-center w-1/3">
+                <div className="font-bold">GENERO</div>
+                <div>{ticketData.genero}</div>
+              </div>
+            </div>
+
+            <div className="border-t border-dashed border-gray-400 my-2"></div>
+            <div className="text-center text-[10px]">Sistema de Gestión de Bovinos y Porcinos</div>
+          </div>
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowPreview(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={printTicket}>Imprimir</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
