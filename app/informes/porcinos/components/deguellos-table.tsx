@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatDateDMY } from "@/lib/date-utils"
 import { formatCurrency } from "@/lib/utils"
 
 // Interfaz para los datos de degüello
@@ -33,7 +32,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
     (item) =>
       item.numeroGuia.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.propietario && item.propietario.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      formatDateDMY(item.fecha).includes(searchTerm),
+      (typeof item.fecha === "string" && item.fecha.includes(searchTerm)),
   )
 
   // Calcular totales
@@ -97,7 +96,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
               <>
                 {filteredData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{formatDateDMY(item.fecha)}</TableCell>
+                    <TableCell>{typeof item.fecha === "string" ? item.fecha : "Fecha inválida"}</TableCell>
                     <TableCell>{item.numeroGuia}</TableCell>
                     <TableCell>{item.propietario}</TableCell>
                     <TableCell className="text-right">{item.cantidadTotal}</TableCell>

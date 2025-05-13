@@ -2,6 +2,7 @@
 
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
+import { processObjectDates } from "@/lib/date-interceptor"
 
 // Interfaz para los datos de guías ICA
 export interface GuiaIcaItem {
@@ -56,7 +57,7 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
     const result = await sql.query(query, params)
 
     // Mapear los resultados a la interfaz GuiaIcaItem
-    return result.rows.map((row) => ({
+    const mappedResults = result.rows.map((row) => ({
       id: row.id,
       fecha: row.fecha_documento,
       numeroGuia: row.numero_guia || "",
@@ -67,6 +68,9 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
       cantidadMachos: Number(row.cantidad_machos) || 0,
       cantidadHembras: Number(row.cantidad_hembras) || 0,
     }))
+
+    // Procesar las fechas en los resultados
+    return processObjectDates(mappedResults)
   } catch (error) {
     console.error("Error al obtener guías ICA:", error)
     return []
@@ -130,7 +134,7 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
     const result = await sql.query(query, params)
 
     // Mapear los resultados a la interfaz DeguelloItem
-    return result.rows.map((row) => ({
+    const mappedResults = result.rows.map((row) => ({
       id: row.id,
       fecha: row.fecha_documento,
       numeroGuia: row.numero_guia || "",
@@ -143,6 +147,9 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
       valorMatadero: Number(row.valor_matadero) || 0,
       total: Number(row.total) || 0,
     }))
+
+    // Procesar las fechas en los resultados
+    return processObjectDates(mappedResults)
   } catch (error) {
     console.error("Error al obtener degüellos:", error)
     return []
