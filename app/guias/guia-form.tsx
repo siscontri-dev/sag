@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, useRef } from "react"
-import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,10 +45,22 @@ export default function GuiaForm({
     ubication_contact_id: guia?.ubication_contact_id,
   })
 
+  // Depurar contactos disponibles
+  console.log(
+    "Contactos disponibles:",
+    contacts.map((c) => ({
+      id: c.id,
+      nombre: `${c.primer_nombre} ${c.primer_apellido}`,
+      nit: c.nit,
+      business_location_id: c.business_location_id,
+    })),
+  )
+
   const { toast } = useToast()
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const ticketInputRef = useRef(null)
+  const hasSubmittedRef = useRef(false)
 
   // Estado para validación de campos
   const [validationAttempted, setValidationAttempted] = useState(false)
@@ -64,15 +75,22 @@ export default function GuiaForm({
   // Estado para el diálogo de impresión de tickets
   const [showPrintDialog, setShowPrintDialog] = useState(false)
   const [ticketsToPrint, setTicketsToPrint] = useState([])
+  const [savedTransactionId, setSavedTransactionId] = useState(null)
 
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
+  // Obtener la fecha actual en la zona horaria local (Bogotá/Lima)
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, "0")
+  const day = String(today.getDate()).padStart(2, "0")
+  const formattedDate = `${year}-${month}-${day}`
+
+  // Inicializar el formulario con la fecha actual
   const [formData, setFormData] = useState({
     numero_documento: guia?.numero_documento || "",
-    fecha_documento: guia?.fecha_documento
-      ? new Date(guia.fecha_documento).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
+    fecha_documento: guia?.fecha_documento ? new Date(guia.fecha_documento).toISOString().split("T")[0] : formattedDate,
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     business_location_id: locationId.toString(),
     estado: guia?.estado || "confirmado",
@@ -140,9 +158,9 @@ export default function GuiaForm({
     guia?.transaction_lines?.map((line) => ({
       ...line,
       product_name: products.find((p) => p.id === line.product_id)?.name || `Producto #${line.product_id}`,
-      raza_name: razas.find((r) => r.id === line.raza_id)?.nombre || "N/A",
-      color_name: colores.find((c) => c.id === line.color_id)?.nombre || "N/A",
-      es_macho: line.es_macho || false,
+      raza_name: razas.find((r) => r.id === line.raza_id)?.name || "N/A",
+      color_name: colores.find((c) => c.id === line.color_id)?.name || "N/A",
+      es_macho: line.genero_id === 1, // Establecer es_macho basado en genero_id (1 = macho, 2 = hembra)
     })) || [],
   )
 
@@ -169,6 +187,9 @@ export default function GuiaForm({
 
   // Estado para generar ticket
   const [isGeneratingTicket, setIsGeneratingTicket] = useState(false)
+
+  // Estado para controlar si hay cambios sin guardar
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Inicializar el nombre del propietario si estamos editando
   useEffect(() => {
@@ -697,10 +718,12 @@ export default function GuiaForm({
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setHasUnsavedChanges(true)
   }
 
   const handleSelectChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setHasUnsavedChanges(true)
   }
 
   const handleLineaChange = (e) => {
@@ -759,6 +782,52 @@ export default function GuiaForm({
     return !Object.values(errors).some((error) => error)
   }
 
+  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
+  const [ticketButtonDisabled, setTicketButtonDisabled] = useState(false)
+
+  // Modificar la función generateTicket para bloquear el botón after usarlo
+  const handleGenerateTicket = async () => {
+    try {
+      setIsGeneratingTicket(true)
+      // Obtener el ID de ubicación del formulario
+      const locationId = Number(formData.business_location_id)
+
+      const response = await fetch(`/api/tickets/next/${locationId}`)
+
+      if (!response.ok) {
+        throw new Error("Error al generar el ticket")
+      }
+
+      const data = await response.json()
+      console.log("Ticket generado en guía:", data)
+
+      // Actualizar el campo de ticket en la nueva línea
+      setNuevaLinea((prev) => ({
+        ...prev,
+        ticket: data.ticket.toString(),
+      }))
+
+      // Bloquear el botón después de usarlo
+      setTicketButtonDisabled(true)
+
+      toast({
+        title: "Ticket generado",
+        description: `Ticket #${data.ticket} generado correctamente`,
+      })
+    } catch (error) {
+      console.error("Error al generar ticket:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingTicket(false)
+    }
+  }
+
+  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
+  // Modificar la función handleAddLinea para incluir el género
   const handleAddLinea = () => {
     // Validar datos requeridos
     if (!validateLineaFields()) {
@@ -786,20 +855,32 @@ export default function GuiaForm({
     const raza = razas.find((r) => r.id.toString() === nuevaLinea.raza_id)
     const color = colores.find((c) => c.id.toString() === nuevaLinea.color_id)
 
+    // Determinar el género basado en es_macho (1 para macho, 2 para hembra)
+    const generoId = nuevaLinea.es_macho ? 1 : 2
+    const generoNombre = nuevaLinea.es_macho ? "MACHO" : "HEMBRA"
+
+    console.log(`Agregando línea con genero_id: ${generoId}, genero_nombre: ${generoNombre}`)
+
     // Añadir la nueva línea al estado
     const newLinea = {
       ...nuevaLinea,
       id: `temp-${Date.now()}`, // ID temporal para identificar en el frontend
       product_name: product?.name || "Producto",
-      raza_name: raza?.nombre || "Raza",
-      color_name: color?.nombre || "Color",
+      raza_name: raza?.name || "Raza",
+      color_name: color?.name || "Color",
       price_ticket: precioTicket,
       quantity: Number.parseFloat(nuevaLinea.kilos), // Para mantener compatibilidad con el modelo existente
       valor: precioTicket, // Usar solo el precio del ticket como valor, no multiplicar por kilos
       es_nueva: true,
+      genero_id: generoId, // Agregar el ID del género (1 para macho, 2 para hembra)
+      genero_nombre: generoNombre, // Agregar el nombre del género (MACHO o HEMBRA)
     }
 
     setLineas([...lineas, newLinea])
+    setHasUnsavedChanges(true)
+
+    // Resetear el estado del botón "A" cuando se añade una línea
+    setTicketButtonDisabled(false)
 
     // Limpiar el formulario de nueva línea, manteniendo los valores predeterminados para porcinos
     // e incrementando automáticamente el número de ticket
@@ -810,14 +891,6 @@ export default function GuiaForm({
       kilos: "",
       raza_id: tipoAnimal === "porcino" ? "1" : "",
       color_id: tipoAnimal === "porcino" ? "6" : "",
-      es_macho: false,
-    })
-
-    // Resetear la validación
-    setValidationAttempted(false)
-    setValidationErrors({
-      ticket: false,
-      product_id: false,
       es_macho: false,
     })
 
@@ -843,6 +916,7 @@ export default function GuiaForm({
     const nuevasLineas = [...lineas]
     nuevasLineas.splice(index, 1)
     setLineas(nuevasLineas)
+    setHasUnsavedChanges(true)
   }
 
   // Calcular totales
@@ -875,84 +949,145 @@ export default function GuiaForm({
 
   const totales = calcularTotales()
 
-  const generateTicket = async () => {
+  // Estado para generar ticket
+  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
+  // Modificar la función generateTicket para bloquear el botón after usarlo
+
+  // Modificar el botón para usar el nuevo estado ticketButtonDisabled
+  // Buscar el botón que tiene onClick={generateTicket} y modificarlo así:
+
+  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
+
+  // Función para obtener los datos actualizados de los tickets desde la base de datos
+  const fetchUpdatedTicketData = async (transactionId) => {
     try {
-      setIsGeneratingTicket(true)
-      // Obtener el ID de ubicación del formulario
-      const locationId = Number(formData.business_location_id)
-
-      const response = await fetch(`/api/tickets/next/${locationId}`)
-
+      const response = await fetch(`/api/tickets/get-by-transaction/${transactionId}`)
       if (!response.ok) {
-        throw new Error("Error al generar el ticket")
+        throw new Error(`Error al obtener datos: ${response.status}`)
       }
 
       const data = await response.json()
-      console.log("Ticket generado en guía:", data)
-
-      // Actualizar el campo de ticket en la nueva línea
-      setNuevaLinea((prev) => ({
-        ...prev,
-        ticket: data.ticket.toString(),
-      }))
-
-      toast({
-        title: "Ticket generado",
-        description: `Ticket #${data.ticket} generado correctamente`,
-      })
+      if (data.success && data.tickets && data.tickets.length > 0) {
+        console.log("Datos de tickets obtenidos de la base de datos:", data.tickets)
+        return data.tickets
+      } else {
+        throw new Error("No se encontraron tickets para esta transacción")
+      }
     } catch (error) {
-      console.error("Error al generar ticket:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
-        variant: "destructive",
-      })
-    } finally {
-      setIsGeneratingTicket(false)
+      console.error("Error al obtener datos de tickets:", error)
+      return null
     }
   }
 
-  // Función para preparar los tickets para imprimir
-  const prepareTicketsForPrinting = () => {
+  // Reemplazar la función prepareTicketsForPrinting con esta versión mejorada
+
+  const prepareTicketsForPrinting = async (transactionId) => {
     // Obtener el dueño anterior
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
 
-    // Crear un array de datos de tickets a partir de las líneas
-    const tickets = lineas.map((linea) => {
-      // Asegurarse de que ticket2 sea un número válido
-      let ticket2Value = linea.ticket2
+    try {
+      // Intentar obtener los datos actualizados de los tickets desde la base de datos
+      console.log("Obteniendo datos actualizados para transacción:", transactionId)
+      const response = await fetch(`/api/tickets/get-by-transaction/${transactionId}`)
 
-      // Si ticket2 no existe o no es un número válido, usar el mismo valor que ticket
-      if (ticket2Value === undefined || ticket2Value === null || isNaN(Number(ticket2Value))) {
-        ticket2Value = linea.ticket
-        console.log(`Usando ticket (${linea.ticket}) como respaldo para ticket2`)
+      if (!response.ok) {
+        throw new Error(`Error al obtener datos: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      if (data.success && data.tickets && data.tickets.length > 0) {
+        console.log("Datos actualizados de tickets:", data.tickets)
+
+        // Mapear los datos actualizados al formato que espera el componente
+        return data.tickets.map((ticket) => {
+          // Asegurarnos de que ticket2 sea un número
+          const ticket2Value =
+            ticket.ticket2 !== undefined && ticket.ticket2 !== null ? Number(ticket.ticket2) : Number(ticket.ticket) // Si no hay ticket2, usar ticket como respaldo
+
+          // Determinar el género basado en genero_id si genero_nombre no está disponible
+          let generoNombre = ticket.genero_nombre
+          if (!generoNombre) {
+            // Si genero_id es 1, es MACHO; si es 2, es HEMBRA; de lo contrario, N/A
+            generoNombre = ticket.genero_id === 1 ? "MACHO" : ticket.genero_id === 2 ? "HEMBRA" : "N/A"
+          }
+
+          console.log(
+            `Ticket #${ticket.ticket} - T.BASCULA: ${ticket2Value} - Género ID: ${ticket.genero_id} - Género: ${generoNombre}`,
+          )
+
+          return {
+            ticketNumber: Number(ticket.ticket),
+            ticket2: ticket2Value,
+            transaction_id: ticket.transaction_id,
+            fecha: new Date().toLocaleString("es-CO"),
+            duenioAnterior: duenioAnterior
+              ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}`
+              : "N/A",
+            cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+            tipoAnimal: ticket.product_name || tipoAnimal,
+            sku: ticket.product_id?.toString() || "",
+            pesoKg: Number(ticket.quantity || 0),
+            raza: ticket.raza_nombre || "N/A",
+            color: ticket.color_nombre || "N/A",
+            genero: generoNombre,
+            valor: ticket.valor || 6000,
+          }
+        })
       } else {
-        console.log(`Usando ticket2 existente: ${ticket2Value}`)
+        throw new Error("No se encontraron tickets para esta transacción")
       }
+    } catch (error) {
+      console.error("Error al obtener datos actualizados:", error)
 
-      return {
-        ticketNumber: Number(linea.ticket), // Código del animal (ticket)
-        ticket2: Number(ticket2Value), // Número de báscula (ticket2)
-        fecha: new Date().toLocaleString("es-CO"),
-        duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
-        cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
-        tipoAnimal: tipoAnimal,
-        sku: linea.product_name || `Producto #${linea.product_id}`,
-        pesoKg: Number(linea.quantity || linea.kilos || 0),
-        raza: linea.raza_name || "N/A",
-        color: linea.color_name || "N/A",
-        genero: linea.es_macho ? "MACHO" : "HEMBRA",
-        valor: linea.valor || 6000,
-      }
-    })
+      // Si no se pudieron obtener datos actualizados, usar los datos del estado
+      return lineas.map((linea) => {
+        // Asegurarnos de que ticket2 tenga un valor
+        const ticket2Value = linea.ticket2 !== undefined ? linea.ticket2 : Number(linea.ticket)
 
-    return tickets
+        // Determinar el género basado en es_macho
+        const generoNombre = linea.es_macho ? "MACHO" : "HEMBRA"
+
+        return {
+          ticketNumber: Number(linea.ticket),
+          ticket2: ticket2Value,
+          transaction_id: transactionId,
+          fecha: new Date().toLocaleString("es-CO"),
+          duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
+          cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+          tipoAnimal: tipoAnimal,
+          sku: linea.product_name || `Producto #${linea.product_id}`,
+          pesoKg: Number(linea.quantity || linea.kilos || 0),
+          raza: linea.raza_name || "N/A",
+          color: linea.color_name || "N/A",
+          genero: generoNombre,
+          valor: linea.valor || 6000,
+        }
+      })
+    }
   }
 
   // Modificar la función handleSubmit para usar los valores de ticket2 devueltos por el servidor
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Evitar múltiples envíos
+    if (isSubmitting || hasSubmittedRef.current) {
+      return
+    }
+
+    // Validar que se haya seleccionado un propietario
+    if (!formData.id_dueno_anterior) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un propietario",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSubmitting(true)
+    hasSubmittedRef.current = true
 
     try {
       // Calcular totales de machos y hembras
@@ -964,7 +1099,7 @@ export default function GuiaForm({
       const dataToSend = {
         ...formData,
         business_location_id: Number(formData.business_location_id),
-        id_dueno_anterior: Number(formData.id_dueno_anterior),
+        id_dueno_anterior: formData.id_dueno_anterior ? Number(formData.id_dueno_anterior) : null,
         id_dueno_nuevo: null, // Ya no se usa
         total: totales.totalValor,
         estado: formData.estado || "confirmado",
@@ -975,17 +1110,43 @@ export default function GuiaForm({
         quantity_k: totalKilos, // Total de kilos
         ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
         ubication_contact_id2: null, // Ya no se usa
-        lineas: lineas.map((linea) => ({
-          ticket: Number(linea.ticket),
-          product_id: Number(linea.product_id),
-          quantity: Number(linea.kilos || linea.quantity),
-          // Asegurar que raza_id y color_id sean valores válidos
-          raza_id: Number(linea.raza_id) || (tipoAnimal === "porcino" ? 1 : null),
-          color_id: Number(linea.color_id) || (tipoAnimal === "porcino" ? 6 : null),
-          valor: Number(linea.valor),
-          // No incluimos es_macho ya que no existe en la tabla
-        })),
+        lineas: lineas.map((linea) => {
+          // Asegurarnos de que genero_id esté definido correctamente basado en es_macho
+          const generoId = linea.es_macho ? 1 : 2
+
+          console.log(`Enviando línea con ticket: ${linea.ticket}, genero_id: ${generoId}, es_macho: ${linea.es_macho}`)
+
+          return {
+            ticket: Number(linea.ticket),
+            product_id: Number(linea.product_id),
+            quantity: Number(linea.kilos || linea.quantity),
+            // Asegurar que raza_id y color_id sean valores válidos
+            raza_id: Number(linea.raza_id) || (tipoAnimal === "porcino" ? 1 : null),
+            color_id: Number(linea.color_id) || (tipoAnimal === "porcino" ? 6 : null),
+            valor: Number(linea.valor),
+            // Establecer genero_id basado en es_macho (1 para macho, 2 para hembra)
+            genero_id: generoId,
+          }
+        }),
       }
+
+      // Agregar validación para asegurarnos de que id_dueno_anterior sea válido
+      if (!dataToSend.id_dueno_anterior) {
+        toast({
+          title: "Error",
+          description: "Debe seleccionar un propietario válido",
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        hasSubmittedRef.current = false
+        return
+      }
+
+      console.log("Datos a enviar:", {
+        id_dueno_anterior: dataToSend.id_dueno_anterior,
+        business_location_id: dataToSend.business_location_id,
+        ubication_contact_id: dataToSend.ubication_contact_id,
+      })
 
       let result
 
@@ -1002,37 +1163,23 @@ export default function GuiaForm({
           description: guia ? "Guía actualizada correctamente" : "Guía creada correctamente",
         })
 
-        // Actualizar las líneas con los valores de ticket2 devueltos por el servidor
-        if (result.lines && result.lines.length > 0) {
-          console.log("Líneas devueltas por el servidor:", result.lines)
+        // Guardar el ID de la transacción para usarlo en la impresión
+        const transactionId = result.transactionId || guia?.id
+        setSavedTransactionId(transactionId)
 
-          const updatedLineas = lineas.map((linea, index) => {
-            if (index < result.lines.length) {
-              const serverLine = result.lines[index]
-              console.log(`Línea ${index}: ticket=${linea.ticket}, ticket2 del servidor=${serverLine.ticket2}`)
-
-              return {
-                ...linea,
-                ticket2:
-                  serverLine.ticket2 !== undefined && serverLine.ticket2 !== null
-                    ? Number(serverLine.ticket2)
-                    : Number(linea.ticket),
-              }
-            }
-            return linea
-          })
-
-          setLineas(updatedLineas)
-        } else {
-          console.warn("No se recibieron líneas del servidor o el array está vacío")
-        }
-
-        // Preparar los tickets para imprimir
-        const tickets = prepareTicketsForPrinting()
+        // Preparar los tickets para imprimir con datos actualizados de la base de datos
+        const tickets = await prepareTicketsForPrinting(transactionId)
         setTicketsToPrint(tickets)
 
         // Mostrar el diálogo de impresión
         setShowPrintDialog(true)
+
+        // Importante: Redirigir inmediatamente después de guardar
+        // Esto asegura que los cambios se guarden antes de salir
+        router.push("/guias")
+
+        setIsSubmitting(false)
+        setHasUnsavedChanges(false)
       } else {
         throw new Error(result.message || "Error al guardar la guía")
       }
@@ -1044,13 +1191,14 @@ export default function GuiaForm({
         variant: "destructive",
       })
       setIsSubmitting(false)
+      hasSubmittedRef.current = false
     }
   }
 
   // Función para manejar la finalización de la impresión
   const handlePrintComplete = () => {
-    // Redirigir a la página de guías
-    router.push("/guias")
+    // Ya no necesitamos redirigir aquí, ya que redirigimos inmediatamente después de guardar
+    console.log("Impresión completada")
   }
 
   // Manejar tecla Enter para agregar línea
@@ -1062,14 +1210,50 @@ export default function GuiaForm({
   }
 
   // Función para imprimir tickets sin guardar la guía
-  const printTicketsOnly = () => {
-    // Preparar los tickets para imprimir
-    const tickets = prepareTicketsForPrinting()
-    setTicketsToPrint(tickets)
+  const printTicketsOnly = async () => {
+    // Si ya tenemos un ID de transacción guardado, usarlo para obtener datos actualizados
+    if (savedTransactionId) {
+      const tickets = await prepareTicketsForPrinting(savedTransactionId)
+      setTicketsToPrint(tickets)
+    } else {
+      // Si no hay ID de transacción, usar los datos del estado
+      const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
+      const tickets = lineas.map((linea) => ({
+        ticketNumber: Number(linea.ticket),
+        ticket2: Number(linea.ticket2 || linea.ticket), // Usar ticket como respaldo si ticket2 no existe
+        fecha: new Date().toLocaleString("es-CO"),
+        duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
+        cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+        tipoAnimal: tipoAnimal,
+        sku: linea.product_name || `Producto #${linea.product_id}`,
+        pesoKg: Number(linea.quantity || linea.kilos || 0),
+        raza: linea.raza_name || "N/A",
+        color: linea.color_name || "N/A",
+        genero: linea.es_macho ? "MACHO" : "HEMBRA",
+        valor: linea.valor || 6000,
+      }))
+      setTicketsToPrint(tickets)
+    }
 
     // Mostrar el diálogo de impresión
     setShowPrintDialog(true)
   }
+
+  // Efecto para confirmar antes de salir si hay cambios sin guardar
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault()
+        e.returnValue = "Hay cambios sin guardar. ¿Seguro que deseas salir?"
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [hasUnsavedChanges])
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -1099,13 +1283,13 @@ export default function GuiaForm({
             Fecha
           </Label>
           <Input
+            type="date"
             id="fecha_documento"
             name="fecha_documento"
-            type="date"
             value={formData.fecha_documento}
             onChange={handleChange}
-            required
             className="h-8"
+            required
           />
         </div>
         <div className="space-y-1">
@@ -1209,6 +1393,7 @@ export default function GuiaForm({
                         index === selectedIndexAnterior ? "bg-gray-100" : ""
                       }`}
                       onClick={() => {
+                        console.log("Contacto seleccionado:", contacto)
                         setFormData((prev) => ({ ...prev, id_dueno_anterior: contacto.id.toString() }))
                         setSearchDuenoAnterior(
                           `${contacto.primer_nombre} ${contacto.primer_apellido} - ${contacto.nit}`,
@@ -1342,8 +1527,9 @@ export default function GuiaForm({
                         </Button>
                         <TicketPrinter
                           ticketData={{
-                            ticketNumber: Number(linea.ticket),
-                            ticket2: Number(linea.ticket2 || 0),
+                            ticketNumber: linea.ticket,
+                            ticket2: linea.ticket2,
+                            transaction_id: savedTransactionId || guia?.id,
                             fecha: new Date().toLocaleString("es-CO"),
                             duenioAnterior:
                               contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)?.primer_nombre +
@@ -1381,8 +1567,8 @@ export default function GuiaForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={generateTicket}
-                        disabled={isGeneratingTicket}
+                        onClick={handleGenerateTicket}
+                        disabled={isGeneratingTicket || ticketButtonDisabled}
                         className="whitespace-nowrap px-2"
                       >
                         {isGeneratingTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : "A"}
@@ -1434,7 +1620,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {razas.map((raza) => (
                           <SelectItem key={raza.id} value={raza.id.toString()}>
-                            {raza.nombre}
+                            {raza.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1453,7 +1639,7 @@ export default function GuiaForm({
                       <SelectContent>
                         {colores.map((color) => (
                           <SelectItem key={color.id} value={color.id.toString()}>
-                            {color.nombre}
+                            {color.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1533,8 +1719,20 @@ export default function GuiaForm({
         </Button>
 
         <div className="flex gap-2">
-          <Button variant="outline" type="button" asChild>
-            <Link href="/guias">Cancelar</Link>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                if (window.confirm("Hay cambios sin guardar. ¿Seguro que deseas salir?")) {
+                  router.push("/guias")
+                }
+              } else {
+                router.push("/guias")
+              }
+            }}
+          >
+            Cancelar
           </Button>
           <Button
             type="submit"
@@ -1550,7 +1748,10 @@ export default function GuiaForm({
       <BulkTicketPrinter
         tickets={ticketsToPrint}
         open={showPrintDialog}
-        onOpenChange={setShowPrintDialog}
+        onOpenChange={(open) => {
+          setShowPrintDialog(open)
+          // Ya no llamamos a handlePrintComplete aquí
+        }}
         onComplete={handlePrintComplete}
       />
 
