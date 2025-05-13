@@ -759,51 +759,6 @@ export default function GuiaForm({
     return !Object.values(errors).some((error) => error)
   }
 
-  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
-  const [ticketButtonDisabled, setTicketButtonDisabled] = useState(false)
-
-  // Modificar la función generateTicket para bloquear el botón after usarlo
-  const handleGenerateTicket = async () => {
-    try {
-      setIsGeneratingTicket(true)
-      // Obtener el ID de ubicación del formulario
-      const locationId = Number(formData.business_location_id)
-
-      const response = await fetch(`/api/tickets/next/${locationId}`)
-
-      if (!response.ok) {
-        throw new Error("Error al generar el ticket")
-      }
-
-      const data = await response.json()
-      console.log("Ticket generado en guía:", data)
-
-      // Actualizar el campo de ticket en la nueva línea
-      setNuevaLinea((prev) => ({
-        ...prev,
-        ticket: data.ticket.toString(),
-      }))
-
-      // Bloquear el botón after usarlo
-      setTicketButtonDisabled(true)
-
-      toast({
-        title: "Ticket generado",
-        description: `Ticket #${data.ticket} generado correctamente`,
-      })
-    } catch (error) {
-      console.error("Error al generar ticket:", error)
-      toast({
-        title: "Error",
-        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
-        variant: "destructive",
-      })
-    } finally {
-      setIsGeneratingTicket(false)
-    }
-  }
-
-  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
   const handleAddLinea = () => {
     // Validar datos requeridos
     if (!validateLineaFields()) {
@@ -845,9 +800,6 @@ export default function GuiaForm({
     }
 
     setLineas([...lineas, newLinea])
-
-    // Resetear el estado del botón "A" cuando se añade una línea
-    setTicketButtonDisabled(false)
 
     // Limpiar el formulario de nueva línea, manteniendo los valores predeterminados para porcinos
     // e incrementando automáticamente el número de ticket
@@ -923,15 +875,44 @@ export default function GuiaForm({
 
   const totales = calcularTotales()
 
-  // Estado para generar ticket
-  // Primero, añadir un nuevo estado para controlar si el botón "A" está bloqueado
-  // Modificar la función generateTicket para bloquear el botón after usarlo
+  const generateTicket = async () => {
+    try {
+      setIsGeneratingTicket(true)
+      // Obtener el ID de ubicación del formulario
+      const locationId = Number(formData.business_location_id)
 
-  // Modificar el botón para usar el nuevo estado ticketButtonDisabled
-  // Buscar el botón que tiene onClick={generateTicket} y modificarlo así:
+      const response = await fetch(`/api/tickets/next/${locationId}`)
 
-  // Modificar la función handleAddLinea para resetear el estado del botón cuando se añade una línea
+      if (!response.ok) {
+        throw new Error("Error al generar el ticket")
+      }
 
+      const data = await response.json()
+      console.log("Ticket generado en guía:", data)
+
+      // Actualizar el campo de ticket en la nueva línea
+      setNuevaLinea((prev) => ({
+        ...prev,
+        ticket: data.ticket.toString(),
+      }))
+
+      toast({
+        title: "Ticket generado",
+        description: `Ticket #${data.ticket} generado correctamente`,
+      })
+    } catch (error) {
+      console.error("Error al generar ticket:", error)
+      toast({
+        title: "Error",
+        description: "No se pudo generar el ticket automáticamente: " + (error.message || "Error desconocido"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsGeneratingTicket(false)
+    }
+  }
+
+  // Función para preparar los tickets para imprimir
   const prepareTicketsForPrinting = () => {
     // Obtener el dueño anterior
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
@@ -1400,8 +1381,8 @@ export default function GuiaForm({
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={handleGenerateTicket}
-                        disabled={isGeneratingTicket || ticketButtonDisabled}
+                        onClick={generateTicket}
+                        disabled={isGeneratingTicket}
                         className="whitespace-nowrap px-2"
                       >
                         {isGeneratingTicket ? <Loader2 className="h-4 w-4 animate-spin" /> : "A"}

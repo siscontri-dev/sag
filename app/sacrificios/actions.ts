@@ -11,9 +11,9 @@ export async function createSacrificio(data) {
     const impuesto2 = data.impuestos && data.impuestos.length > 1 ? data.impuestos[1].valor_calculado : 0
     const impuesto3 = data.impuestos && data.impuestos.length > 2 ? data.impuestos[2].valor_calculado : 0
 
-    // Usar la fecha exacta del formulario sin modificarla
-    // Esto evita que se cambie al día siguiente
-    const fechaDocumento = data.fecha_documento
+    // Formatear la fecha para incluir la hora actual
+    const fechaCompleta = new Date(data.fecha_documento)
+    const fechaFormateada = fechaCompleta.toISOString()
 
     // Insertar la transacción principal
     const result = await sql`
@@ -45,7 +45,7 @@ export async function createSacrificio(data) {
         ${data.type},
         ${data.estado},
         ${data.numero_documento},
-        ${fechaDocumento},
+        ${fechaFormateada},
         ${data.id_dueno_anterior},
         ${data.id_dueno_nuevo || null},
         ${data.usuario_id},
@@ -84,9 +84,9 @@ export async function updateSacrificio(id, data) {
     const impuesto2 = data.impuestos && data.impuestos.length > 1 ? data.impuestos[1].valor_calculado : 0
     const impuesto3 = data.impuestos && data.impuestos.length > 2 ? data.impuestos[2].valor_calculado : 0
 
-    // Usar la fecha exacta del formulario sin modificarla
-    // Esto evita que se cambie al día siguiente
-    const fechaDocumento = data.fecha_documento
+    // Formatear la fecha para incluir la hora actual
+    const fechaCompleta = new Date(data.fecha_documento)
+    const fechaFormateada = fechaCompleta.toISOString()
 
     // Actualizar la transacción principal
     await sql`
@@ -94,7 +94,7 @@ export async function updateSacrificio(id, data) {
         business_location_id = ${data.business_location_id},
         estado = ${data.estado},
         numero_documento = ${data.numero_documento},
-        fecha_documento = ${fechaDocumento},
+        fecha_documento = ${fechaFormateada},
         id_dueno_anterior = ${data.id_dueno_anterior},
         id_dueno_nuevo = ${data.id_dueno_nuevo || null},
         total = ${data.total},
