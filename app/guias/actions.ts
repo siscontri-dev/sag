@@ -40,10 +40,6 @@ export async function createGuia(data: GuiaData) {
     // Iniciar una transacción
     await sql`BEGIN`
 
-    // Formatear la fecha para incluir la hora actual
-    const fechaCompleta = new Date(data.fecha_documento)
-    const fechaFormateada = fechaCompleta.toISOString()
-
     // Insertar la transacción (encabezado de la guía)
     const transactionResult = await sql`
       INSERT INTO transactions (
@@ -62,7 +58,7 @@ export async function createGuia(data: GuiaData) {
         ubication_contact_id
       ) VALUES (
         ${data.numero_documento},
-        ${fechaFormateada},
+        ${data.fecha_documento},
         ${data.id_dueno_anterior},
         ${data.id_dueno_nuevo},
         ${data.business_location_id},
@@ -154,16 +150,12 @@ export async function updateGuia(id: number, data: GuiaData) {
     // Iniciar una transacción
     await sql`BEGIN`
 
-    // Formatear la fecha para incluir la hora actual
-    const fechaCompleta = new Date(data.fecha_documento)
-    const fechaFormateada = fechaCompleta.toISOString()
-
     // Actualizar la transacción (encabezado de la guía)
     await sql`
       UPDATE transactions 
       SET 
         numero_documento = ${data.numero_documento},
-        fecha_documento = ${fechaFormateada},
+        fecha_documento = ${data.fecha_documento},
         id_dueno_anterior = ${data.id_dueno_anterior},
         id_dueno_nuevo = ${data.id_dueno_nuevo},
         business_location_id = ${data.business_location_id},

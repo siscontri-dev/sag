@@ -55,6 +55,10 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
             <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium">Gestión de Bovinos</h3>
+                <p className="text-sm text-muted-foreground">Administra guías y sacrificios de bovinos</p>
+              </div>
               <img src="/images/vaca.png" alt="Bovino" className="h-16 w-16" />
             </div>
             <div className="space-y-3">
