@@ -133,7 +133,7 @@ export default function TicketPrinter({
               
               <div class="flex-row">
                 <span class="label">T.BASCULULA:</span>
-                <span>Nº ${ticketData.ticket2 || ticketData.ticketNumber}</span>
+                <span>Nº ${ticketData.ticket2}</span>
                 <span class="label">VALOR:</span>
                 <span>$${formatCurrency(ticketData.valor || 6000)}</span>
               </div>
@@ -236,7 +236,7 @@ export default function TicketPrinter({
 
             <div className="flex justify-between text-xs">
               <div>
-                <span className="font-bold">T.BASCULULA:</span> Nº {ticketData.ticket2 || ticketData.ticketNumber}
+                <span className="font-bold">T.BASCULULA:</span> Nº {ticketData.ticket2}
               </div>
               <div>
                 <span className="font-bold">VALOR:</span> ${formatCurrency(ticketData.valor || 6000)}

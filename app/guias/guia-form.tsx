@@ -880,20 +880,27 @@ export default function GuiaForm({
     const duenioAnterior = contacts.find((c) => c.id.toString() === formData.id_dueno_anterior)
 
     // Crear un array de datos de tickets a partir de las líneas
-    const tickets = lineas.map((linea) => ({
-      ticketNumber: Number(linea.ticket), // Código del animal
-      ticket2: Number(linea.ticket2 || 0), // Número de báscula
-      fecha: new Date().toLocaleString("es-CO"),
-      duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
-      cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
-      tipoAnimal: tipoAnimal,
-      sku: linea.product_name || `Producto #${linea.product_id}`,
-      pesoKg: Number(linea.quantity || linea.kilos || 0),
-      raza: linea.raza_name || "N/A",
-      color: linea.color_name || "N/A",
-      genero: linea.es_macho ? "MACHO" : "HEMBRA",
-      valor: linea.valor || 6000,
-    }))
+    const tickets = lineas.map((linea) => {
+      console.log("Preparando ticket para impresión:", {
+        ticket: linea.ticket, // Código del animal
+        ticket2: linea.ticket2, // Número de báscula
+      })
+
+      return {
+        ticketNumber: Number(linea.ticket), // Código del animal (ticket)
+        ticket2: Number(linea.ticket2), // Número de báscula (ticket2)
+        fecha: new Date().toLocaleString("es-CO"),
+        duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
+        cedulaDuenio: duenioAnterior ? duenioAnterior.nit : "N/A",
+        tipoAnimal: tipoAnimal,
+        sku: linea.product_name || `Producto #${linea.product_id}`,
+        pesoKg: Number(linea.quantity || linea.kilos || 0),
+        raza: linea.raza_name || "N/A",
+        color: linea.color_name || "N/A",
+        genero: linea.es_macho ? "MACHO" : "HEMBRA",
+        valor: linea.valor || 6000,
+      }
+    })
 
     return tickets
   }

@@ -417,9 +417,25 @@ export async function getTransactionById(id) {
 
     const transaction = transactionResult.rows[0]
 
-    // Obtener las líneas de la transacción
+    // Obtener las líneas de la transacción con selección explícita de ticket2
     const linesResult = await sql`
-      SELECT * FROM transaction_lines WHERE transaction_id = ${id}
+      SELECT 
+        id, 
+        transaction_id, 
+        product_id, 
+        quantity, 
+        ticket, 
+        ticket2, 
+        raza_id, 
+        color_id, 
+        valor,
+        quantity_m,
+        quantity_h,
+        es_macho
+      FROM 
+        transaction_lines 
+      WHERE 
+        transaction_id = ${id}
     `
 
     transaction.transaction_lines = linesResult.rows
