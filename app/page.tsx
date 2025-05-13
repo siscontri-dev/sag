@@ -5,7 +5,7 @@ import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from 
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 
-export const dynamic = "force-dynamic"
+// Modificar la función Home para manejar mejor los errores:
 
 export default async function Home() {
   let stats
@@ -41,157 +41,67 @@ export default async function Home() {
 
   return (
     <div className="space-y-6">
-      {/* Gestión de Bovinos y Porcinos (50% cada uno) */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-800">Dashboard</h1>
+      </div>
+
+      {/* Gestión de Bovinos y Porcinos (ahora arriba) */}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Gestión de Bovinos */}
         <Card className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
           <div className="h-2 bg-gradient-to-r from-blue-400 to-blue-600"></div>
           <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
-            <div className="flex items-center gap-3">
-              <img src="/images/vaca.png" alt="Bovino" className="h-10 w-10" />
-              <div>
-                <CardTitle className="text-blue-800">Gestión de Bovinos</CardTitle>
-                <CardDescription>Administración de ganado vacuno</CardDescription>
-              </div>
-            </div>
+            <CardTitle className="text-blue-800">Gestión de Bovinos</CardTitle>
+            <CardDescription>Administración de ganado vacuno</CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid gap-4">
-              {/* Sección ICA */}
-              <div className="border border-blue-300 rounded-lg p-3 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-sm">
-                <h3 className="text-md font-semibold text-cyan-700 mb-2 flex items-center">
-                  <FileText className="h-4 w-4 mr-1 text-cyan-600" />
-                  ICA
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-sm">
-                    <Link href="/guias/nueva?tipo=bovino">Nueva Guía</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-sm">
-                    <Link href="/guias?tipo=bovino">Listado</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-sm">
-                    <Link href="/informes?tipo=bovino&categoria=ica">Informes</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-sm">
-                    <Link href="/contactos?business_location_id=1">Contactos</Link>
-                  </Button>
-                </div>
+          <CardContent className="flex justify-between items-center p-6">
+            <div className="flex items-center justify-between">
+              <img src="/images/vaca.png" alt="Bovino" className="h-16 w-16" />
+            </div>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
+                  <Link href="/guias?tipo=bovino">Guías ICA</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
+                  <Link href="/sacrificios?tipo=bovino">Guías de Degüello</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-sm">
+                  <Link href="/contactos?business_location_id=1">Contactos</Link>
+                </Button>
               </div>
-
-              {/* Sección DEGUELLOS */}
-              <div className="border border-indigo-300 rounded-lg p-3 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm">
-                <h3 className="text-md font-semibold text-indigo-700 mb-2 flex items-center">
-                  <Truck className="h-4 w-4 mr-1 text-indigo-600" />
-                  DEGUELLOS
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/sacrificios/nuevo?tipo=bovino">Nueva Guía</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/sacrificios?tipo=bovino">Listado</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/informes?tipo=bovino&categoria=deguello">Informes</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/contactos?business_location_id=1">Contactos</Link>
-                  </Button>
-                </div>
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  Guías: {stats.guiasBovinos || 0} | Sacrificios: {stats.sacrificiosBovinos || 0}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Gestión de Porcinos */}
         <Card className="shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-          <div className="h-2 bg-gradient-to-r from-purple-400 to-purple-600"></div>
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
-            <div className="flex items-center gap-3">
-              <PiggyBank className="h-10 w-10 text-purple-500" />
-              <div>
-                <CardTitle className="text-purple-800">Gestión de Porcinos</CardTitle>
-                <CardDescription>Administración de ganado porcino</CardDescription>
-              </div>
-            </div>
+          <div className="h-2 bg-gradient-to-r from-amber-400 to-amber-600"></div>
+          <CardHeader className="bg-gradient-to-r from-amber-50 to-amber-100">
+            <CardTitle className="text-amber-800">Gestión de Porcinos</CardTitle>
+            <CardDescription>Administración de ganado porcino</CardDescription>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid gap-4">
-              {/* Sección ICA */}
-              <div className="border border-fuchsia-300 rounded-lg p-3 bg-gradient-to-r from-purple-50 to-fuchsia-50 shadow-sm">
-                <h3 className="text-md font-semibold text-fuchsia-700 mb-2 flex items-center">
-                  <FileText className="h-4 w-4 mr-1 text-fuchsia-600" />
-                  ICA
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/guias/nueva?tipo=porcino">Nueva Guía</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/guias?tipo=porcino">Listado</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/informes?tipo=porcino&categoria=ica">Informes</Link>
-                  </Button>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="bg-fuchsia-500 hover:bg-fuchsia-600 text-white rounded-full shadow-sm"
-                  >
-                    <Link href="/contactos?business_location_id=2">Contactos</Link>
-                  </Button>
-                </div>
+          <CardContent className="flex justify-between items-center p-6">
+            <PiggyBank className="w-16 h-16 text-amber-500" />
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">
+                  <Link href="/guias?tipo=porcino">Guías ICA</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">
+                  <Link href="/sacrificios?tipo=porcino">Guías de Degüello</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">
+                  <Link href="/contactos?business_location_id=2">Contactos</Link>
+                </Button>
               </div>
-
-              {/* Sección DEGUELLOS */}
-              <div className="border border-pink-300 rounded-lg p-3 bg-gradient-to-r from-purple-50 to-pink-50 shadow-sm">
-                <h3 className="text-md font-semibold text-pink-700 mb-2 flex items-center">
-                  <Truck className="h-4 w-4 mr-1 text-pink-600" />
-                  DEGUELLOS
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild size="sm" className="bg-pink-500 hover:bg-pink-600 text-white rounded-full shadow-sm">
-                    <Link href="/sacrificios/nuevo?tipo=porcino">Nueva Guía</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-pink-500 hover:bg-pink-600 text-white rounded-full shadow-sm">
-                    <Link href="/sacrificios?tipo=porcino">Listado</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-pink-500 hover:bg-pink-600 text-white rounded-full shadow-sm">
-                    <Link href="/informes?tipo=porcino&categoria=deguello">Informes</Link>
-                  </Button>
-                  <Button asChild size="sm" className="bg-pink-500 hover:bg-pink-600 text-white rounded-full shadow-sm">
-                    <Link href="/contactos?business_location_id=2">Contactos</Link>
-                  </Button>
-                </div>
+              <div className="text-sm text-muted-foreground">
+                <p>
+                  Guías: {stats.guiasPorcinos || 0} | Sacrificios: {stats.sacrificiosPorcinos || 0}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -212,7 +122,7 @@ export default async function Home() {
               <Button asChild className="bg-blue-500 hover:bg-blue-600 rounded-lg shadow-sm" size="sm">
                 <Link href="/contactos?business_location_id=1">Bovinos</Link>
               </Button>
-              <Button asChild className="bg-purple-500 hover:bg-purple-600 rounded-lg shadow-sm" size="sm">
+              <Button asChild className="bg-amber-500 hover:bg-amber-600 rounded-lg shadow-sm" size="sm">
                 <Link href="/contactos?business_location_id=2">Porcinos</Link>
               </Button>
             </div>
@@ -293,7 +203,7 @@ export default async function Home() {
         </Card>
       </div>
 
-      {/* Dashboard Financiero */}
+      {/* Dashboard Financiero (reemplaza la sección de Actividad Reciente) */}
       <Card className="shadow-sm hover:shadow-md transition-shadow">
         <CardHeader>
           <CardTitle>Dashboard Financiero</CardTitle>

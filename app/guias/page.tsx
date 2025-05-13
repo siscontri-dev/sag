@@ -1,217 +1,59 @@
 import { Button } from "@/components/ui/button"
-import { PlusCircle, ArrowLeft } from "lucide-react"
+import { PlusCircle, Home } from "lucide-react"
 import Link from "next/link"
 import GuiasTable from "./guias-table"
-import TicketsTable from "./tickets-table"
-import TicketsAgrupadosPorDia from "./tickets-agrupados-por-dia"
 import ExportButtons from "./export-buttons"
-import { themeColors } from "@/lib/theme-config"
+import { getTransactions } from "@/lib/data"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
-import { sql } from "@vercel/postgres"
+import { themeColors } from "@/lib/theme-config"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
-export const dynamic = "force-dynamic"
-export const revalidate = 0
-
-// Función para obtener guías directamente usando sql de @vercel/postgres
-async function getGuias(tipo = undefined, limit = 30) {
-  try {
-    // Convertir tipo de animal a business_location_id
-    let locationId = undefined
-    if (tipo === "bovino") {
-      locationId = 1
-    } else if (tipo === "porcino") {
-      locationId = 2
-    }
-
-    // Construir la consulta usando tagged template literals
-    let query
-    if (locationId) {
-      query = sql`
-        SELECT 
-          t.*,
-          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          ca.nit AS dueno_anterior_nit,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-          cn.nit AS dueno_nuevo_nit
-        FROM 
-          transactions t
-          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-        WHERE 
-          t.activo = TRUE AND t.type = 'entry' AND t.business_location_id = ${locationId}
-        ORDER BY 
-          t.id DESC
-        LIMIT ${limit}
-      `
-    } else {
-      query = sql`
-        SELECT 
-          t.*,
-          ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          ca.nit AS dueno_anterior_nit,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
-          cn.nit AS dueno_nuevo_nit
-        FROM 
-          transactions t
-          LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
-          LEFT JOIN contacts cn ON t.id_dueno_nuevo = cn.id
-        WHERE 
-          t.activo = TRUE AND t.type = 'entry'
-        ORDER BY 
-          t.id DESC
-        LIMIT ${limit}
-      `
-    }
-
-    const result = await query
-    return result.rows
-  } catch (error) {
-    console.error("Error al obtener guías:", error)
-    throw error
-  }
-}
-
-// Función para obtener tickets directamente usando sql de @vercel/postgres
-async function getTickets(tipo = undefined, limit = 500) {
-  try {
-    // Convertir tipo de animal a business_location_id
-    let locationId = undefined
-    if (tipo === "bovino") {
-      locationId = 1
-    } else if (tipo === "porcino") {
-      locationId = 2
-    }
-
-    // Construir la consulta usando tagged template literals
-    let query
-    if (locationId) {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-          AND t.business_location_id = ${locationId}
-        ORDER BY tl.ticket DESC
-        LIMIT ${limit}
-      `
-    } else {
-      query = sql`
-        SELECT 
-          t.id,
-          t.fecha_documento as fecha,
-          t.numero_documento as numero_guia,
-          tl.ticket,
-          tl.ticket2,
-          c.primer_nombre || ' ' || c.primer_apellido as propietario,
-          c.nit,
-          p.name as tipo,
-          r.name as raza,
-          col.name as color,
-          g.name as genero,
-          tl.quantity as kilos,
-          tl.valor,
-          CASE WHEN tl.activo = TRUE THEN 'activo' ELSE 'anulado' END as estado,
-          t.business_location_id
-        FROM transactions t
-        JOIN transaction_lines tl ON t.id = tl.transaction_id
-        LEFT JOIN contacts c ON t.id_dueno_anterior = c.id
-        LEFT JOIN products p ON tl.product_id = p.id
-        LEFT JOIN razas r ON tl.raza_id = r.id
-        LEFT JOIN colors col ON tl.color_id = col.id
-        LEFT JOIN generos g ON tl.genero_id = g.id
-        WHERE t.activo = TRUE 
-          AND t.type = 'entry' 
-          AND tl.ticket IS NOT NULL
-        ORDER BY tl.ticket DESC
-        LIMIT ${limit}
-      `
-    }
-
-    const result = await query
-    console.log(`Tickets obtenidos: ${result.rows.length}`)
-    return result.rows
-  } catch (error) {
-    console.error("Error al obtener tickets:", error)
-    throw error
-  }
-}
-
+// Modificar la función para determinar el tipo de animal basado en business_location_id
 export default async function GuiasPage({
   searchParams,
 }: {
-  searchParams: {
-    tipo?: string
-    propietario?: string
-    propietario_id?: string
-    limit?: string
-    tab?: string
-    fechaDesde?: string
-    fechaHasta?: string
-    estado?: string
-  }
+  searchParams: { tipo?: string; fecha_inicio?: string; fecha_fin?: string; valor_min?: string; valor_max?: string }
 }) {
-  // Añadir al inicio de la función, después de obtener los parámetros
-  console.log("Parámetros de búsqueda recibidos:", searchParams)
-
   const tipo = searchParams.tipo || undefined
-  const limit = searchParams.limit ? Number.parseInt(searchParams.limit) : 30
-  const activeTab = searchParams.tab || "lista"
-  const fechaDesde = searchParams.fechaDesde || undefined
-  const fechaHasta = searchParams.fechaHasta || undefined
-  const estado = searchParams.estado || undefined
+  const fecha_inicio = searchParams.fecha_inicio || undefined
+  const fecha_fin = searchParams.fecha_fin || undefined
+  const valor_min = searchParams.valor_min ? Number(searchParams.valor_min) : undefined
+  const valor_max = searchParams.valor_max ? Number(searchParams.valor_max) : undefined
 
-  // Obtener guías con manejo de errores
-  let guias = []
-  let guiasError = null
-  try {
-    // Usar la función local que usa directamente sql de @vercel/postgres
-    guias = await getGuias(tipo, limit)
-    console.log(`Total de guías obtenidas: ${guias.length}`)
-  } catch (error) {
-    console.error("Error al obtener guías:", error)
-    guiasError = error.message || "Error al obtener guías"
+  const guias = await getTransactions("entry", tipo)
+
+  // Filtrar por fecha si se proporcionan los parámetros
+  let guiasFiltradas = guias
+  if (fecha_inicio || fecha_fin) {
+    const fechaInicio = fecha_inicio ? new Date(fecha_inicio) : new Date(0)
+    const fechaFin = fecha_fin ? new Date(fecha_fin) : new Date()
+    guiasFiltradas = guias.filter((g) => {
+      const fechaGuia = new Date(g.fecha_documento)
+      return fechaGuia >= fechaInicio && fechaGuia <= fechaFin
+    })
   }
 
-  // Obtener tickets con manejo de errores
-  let tickets = []
-  let ticketsError = null
-  try {
-    // Usar la función local que usa directamente sql de @vercel/postgres
-    tickets = await getTickets(tipo, 500)
-    console.log(`Total de tickets obtenidos: ${tickets.length}`)
-  } catch (error) {
-    console.error("Error al obtener tickets:", error)
-    ticketsError = error.message || "Error al obtener tickets"
+  // Filtrar por valor de ticket si se proporcionan los parámetros
+  if (valor_min !== undefined || valor_max !== undefined) {
+    guiasFiltradas = guiasFiltradas.filter((g) => {
+      const valorTotal = g.total || 0
+      return (
+        (valor_min === undefined || valorTotal >= valor_min) && (valor_max === undefined || valorTotal <= valor_max)
+      )
+    })
   }
 
   // Determinar el tipo de animal para cada guía basado en business_location_id
-  guias.forEach((guia) => {
+  guiasFiltradas.forEach((guia) => {
     guia.tipo_animal = guia.business_location_id === 1 ? "bovino" : "porcino"
   })
+
+  // Filtrar por estado
+  const borradores = guiasFiltradas.filter((g) => g.estado === "borrador")
+  const confirmadas = guiasFiltradas.filter((g) => g.estado === "confirmado")
+  const anuladas = guiasFiltradas.filter((g) => g.estado === "anulado")
 
   // Determinar colores basados en el tipo
   const colors =
@@ -224,15 +66,10 @@ export default async function GuiasPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            asChild
-            className="h-10 w-10 rounded-full border-2 shadow-sm hover:bg-gray-100 transition-all"
-          >
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" asChild>
             <Link href="/">
-              <ArrowLeft className="h-5 w-5" />
+              <Home className="h-4 w-4" />
             </Link>
           </Button>
           <h1 className="text-3xl font-bold tracking-tight" style={{ color: colors.text }}>
@@ -240,88 +77,127 @@ export default async function GuiasPage({
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button
-            asChild
-            className="rounded-full px-6 py-2 font-semibold shadow-md hover:shadow-lg transition-all"
-            style={{
-              backgroundColor: tipo === "bovino" ? "#1E40AF" : tipo === "porcino" ? "#7E22CE" : "#2563EB",
-              color: "white",
-            }}
-          >
+          <Button asChild style={{ backgroundColor: colors.dark, color: colors.text }}>
             <Link href={`/guias/nueva${tipo ? `?tipo=${tipo}` : ""}`}>
-              <PlusCircle className="mr-2 h-5 w-5" />
-              Nueva Guía ICA
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Guía
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Sistema de pestañas */}
-      <Tabs defaultValue={activeTab} className="w-full">
-        <TabsList className="mb-4 w-full bg-gray-100 p-1 rounded-lg">
-          <TabsTrigger
-            value="lista"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
+      {/* Filtros de fecha y valor */}
+      <Card className="shadow-sm">
+        <CardHeader className="py-3">
+          <CardTitle className="text-lg">Filtros</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="fecha_inicio" className="text-sm">
+                Fecha Inicio
+              </Label>
+              <Input id="fecha_inicio" name="fecha_inicio" type="date" defaultValue={fecha_inicio} className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="fecha_fin" className="text-sm">
+                Fecha Fin
+              </Label>
+              <Input id="fecha_fin" name="fecha_fin" type="date" defaultValue={fecha_fin} className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="valor_min" className="text-sm">
+                Valor Mínimo
+              </Label>
+              <Input
+                id="valor_min"
+                name="valor_min"
+                type="number"
+                defaultValue={valor_min}
+                className="h-8"
+                placeholder="Valor mínimo"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="valor_max" className="text-sm">
+                Valor Máximo
+              </Label>
+              <Input
+                id="valor_max"
+                name="valor_max"
+                type="number"
+                defaultValue={valor_max}
+                className="h-8"
+                placeholder="Valor máximo"
+              />
+            </div>
+            <div className="md:col-span-4 flex justify-end">
+              <Button type="submit">Aplicar Filtros</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm overflow-hidden">
+        <div className="h-1" style={{ backgroundColor: colors.dark }}></div>
+        <CardHeader style={{ backgroundColor: colors.light }}>
+          <CardTitle>Resumen</CardTitle>
+          <CardDescription>Estadísticas de guías ICA</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-3 gap-4 p-6">
+          <div className="flex flex-col items-center p-4 rounded-lg" style={{ backgroundColor: colors.light }}>
+            <span className="text-2xl font-bold" style={{ color: colors.text }}>
+              {guiasFiltradas.length}
+            </span>
+            <span className="text-sm text-muted-foreground">Total Guías</span>
+          </div>
+          <div
+            className="flex flex-col items-center p-4 rounded-lg"
+            style={{ backgroundColor: themeColors.estado.borrador.bg }}
           >
-            Lista
-          </TabsTrigger>
-          <TabsTrigger
-            value="tickets"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
+            <span className="text-2xl font-bold" style={{ color: themeColors.estado.borrador.text }}>
+              {borradores.length}
+            </span>
+            <span className="text-sm" style={{ color: themeColors.estado.borrador.text }}>
+              Borradores
+            </span>
+          </div>
+          <div
+            className="flex flex-col items-center p-4 rounded-lg"
+            style={{ backgroundColor: themeColors.estado.confirmado.bg }}
           >
-            Tickets
-          </TabsTrigger>
-          <TabsTrigger
-            value="tickets-agrupados"
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
-          >
-            Tickets Agrupados
-          </TabsTrigger>
+            <span className="text-2xl font-bold" style={{ color: themeColors.estado.confirmado.text }}>
+              {confirmadas.length}
+            </span>
+            <span className="text-sm" style={{ color: themeColors.estado.confirmado.text }}>
+              Confirmadas
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Tabs defaultValue="todas" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="todas">Todas</TabsTrigger>
+          <TabsTrigger value="borradores">Borradores</TabsTrigger>
+          <TabsTrigger value="confirmadas">Confirmadas</TabsTrigger>
+          <TabsTrigger value="anuladas">Anuladas</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="lista" className="mt-2">
-          <div className="space-y-4">
-            {guiasError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{guiasError}</AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <ExportButtons tipo={tipo} />
-                <GuiasTable guias={guias} currentLimit={limit} />
-              </>
-            )}
-          </div>
+        <TabsContent value="todas">
+          <ExportButtons tipo={tipo} />
+          <GuiasTable guias={guiasFiltradas} />
         </TabsContent>
-
-        <TabsContent value="tickets" className="mt-2">
-          <div className="space-y-4">
-            {ticketsError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{ticketsError}</AlertDescription>
-              </Alert>
-            ) : (
-              <TicketsTable tickets={tickets} currentLimit={limit} />
-            )}
-          </div>
+        <TabsContent value="borradores">
+          <ExportButtons tipo={tipo} estado="borrador" />
+          <GuiasTable guias={borradores} />
         </TabsContent>
-
-        <TabsContent value="tickets-agrupados" className="mt-2">
-          <div className="space-y-4">
-            {ticketsError ? (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Error</AlertTitle>
-                <AlertDescription>{ticketsError}</AlertDescription>
-              </Alert>
-            ) : (
-              <TicketsAgrupadosPorDia tickets={tickets} />
-            )}
-          </div>
+        <TabsContent value="confirmadas">
+          <ExportButtons tipo={tipo} estado="confirmado" />
+          <GuiasTable guias={confirmadas} />
+        </TabsContent>
+        <TabsContent value="anuladas">
+          <ExportButtons tipo={tipo} estado="anulado" />
+          <GuiasTable guias={anuladas} />
         </TabsContent>
       </Tabs>
     </div>
