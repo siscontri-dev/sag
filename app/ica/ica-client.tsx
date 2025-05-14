@@ -4,8 +4,9 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, AlertCircle, Download } from "lucide-react"
+import { Loader2, AlertCircle, Download, Pencil } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useRouter } from "next/navigation"
 
 interface IcaItem {
   id: string
@@ -27,6 +28,7 @@ export function IcaClient({ tipoAnimal }: { tipoAnimal: "bovinos" | "porcinos" }
   const [errorDetails, setErrorDetails] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [usingAltApi, setUsingAltApi] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,7 +88,7 @@ export function IcaClient({ tipoAnimal }: { tipoAnimal: "bovinos" | "porcinos" }
       (item["Nº Guía"]?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       (item.Propietario?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
       (item.NIT?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-      (item.Fecha || "").includes(searchTerm),
+      (item.Fecha?.toLowerCase() || "").includes(searchTerm.toLowerCase()),
   )
 
   // Función para exportar a Excel
@@ -120,6 +122,11 @@ export function IcaClient({ tipoAnimal }: { tipoAnimal: "bovinos" | "porcinos" }
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // Función para editar una guía
+  const handleEdit = (id: string) => {
+    router.push(`/guias/editar/${id}`)
   }
 
   return (
@@ -184,11 +191,12 @@ export function IcaClient({ tipoAnimal }: { tipoAnimal: "bovinos" | "porcinos" }
                   <th className="border p-2 text-right">Total Animales</th>
                   <th className="border p-2 text-right">Kilos</th>
                   <th className="border p-2 text-right">Total</th>
+                  <th className="border p-2 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
+                {filteredData.map((item, index) => (
+                  <tr key={item.id || index} className="hover:bg-gray-50">
                     <td className="border p-2">{item["Nº Guía"] || "-"}</td>
                     <td className="border p-2">{item.Fecha || "-"}</td>
                     <td className="border p-2">{item.Propietario || "-"}</td>
@@ -198,6 +206,17 @@ export function IcaClient({ tipoAnimal }: { tipoAnimal: "bovinos" | "porcinos" }
                     <td className="border p-2 text-right">{item["Total Animales"] || "0"}</td>
                     <td className="border p-2 text-right">{item.Kilos || "0"}</td>
                     <td className="border p-2 text-right">{item.Total || "0"}</td>
+                    <td className="border p-2 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(item.id)}
+                        title="Editar guía"
+                        aria-label="Editar guía"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

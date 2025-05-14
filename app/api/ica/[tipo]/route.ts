@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { tipo: st
       SELECT
         t.id,
         t.numero_documento AS "Nº Guía",
-        t.fecha_documento AS "Fecha",
+        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') AS "Fecha",
         CONCAT_WS(' ', c.primer_nombre, c.segundo_nombre, c.primer_apellido, c.segundo_apellido) AS "Propietario",
         c.nit AS "NIT",
         TO_CHAR(t.quantity_m, 'FM999,999,999') AS "Machos",
@@ -38,20 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: { tipo: st
       LIMIT 500
     `
 
-    // Formatear las fechas en JavaScript
-    const formattedData = result.rows.map((row) => {
-      const fecha =
-        row.Fecha instanceof Date
-          ? row.Fecha.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
-          : ""
-
-      return {
-        ...row,
-        Fecha: fecha,
-      }
-    })
-
-    return NextResponse.json({ data: formattedData })
+    return NextResponse.json({ data: result.rows })
   } catch (error) {
     console.error(`Error al obtener datos ICA:`, error)
     return NextResponse.json(

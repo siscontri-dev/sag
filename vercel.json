@@ -1,7 +1,7 @@
 {
   "crons": [],
   "buildCommand": "next build",
-  "installCommand": "npm install",
+  "installCommand": "npm install --ignore-scripts",
   "framework": "nextjs",
   "outputDirectory": ".next",
   "regions": ["bog1"],

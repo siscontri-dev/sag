@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
+import { sql } from "@vercel/postgres"
 
 export async function GET(request: NextRequest, { params }: { params: { tipo: string } }) {
   try {
@@ -13,12 +13,12 @@ export async function GET(request: NextRequest, { params }: { params: { tipo: st
     // Determinar el business_location_id según el tipo de animal
     const businessLocationId = tipo === "bovinos" ? 1 : 2
 
-    // Ejecutar la consulta con el cliente db
-    const query = `
+    // Ejecutar la consulta con @vercel/postgres
+    const result = await sql`
       SELECT
         t.id,
         t.numero_documento AS "Nº Guía",
-        t.fecha_documento AS "Fecha",
+        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') AS "Fecha",
         CONCAT_WS(' ', c.primer_nombre, c.segundo_nombre, c.primer_apellido, c.segundo_apellido) AS "Propietario",
         c.nit AS "NIT",
         TO_CHAR(t.quantity_m, 'FM999,999,999') AS "Machos",
@@ -32,28 +32,13 @@ export async function GET(request: NextRequest, { params }: { params: { tipo: st
         contacts c ON t.id_dueno_anterior = c.id
       WHERE
         t.type = 'entry'
-        AND t.business_location_id = $1
+        AND t.business_location_id = ${businessLocationId}
       ORDER BY
         t.fecha_documento DESC
       LIMIT 500
     `
 
-    const result = await db.query(query, [businessLocationId])
-
-    // Formatear las fechas en JavaScript
-    const formattedData = result.map((row) => {
-      const fecha =
-        row.Fecha instanceof Date
-          ? row.Fecha.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" })
-          : ""
-
-      return {
-        ...row,
-        Fecha: fecha,
-      }
-    })
-
-    return NextResponse.json({ data: formattedData })
+    return NextResponse.json({ data: result.rows })
   } catch (error) {
     console.error(`Error al obtener datos ICA:`, error)
     return NextResponse.json(

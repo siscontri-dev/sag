@@ -71,9 +71,9 @@ export default async function Home() {
                   <Link href="/contactos?business_location_id=1">Contactos</Link>
                 </Button>
               </div>
-              {/* Agregar botones de Lista ICA */}
-              <div className="mt-4">
-                <IcaButtons />
+              {/* Agregar botón de Lista ICA Bovinos */}
+              <div className="mt-2">
+                <IcaButtons tipo="bovinos" />
               </div>
               <div className="text-sm text-muted-foreground">
                 <p>
@@ -104,6 +104,10 @@ export default async function Home() {
                   <Link href="/contactos?business_location_id=2">Contactos</Link>
                 </Button>
               </div>
+              {/* Agregar botón de Lista ICA Porcinos */}
+              <div className="mt-2">
+                <IcaButtons tipo="porcinos" />
+              </div>
               <div className="text-sm text-muted-foreground">
                 <p>
                   Guías: {stats.guiasPorcinos || 0} | Sacrificios: {stats.sacrificiosPorcinos || 0}
@@ -112,11 +116,6 @@ export default async function Home() {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-4">Gestión ICA</h2>
-        <IcaButtons />
       </div>
 
       {/* Primera fila de 3 cuadros */}
