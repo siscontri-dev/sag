@@ -1,10 +1,10 @@
 {
-  "regions": ["bog1"],
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "outputDirectory": ".next",
-  "framework": "nextjs",
   "env": {
     "TZ": "America/Bogota"
+  },
+  "build": {
+    "env": {
+      "TZ": "America/Bogota"
+    }
   }
 }

@@ -330,6 +330,7 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
 }
 
 // Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
+// y formatear las fechas directamente en la consulta SQL
 export async function getTransactions(type = undefined, tipoAnimal = undefined) {
   try {
     // Convertir el tipo de animal a business_location_id
@@ -343,9 +344,29 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
     if (type && locationId) {
       const result = await sql`
         SELECT 
-          t.*,
+          t.id,
+          t.numero_documento,
+          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          t.estado,
+          t.total,
+          t.quantity_m,
+          t.quantity_h,
+          t.quantity_k,
+          t.impuesto1,
+          t.impuesto2,
+          t.impuesto3,
+          t.procedencia,
+          t.destino,
+          t.business_location_id,
+          t.type,
+          t.activo,
+          t.contact_id,
+          t.id_dueno_anterior,
+          t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+          ca.nit AS dueno_anterior_nit,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+          cn.nit AS dueno_nuevo_nit
         FROM 
           transactions t
           LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
@@ -359,9 +380,29 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
     } else if (type) {
       const result = await sql`
         SELECT 
-          t.*,
+          t.id,
+          t.numero_documento,
+          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          t.estado,
+          t.total,
+          t.quantity_m,
+          t.quantity_h,
+          t.quantity_k,
+          t.impuesto1,
+          t.impuesto2,
+          t.impuesto3,
+          t.procedencia,
+          t.destino,
+          t.business_location_id,
+          t.type,
+          t.activo,
+          t.contact_id,
+          t.id_dueno_anterior,
+          t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+          ca.nit AS dueno_anterior_nit,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+          cn.nit AS dueno_nuevo_nit
         FROM 
           transactions t
           LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
@@ -375,9 +416,29 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
     } else {
       const result = await sql`
         SELECT 
-          t.*,
+          t.id,
+          t.numero_documento,
+          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          t.estado,
+          t.total,
+          t.quantity_m,
+          t.quantity_h,
+          t.quantity_k,
+          t.impuesto1,
+          t.impuesto2,
+          t.impuesto3,
+          t.procedencia,
+          t.destino,
+          t.business_location_id,
+          t.type,
+          t.activo,
+          t.contact_id,
+          t.id_dueno_anterior,
+          t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
-          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
+          ca.nit AS dueno_anterior_nit,
+          cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre,
+          cn.nit AS dueno_nuevo_nit
         FROM 
           transactions t
           LEFT JOIN contacts ca ON t.id_dueno_anterior = ca.id
@@ -401,7 +462,25 @@ export async function getTransactionById(id) {
     // Obtener la transacción
     const transactionResult = await sql`
       SELECT 
-        t.*,
+        t.id,
+        t.numero_documento,
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+        t.estado,
+        t.total,
+        t.quantity_m,
+        t.quantity_h,
+        t.quantity_k,
+        t.impuesto1,
+        t.impuesto2,
+        t.impuesto3,
+        t.procedencia,
+        t.destino,
+        t.business_location_id,
+        t.type,
+        t.activo,
+        t.contact_id,
+        t.id_dueno_anterior,
+        t.id_dueno_nuevo,
         ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
         cn.primer_nombre || ' ' || cn.primer_apellido AS dueno_nuevo_nombre
       FROM 
@@ -638,7 +717,7 @@ export async function getFinancialData() {
       SELECT 
         id,
         type,
-        fecha_documento,
+        TO_CHAR(fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
         business_location_id,
         total,
         impuesto1, -- Deguello

@@ -2,7 +2,6 @@
 
 import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
-import { processObjectDates } from "@/lib/date-interceptor"
 
 // Interfaz para los datos de guías ICA
 export interface GuiaIcaItem {
@@ -21,11 +20,11 @@ export interface GuiaIcaItem {
 export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
   noStore()
   try {
-    // Construir la consulta SQL
+    // Construir la consulta SQL con formato de fecha directamente en la consulta
     let query = `
       SELECT 
         t.id,
-        t.fecha_documento,
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha,
         t.numero_documento as numero_guia,
         c.name as propietario,
         t.procedencia,
@@ -59,7 +58,7 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
     // Mapear los resultados a la interfaz GuiaIcaItem
     const mappedResults = result.rows.map((row) => ({
       id: row.id,
-      fecha: row.fecha_documento,
+      fecha: row.fecha,
       numeroGuia: row.numero_guia || "",
       propietario: row.propietario || "",
       procedencia: row.procedencia || "",
@@ -69,8 +68,8 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
       cantidadHembras: Number(row.cantidad_hembras) || 0,
     }))
 
-    // Procesar las fechas en los resultados
-    return processObjectDates(mappedResults)
+    // Ya no necesitamos procesar las fechas, ya vienen formateadas de la base de datos
+    return mappedResults
   } catch (error) {
     console.error("Error al obtener guías ICA:", error)
     return []
@@ -96,11 +95,11 @@ export interface DeguelloItem {
 export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
   noStore()
   try {
-    // Construir la consulta SQL
+    // Construir la consulta SQL con formato de fecha directamente en la consulta
     let query = `
       SELECT 
         t.id,
-        t.fecha_documento,
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha,
         t.numero_documento as numero_guia,
         c.name as propietario,
         COALESCE(t.quantity_m, 0) + COALESCE(t.quantity_h, 0) as cantidad_total,
@@ -136,7 +135,7 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
     // Mapear los resultados a la interfaz DeguelloItem
     const mappedResults = result.rows.map((row) => ({
       id: row.id,
-      fecha: row.fecha_documento,
+      fecha: row.fecha,
       numeroGuia: row.numero_guia || "",
       propietario: row.propietario || "",
       cantidadTotal: Number(row.cantidad_total) || 0,
@@ -148,8 +147,8 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
       total: Number(row.total) || 0,
     }))
 
-    // Procesar las fechas en los resultados
-    return processObjectDates(mappedResults)
+    // Ya no necesitamos procesar las fechas, ya vienen formateadas de la base de datos
+    return mappedResults
   } catch (error) {
     console.error("Error al obtener degüellos:", error)
     return []
