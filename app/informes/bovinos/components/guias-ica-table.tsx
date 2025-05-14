@@ -1,111 +1,154 @@
 "use client"
 
 import { useState } from "react"
-import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Search, FileDown, Printer, Eye, Edit, X } from "lucide-react"
+import Link from "next/link"
+import { Badge } from "@/components/ui/badge"
 
-// Interfaz para los datos de guías ICA
-interface GuiaIcaItem {
-  id: string
-  fecha: string | Date
-  numeroGuia: string
-  propietario: string
-  procedencia: string
-  destino: string
-  cantidadTotal: number
-  cantidadMachos: number
-  cantidadHembras: number
+// Función directa para formatear fechas sin conversiones de zona horaria
+function formatRawDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ""
+
+  // Si es formato ISO (YYYY-MM-DDTHH:mm:ss.sssZ)
+  if (typeof dateStr === "string" && dateStr.includes("T")) {
+    const datePart = dateStr.split("T")[0]
+    if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+      const [year, month, day] = datePart.split("-")
+      return `${day}/${month}/${year}`
+    }
+  }
+
+  // Si ya está en formato DD/MM/YYYY
+  if (typeof dateStr === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+    return dateStr
+  }
+
+  // Para otros formatos, intentar convertir
+  try {
+    const date = new Date(dateStr)
+    const day = String(date.getUTCDate()).padStart(2, "0")
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0")
+    const year = date.getUTCFullYear()
+    return `${day}/${month}/${year}`
+  } catch (e) {
+    console.error("Error al formatear fecha:", dateStr, e)
+    return String(dateStr)
+  }
 }
 
-interface GuiasIcaTableProps {
-  data: GuiaIcaItem[]
-}
-
-export function GuiasIcaTable({ data }: GuiasIcaTableProps) {
+export default function GuiasIcaTable({ guias = [] }) {
   const [searchTerm, setSearchTerm] = useState("")
 
-  // Filtrar los datos según el término de búsqueda
-  const filteredData = data.filter(
-    (item) =>
-      item.numeroGuia.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.propietario && item.propietario.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (typeof item.fecha === "string" && item.fecha.includes(searchTerm)) ||
-      (item.procedencia && item.procedencia.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (item.destino && item.destino.toLowerCase().includes(searchTerm.toLowerCase())),
+  // Filtrar guías por término de búsqueda
+  const filteredGuias = guias.filter(
+    (guia) =>
+      guia.numero_documento?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guia.dueno_anterior_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      guia.dueno_anterior_nit?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      formatRawDate(guia.fecha_documento).includes(searchTerm.toLowerCase()),
   )
 
-  // Calcular totales
-  const totales = filteredData.reduce(
-    (acc, item) => {
-      acc.cantidadTotal += item.cantidadTotal
-      acc.cantidadMachos += item.cantidadMachos
-      acc.cantidadHembras += item.cantidadHembras
-      return acc
-    },
-    {
-      cantidadTotal: 0,
-      cantidadMachos: 0,
-      cantidadHembras: 0,
-    },
+  // Depurar fechas
+  console.log(
+    "Fechas originales de guías ICA:",
+    guias.map((g) => ({
+      id: g.id,
+      fecha_original: g.fecha_documento,
+      fecha_formateada: formatRawDate(g.fecha_documento),
+    })),
   )
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Input
-          placeholder="Buscar por número de guía, propietario, fecha, procedencia o destino..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex justify-between items-center">
+        <div className="relative w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar guía, propietario, NIT..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <button className="absolute right-2 top-2.5" onClick={() => setSearchTerm("")}>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <FileDown className="mr-2 h-4 w-4" />
+            Exportar a Excel
+          </Button>
+          <Button variant="outline" size="sm">
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimir
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Número</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Guía</TableHead>
               <TableHead>Propietario</TableHead>
-              <TableHead>Procedencia</TableHead>
-              <TableHead>Destino</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-              <TableHead className="text-right">Machos</TableHead>
-              <TableHead className="text-right">Hembras</TableHead>
+              <TableHead>NIT</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredData.length === 0 ? (
+            {filteredGuias.length > 0 ? (
+              filteredGuias.map((guia) => (
+                <TableRow key={guia.id}>
+                  <TableCell className="font-medium">{guia.numero_documento}</TableCell>
+                  <TableCell>{formatRawDate(guia.fecha_documento)}</TableCell>
+                  <TableCell>{guia.dueno_anterior_nombre}</TableCell>
+                  <TableCell>{guia.dueno_anterior_nit}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        guia.estado === "confirmado" ? "success" : guia.estado === "anulado" ? "destructive" : "default"
+                      }
+                    >
+                      {guia.estado === "confirmado" ? "Confirmado" : guia.estado === "anulado" ? "Anulado" : "Borrador"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/guias/ver/${guia.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="icon" asChild>
+                        <Link href={`/guias/editar/${guia.id}`}>
+                          <Edit className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
               <TableRow>
-                <TableCell colSpan={8} className="h-24 text-center">
-                  No se encontraron resultados.
+                <TableCell colSpan={6} className="h-24 text-center">
+                  No se encontraron guías con los filtros aplicados
                 </TableCell>
               </TableRow>
-            ) : (
-              <>
-                {filteredData.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{typeof item.fecha === "string" ? item.fecha : "Fecha inválida"}</TableCell>
-                    <TableCell>{item.numeroGuia}</TableCell>
-                    <TableCell>{item.propietario}</TableCell>
-                    <TableCell>{item.procedencia}</TableCell>
-                    <TableCell>{item.destino}</TableCell>
-                    <TableCell className="text-right">{item.cantidadTotal}</TableCell>
-                    <TableCell className="text-right">{item.cantidadMachos}</TableCell>
-                    <TableCell className="text-right">{item.cantidadHembras}</TableCell>
-                  </TableRow>
-                ))}
-                {/* Fila de totales */}
-                <TableRow className="font-bold">
-                  <TableCell colSpan={5}>TOTALES</TableCell>
-                  <TableCell className="text-right">{totales.cantidadTotal}</TableCell>
-                  <TableCell className="text-right">{totales.cantidadMachos}</TableCell>
-                  <TableCell className="text-right">{totales.cantidadHembras}</TableCell>
-                </TableRow>
-              </>
             )}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="text-sm text-muted-foreground">
+        Mostrando {filteredGuias.length} de {guias.length} guías
       </div>
     </div>
   )

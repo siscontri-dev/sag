@@ -1,10 +1,9 @@
 {
-  "crons": [],
-  "buildCommand": "next build",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "outputDirectory": ".next",
   "regions": ["bog1"],
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
   "env": {
     "TZ": "America/Bogota"
   }
