@@ -61,7 +61,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
   // Depurar fechas
   console.log(
     "Fechas originales de degüellos (porcinos):",
-    data.map((s) => ({
+    data.slice(0, 5).map((s) => ({
       id: s.id,
       fecha_original: s.fecha,
       propietario: s.propietario,

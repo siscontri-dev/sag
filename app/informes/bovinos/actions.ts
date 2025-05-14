@@ -65,6 +65,7 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
   noStore()
   try {
     // Construir la consulta SQL con formato de fecha directamente en la consulta
+    // Usamos la misma estrategia que funciona para las guías ICA
     let query = `
       SELECT 
         t.id,
@@ -119,7 +120,7 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
     // Depurar fechas
     console.log(
       "Fechas de degüellos (bovinos) desde la base de datos:",
-      mappedResults.map((r) => ({
+      mappedResults.slice(0, 5).map((r) => ({
         id: r.id,
         fecha: r.fecha,
         numeroGuia: r.numeroGuia,
