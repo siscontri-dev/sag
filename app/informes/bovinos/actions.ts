@@ -6,10 +6,13 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
   noStore()
   try {
     // Construir la consulta SQL con formato de fecha directamente en la consulta
+    // Usamos EXTRACT para obtener los componentes de la fecha y construir manualmente el formato DD/MM/YYYY
     let query = `
       SELECT 
         t.id,
-        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha,
+        LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        EXTRACT(YEAR FROM t.fecha_documento)::text as fecha,
         t.numero_documento as numero_guia,
         c.primer_nombre || ' ' || c.primer_apellido as propietario,
         '' as procedencia,
@@ -53,6 +56,16 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
       cantidadHembras: Number(row.cantidad_hembras) || 0,
     }))
 
+    // Depurar fechas
+    console.log(
+      "Fechas de guías ICA (bovinos) desde la base de datos:",
+      mappedResults.slice(0, 5).map((r) => ({
+        id: r.id,
+        fecha: r.fecha,
+        numeroGuia: r.numeroGuia,
+      })),
+    )
+
     return mappedResults
   } catch (error) {
     console.error("Error al obtener guías ICA:", error)
@@ -65,11 +78,13 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
   noStore()
   try {
     // Construir la consulta SQL con formato de fecha directamente en la consulta
-    // Usamos la misma estrategia que funciona para las guías ICA
+    // Usamos EXTRACT para obtener los componentes de la fecha y construir manualmente el formato DD/MM/YYYY
     let query = `
       SELECT 
         t.id,
-        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha,
+        LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        EXTRACT(YEAR FROM t.fecha_documento)::text as fecha,
         t.numero_documento as numero_guia,
         c.primer_nombre || ' ' || c.primer_apellido as propietario,
         COALESCE(t.quantity_m, 0) + COALESCE(t.quantity_h, 0) as cantidad_total,

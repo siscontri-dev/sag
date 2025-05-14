@@ -358,7 +358,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
+          LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          EXTRACT(YEAR FROM t.fecha_documento)::text as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -391,7 +393,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
+          LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          EXTRACT(YEAR FROM t.fecha_documento)::text as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -424,7 +428,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
+          LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+          EXTRACT(YEAR FROM t.fecha_documento)::text as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -467,7 +473,9 @@ export async function getTransactionById(id) {
       SELECT 
         t.id,
         t.numero_documento,
-        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
+        LPAD(EXTRACT(DAY FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        LPAD(EXTRACT(MONTH FROM t.fecha_documento)::text, 2, '0') || '/' || 
+        EXTRACT(YEAR FROM t.fecha_documento)::text as fecha_documento,
         t.estado,
         t.total,
         t.quantity_m,
