@@ -57,11 +57,39 @@ export default function GuiaForm({
   // Colores según el tipo de animal
   const colors = tipoAnimal === "bovino" ? themeColors.bovino : themeColors.porcino
 
+  // Función para formatear la fecha de manera segura
+  const formatSafeDate = (dateStr) => {
+    if (!dateStr) return new Date().toISOString().split("T")[0]
+
+    try {
+      // Si la fecha viene en formato DD/MM/YYYY, convertirla a YYYY-MM-DD
+      if (dateStr.includes("/")) {
+        const [day, month, year] = dateStr.split("/")
+        return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`
+      }
+
+      // Si ya está en formato ISO o YYYY-MM-DD, devolverla directamente
+      if (dateStr.includes("T")) {
+        return dateStr.split("T")[0]
+      }
+
+      // Si es otro formato, intentar crear un objeto Date y formatearlo
+      const date = new Date(dateStr)
+      if (isNaN(date.getTime())) {
+        console.error("Fecha inválida:", dateStr)
+        return new Date().toISOString().split("T")[0]
+      }
+
+      return date.toISOString().split("T")[0]
+    } catch (error) {
+      console.error("Error al formatear fecha:", error, dateStr)
+      return new Date().toISOString().split("T")[0]
+    }
+  }
+
   const [formData, setFormData] = useState({
     numero_documento: guia?.numero_documento || "",
-    fecha_documento: guia?.fecha_documento
-      ? new Date(guia.fecha_documento).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
+    fecha_documento: formatSafeDate(guia?.fecha_documento),
     id_dueno_anterior: guia?.id_dueno_anterior?.toString() || "",
     business_location_id: locationId.toString(),
     estado: guia?.estado || "confirmado",

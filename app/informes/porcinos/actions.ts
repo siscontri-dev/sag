@@ -116,6 +116,16 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
       total: Number(row.total) || 0,
     }))
 
+    // Depurar fechas
+    console.log(
+      "Fechas de degüellos (porcinos) desde la base de datos:",
+      mappedResults.map((r) => ({
+        id: r.id,
+        fecha: r.fecha,
+        numeroGuia: r.numeroGuia,
+      })),
+    )
+
     return mappedResults
   } catch (error) {
     console.error("Error al obtener degüellos:", error)

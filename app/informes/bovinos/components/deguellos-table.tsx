@@ -60,10 +60,12 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
 
   // Depurar fechas
   console.log(
-    "Fechas originales de degüellos:",
+    "Fechas originales de degüellos (bovinos):",
     data.map((s) => ({
       id: s.id,
       fecha_original: s.fecha,
+      propietario: s.propietario,
+      numeroGuia: s.numeroGuia,
     })),
   )
 
@@ -105,7 +107,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
               <>
                 {filteredData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{item.fecha}</TableCell>
+                    <TableCell>{item.fecha || "Sin fecha"}</TableCell>
                     <TableCell>{item.numeroGuia}</TableCell>
                     <TableCell>{item.propietario}</TableCell>
                     <TableCell className="text-right">{item.cantidadTotal}</TableCell>
