@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 // Interfaz para los datos de guías ICA
 interface GuiaIcaItem {
   id: string
-  fecha: string | Date
+  fecha: string
   numeroGuia: string
   propietario: string
   procedencia: string
@@ -29,7 +29,7 @@ export function GuiasIcaTable({ data }: GuiasIcaTableProps) {
     (item) =>
       item.numeroGuia.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.propietario && item.propietario.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (typeof item.fecha === "string" && item.fecha.includes(searchTerm)) ||
+      (item.fecha && item.fecha.includes(searchTerm)) ||
       (item.procedencia && item.procedencia.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (item.destino && item.destino.toLowerCase().includes(searchTerm.toLowerCase())),
   )
@@ -94,7 +94,7 @@ export function GuiasIcaTable({ data }: GuiasIcaTableProps) {
               <>
                 {filteredData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{typeof item.fecha === "string" ? item.fecha : "Fecha inválida"}</TableCell>
+                    <TableCell>{item.fecha}</TableCell>
                     <TableCell>{item.numeroGuia}</TableCell>
                     <TableCell>{item.propietario}</TableCell>
                     <TableCell>{item.procedencia}</TableCell>

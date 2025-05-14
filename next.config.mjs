@@ -1,9 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ["@vercel/postgres"],
-    serverActions: true,
-  },
   // Configuración para asegurar que las fechas se manejen correctamente
   env: {
     TZ: 'America/Bogota',
@@ -68,7 +64,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   // Configuración experimental para forzar la zona horaria
-
+  experimental: {
+    serverActions: true,
+  },
 }
 
 export default nextConfig

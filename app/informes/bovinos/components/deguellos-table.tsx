@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils"
 // Interfaz para los datos de degüello
 interface DeguelloItem {
   id: string
-  fecha: string | Date
+  fecha: string
   numeroGuia: string
   propietario: string
   cantidadTotal: number
@@ -32,7 +32,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
     (item) =>
       item.numeroGuia.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.propietario && item.propietario.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (typeof item.fecha === "string" && item.fecha.includes(searchTerm)),
+      (item.fecha && item.fecha.includes(searchTerm)),
   )
 
   // Calcular totales
@@ -105,7 +105,7 @@ export function DeguellosTable({ data }: DeguellosTableProps) {
               <>
                 {filteredData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell>{typeof item.fecha === "string" ? item.fecha : "Fecha inválida"}</TableCell>
+                    <TableCell>{item.fecha}</TableCell>
                     <TableCell>{item.numeroGuia}</TableCell>
                     <TableCell>{item.propietario}</TableCell>
                     <TableCell className="text-right">{item.cantidadTotal}</TableCell>

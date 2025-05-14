@@ -22,15 +22,31 @@ export default async function GuiasPage({
   const valor_min = searchParams.valor_min ? Number(searchParams.valor_min) : undefined
   const valor_max = searchParams.valor_max ? Number(searchParams.valor_max) : undefined
 
+  // Obtener las guías con el formato de fecha correcto desde la base de datos
   const guias = await getTransactions("entry", tipo)
+
+  // Depurar las fechas para ver qué está llegando de la base de datos
+  console.log(
+    "Fechas originales de guías en page.tsx:",
+    guias.slice(0, 5).map((g) => ({
+      id: g.id,
+      fecha_documento: g.fecha_documento,
+      numero_documento: g.numero_documento,
+    })),
+  )
 
   // Filtrar por fecha si se proporcionan los parámetros
   let guiasFiltradas = guias
   if (fecha_inicio || fecha_fin) {
     const fechaInicio = fecha_inicio ? new Date(fecha_inicio) : new Date(0)
     const fechaFin = fecha_fin ? new Date(fecha_fin) : new Date()
+
+    // Convertir las fechas de string a objetos Date para comparación
     guiasFiltradas = guias.filter((g) => {
-      const fechaGuia = new Date(g.fecha_documento)
+      // Convertir la fecha formateada (DD/MM/YYYY) a un objeto Date
+      const [day, month, year] = g.fecha_documento.split("/").map(Number)
+      const fechaGuia = new Date(year, month - 1, day) // month - 1 porque en JS los meses van de 0 a 11
+
       return fechaGuia >= fechaInicio && fechaGuia <= fechaFin
     })
   }

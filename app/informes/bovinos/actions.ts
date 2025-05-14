@@ -1,20 +1,5 @@
-"use server"
-
-import { sql } from "@vercel/postgres"
 import { unstable_noStore as noStore } from "next/cache"
-
-// Interfaz para los datos de guías ICA
-export interface GuiaIcaItem {
-  id: string
-  fecha: string | Date
-  numeroGuia: string
-  propietario: string
-  procedencia: string
-  destino: string
-  cantidadTotal: number
-  cantidadMachos: number
-  cantidadHembras: number
-}
+import { sql } from "@vercel/postgres"
 
 // Función para obtener las guías ICA de bovinos
 export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
@@ -24,18 +9,18 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
     let query = `
       SELECT 
         t.id,
-        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha,
+        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha,
         t.numero_documento as numero_guia,
-        c.name as propietario,
-        t.procedencia,
-        t.destino,
+        c.primer_nombre || ' ' || c.primer_apellido as propietario,
+        '' as procedencia,
+        '' as destino,
         COALESCE(t.quantity_m, 0) + COALESCE(t.quantity_h, 0) as cantidad_total,
         COALESCE(t.quantity_m, 0) as cantidad_machos,
         COALESCE(t.quantity_h, 0) as cantidad_hembras
       FROM 
         transactions t
       LEFT JOIN 
-        contacts c ON t.contact_id = c.id
+        contacts c ON t.id_dueno_anterior = c.id
       WHERE 
         t.business_location_id = 1  -- Solo bovinos
         AND t.type = 'entry'  -- Solo guías ICA (entrada)
@@ -68,27 +53,11 @@ export async function getGuiasIca(fechaInicio?: string, fechaFin?: string) {
       cantidadHembras: Number(row.cantidad_hembras) || 0,
     }))
 
-    // Ya no necesitamos procesar las fechas, ya vienen formateadas de la base de datos
     return mappedResults
   } catch (error) {
     console.error("Error al obtener guías ICA:", error)
     return []
   }
-}
-
-// Interfaz para los datos de degüello
-export interface DeguelloItem {
-  id: string
-  fecha: string | Date
-  numeroGuia: string
-  propietario: string
-  cantidadTotal: number
-  cantidadMachos: number
-  cantidadHembras: number
-  valorDeguello: number
-  valorFondo: number
-  valorMatadero: number
-  total: number
 }
 
 // Función para obtener las guías de degüello de bovinos
@@ -99,9 +68,9 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
     let query = `
       SELECT 
         t.id,
-        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha,
+        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha,
         t.numero_documento as numero_guia,
-        c.name as propietario,
+        c.primer_nombre || ' ' || c.primer_apellido as propietario,
         COALESCE(t.quantity_m, 0) + COALESCE(t.quantity_h, 0) as cantidad_total,
         COALESCE(t.quantity_m, 0) as cantidad_machos,
         COALESCE(t.quantity_h, 0) as cantidad_hembras,
@@ -112,7 +81,7 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
       FROM 
         transactions t
       LEFT JOIN 
-        contacts c ON t.contact_id = c.id
+        contacts c ON t.id_dueno_anterior = c.id
       WHERE 
         t.business_location_id = 1  -- Solo bovinos
         AND t.type = 'exit'  -- Solo guías de degüello (salida)
@@ -147,7 +116,6 @@ export async function getDeguellos(fechaInicio?: string, fechaFin?: string) {
       total: Number(row.total) || 0,
     }))
 
-    // Ya no necesitamos procesar las fechas, ya vienen formateadas de la base de datos
     return mappedResults
   } catch (error) {
     console.error("Error al obtener degüellos:", error)

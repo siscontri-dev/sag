@@ -8,6 +8,7 @@ export async function getReportData() {
     const guiasResult = await sql`
       SELECT 
         t.*,
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento_formatted,
         ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
         cn.primer_nombre || ' ' || ca.primer_apellido AS dueno_nuevo_nombre,
         SUM(tl.quantity) as kilos
@@ -29,6 +30,7 @@ export async function getReportData() {
     const sacrificiosResult = await sql`
       SELECT 
         t.*,
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento_formatted,
         ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
         SUM(tl.quantity) as kilos,
         SUM(tl.quantity_m) as machos,
@@ -107,9 +109,20 @@ export async function getReportData() {
     const stats = statsResult.rows[0]
     const monthStats = monthStatsResult.rows[0]
 
+    // Procesar los resultados para usar la fecha formateada
+    const guiasProcessed = guiasResult.rows.map((guia) => ({
+      ...guia,
+      fecha_documento: guia.fecha_documento_formatted,
+    }))
+
+    const sacrificiosProcessed = sacrificiosResult.rows.map((sacrificio) => ({
+      ...sacrificio,
+      fecha_documento: sacrificio.fecha_documento_formatted,
+    }))
+
     return {
-      guias: guiasResult.rows,
-      sacrificios: sacrificiosResult.rows,
+      guias: guiasProcessed,
+      sacrificios: sacrificiosProcessed,
       contactos: contactosResult.rows,
       totalGuias: Number.parseInt(stats.total_guias) || 0,
       totalSacrificios: Number.parseInt(stats.total_sacrificios) || 0,
@@ -200,7 +213,7 @@ export async function getTransactionStats() {
       SELECT 
         t.id, 
         t.numero_documento, 
-        t.fecha_documento, 
+        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento, 
         t.total, 
         t.type,
         c.primer_nombre || ' ' || c.primer_apellido AS dueno_anterior_nombre
@@ -329,8 +342,7 @@ export async function getProducts(tipo = undefined, locationId = undefined) {
   }
 }
 
-// Modificar la función getTransactions para filtrar por business_location_id en lugar de tipo_animal
-// y formatear las fechas directamente en la consulta SQL
+// Modificar la función getTransactions para manejar correctamente la zona horaria
 export async function getTransactions(type = undefined, tipoAnimal = undefined) {
   try {
     // Convertir el tipo de animal a business_location_id
@@ -346,7 +358,7 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -355,12 +367,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
           t.impuesto1,
           t.impuesto2,
           t.impuesto3,
-          t.procedencia,
-          t.destino,
           t.business_location_id,
           t.type,
           t.activo,
-          t.contact_id,
           t.id_dueno_anterior,
           t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -382,7 +391,7 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -391,12 +400,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
           t.impuesto1,
           t.impuesto2,
           t.impuesto3,
-          t.procedencia,
-          t.destino,
           t.business_location_id,
           t.type,
           t.activo,
-          t.contact_id,
           t.id_dueno_anterior,
           t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -418,7 +424,7 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
         SELECT 
           t.id,
           t.numero_documento,
-          TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+          TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
           t.estado,
           t.total,
           t.quantity_m,
@@ -427,12 +433,9 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
           t.impuesto1,
           t.impuesto2,
           t.impuesto3,
-          t.procedencia,
-          t.destino,
           t.business_location_id,
           t.type,
           t.activo,
-          t.contact_id,
           t.id_dueno_anterior,
           t.id_dueno_nuevo,
           ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -456,7 +459,7 @@ export async function getTransactions(type = undefined, tipoAnimal = undefined) 
   }
 }
 
-// Función para obtener una transacción por ID
+// También necesitamos corregir la función getTransactionById
 export async function getTransactionById(id) {
   try {
     // Obtener la transacción
@@ -464,7 +467,7 @@ export async function getTransactionById(id) {
       SELECT 
         t.id,
         t.numero_documento,
-        TO_CHAR(t.fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+        TO_CHAR(t.fecha_documento, 'DD/MM/YYYY') as fecha_documento,
         t.estado,
         t.total,
         t.quantity_m,
@@ -473,12 +476,9 @@ export async function getTransactionById(id) {
         t.impuesto1,
         t.impuesto2,
         t.impuesto3,
-        t.procedencia,
-        t.destino,
         t.business_location_id,
         t.type,
         t.activo,
-        t.contact_id,
         t.id_dueno_anterior,
         t.id_dueno_nuevo,
         ca.primer_nombre || ' ' || ca.primer_apellido AS dueno_anterior_nombre,
@@ -717,7 +717,7 @@ export async function getFinancialData() {
       SELECT 
         id,
         type,
-        TO_CHAR(fecha_documento AT TIME ZONE 'America/Bogota', 'DD/MM/YYYY') as fecha_documento,
+        TO_CHAR(fecha_documento, 'DD/MM/YYYY') as fecha_documento,
         business_location_id,
         total,
         impuesto1, -- Deguello
