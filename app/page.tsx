@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from "lucide-react"
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
+import { IcaButtons } from "@/components/ica-buttons"
 
 // Forzar renderizado dinámico para evitar errores con unstable_noStore()
 export const dynamic = "force-dynamic"
@@ -70,6 +71,10 @@ export default async function Home() {
                   <Link href="/contactos?business_location_id=1">Contactos</Link>
                 </Button>
               </div>
+              {/* Agregar botones de Lista ICA */}
+              <div className="mt-4">
+                <IcaButtons />
+              </div>
               <div className="text-sm text-muted-foreground">
                 <p>
                   Guías: {stats.guiasBovinos || 0} | Sacrificios: {stats.sacrificiosBovinos || 0}
@@ -107,6 +112,11 @@ export default async function Home() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-xl font-semibold mb-4">Gestión ICA</h2>
+        <IcaButtons />
       </div>
 
       {/* Primera fila de 3 cuadros */}
