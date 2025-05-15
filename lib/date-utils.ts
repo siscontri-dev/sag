@@ -117,6 +117,49 @@ export function formatDateYMD(date: string | Date | null | undefined): string {
   }
 }
 
+/**
+ * Formatea una fecha para usarla en consultas SQL (YYYY-MM-DD)
+ * @param date Fecha a formatear
+ * @returns Fecha en formato YYYY-MM-DD o null si la fecha es inválida
+ */
+export function formatDateForSQL(date: string | Date | null | undefined): string | null {
+  if (!date) return null
+
+  try {
+    let dateObj: Date
+
+    if (typeof date === "string") {
+      // Intenta analizar la cadena como una fecha en formato DD/MM/YYYY
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+        const [day, month, year] = date.split("/").map(Number)
+        dateObj = new Date(Date.UTC(year, month - 1, day))
+      }
+      // Si no es DD/MM/YYYY, intenta analizar como una fecha ISO
+      else {
+        dateObj = new Date(date)
+      }
+    } else if (date instanceof Date) {
+      dateObj = new Date(date.getTime() + date.getTimezoneOffset() * 60000)
+    } else {
+      return null
+    }
+
+    if (isNaN(dateObj.getTime())) {
+      console.error("Fecha inválida:", date)
+      return null
+    }
+
+    const year = dateObj.getUTCFullYear()
+    const month = String(dateObj.getUTCMonth() + 1).padStart(2, "0")
+    const day = String(dateObj.getUTCDate()).padStart(2, "0")
+
+    return `${year}-${month}-${day}`
+  } catch (error) {
+    console.error("Error al formatear fecha para SQL:", error)
+    return null
+  }
+}
+
 // Resto de funciones de utilidad para fechas...
 
 /**

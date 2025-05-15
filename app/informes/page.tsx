@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { BarChart3, FileText, Printer, MilkIcon as Cow } from "lucide-react"
+import { BarChart3, FileText, Printer, MilkIcon as Cow, Scale } from "lucide-react"
 
 export default function InformesPage() {
   return (
@@ -63,22 +63,26 @@ export default function InformesPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Informe de Sacrificios</CardTitle>
-            <CardDescription>Detalle de sacrificios por periodo</CardDescription>
+            <CardTitle>Báscula Diaria</CardTitle>
+            <CardDescription>Informe diario de báscula para porcinos</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex justify-center py-4">
-              <FileText className="h-16 w-16 text-muted-foreground" />
+              <Scale className="h-16 w-16 text-muted-foreground" />
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="outline" disabled>
-              <FileText className="mr-2 h-4 w-4" />
-              Ver Informe
+            <Button variant="outline" asChild>
+              <Link href="/bascula-diaria">
+                <FileText className="mr-2 h-4 w-4" />
+                Ver Informe
+              </Link>
             </Button>
-            <Button variant="outline" disabled>
-              <Printer className="mr-2 h-4 w-4" />
-              Imprimir
+            <Button variant="outline" asChild>
+              <Link href="/bascula-diaria">
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir
+              </Link>
             </Button>
           </CardFooter>
         </Card>
