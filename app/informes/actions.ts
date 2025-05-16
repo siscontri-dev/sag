@@ -196,6 +196,63 @@ export async function getBoletinGanadoMayor(fechaInicio: string, fechaFin: strin
   }
 }
 
+// Función para obtener datos del boletín de movimiento de ganado menor porcinos
+export async function getBoletinGanadoMenor(fechaInicio: string, fechaFin: string) {
+  noStore()
+  try {
+    // Consulta para obtener las transacciones de porcinos (location_id = 2)
+    // Usando los nombres correctos de los campos de impuestos
+    const result = await sql`
+      SELECT 
+        t.id,
+        t.fecha_documento,
+        t.numero_documento as numero_guia_ica,
+        COALESCE(t.quantity_m, 0) + COALESCE(t.quantity_h, 0) as cantidad_total,
+        COALESCE(t.quantity_m, 0) as cantidad_machos,
+        COALESCE(t.quantity_h, 0) as cantidad_hembras,
+        COALESCE(t.quantity_k, 0) as cantidad_kilos,
+        
+        -- Valores de impuestos con los nombres correctos
+        COALESCE(t.impuesto1, 0) as valor_deguello,     -- impuesto1 = deguello
+        COALESCE(t.impuesto3, 0) as servicio_matadero,  -- impuesto3 = matadero
+        COALESCE(t.impuesto2, 0) as fondo_fedegan,      -- impuesto2 = Fondo (en este caso, Porcicultura)
+        
+        COALESCE(t.total, 0) as total,
+        
+        -- Número de boletín (usamos ROW_NUMBER para generar un número secuencial)
+        ROW_NUMBER() OVER (ORDER BY t.fecha_documento) as numero_boletin
+      FROM 
+        transactions t
+      WHERE 
+        t.business_location_id = 2  -- Solo porcinos
+        AND t.type = 'exit'  -- Solo guías de degüello
+        AND t.activo = TRUE
+        AND t.fecha_documento BETWEEN ${fechaInicio} AND ${fechaFin}
+      ORDER BY 
+        t.fecha_documento
+    `
+
+    // Mapear los resultados a la interfaz BoletinGanadoItem
+    return result.rows.map((row) => ({
+      id: row.id,
+      fecha: row.fecha_documento.toISOString().split("T")[0],
+      numeroGuiaIca: row.numero_guia_ica || "",
+      cantidadTotal: Number.parseInt(row.cantidad_total) || 0,
+      cantidadMachos: Number.parseInt(row.cantidad_machos) || 0,
+      cantidadHembras: Number.parseInt(row.cantidad_hembras) || 0,
+      cantidadKilos: Number.parseFloat(row.cantidad_kilos) || 0,
+      valorDeguello: Number.parseFloat(row.valor_deguello) || 0,
+      servicioMatadero: Number.parseFloat(row.servicio_matadero) || 0,
+      fondoFedegan: Number.parseFloat(row.fondo_fedegan) || 0, // Mantenemos el mismo nombre de campo pero representa Porcicultura
+      total: Number.parseFloat(row.total) || 0,
+      numeroBoletin: Number.parseInt(row.numero_boletin) || 0,
+    }))
+  } catch (error) {
+    console.error("Error al obtener boletín de ganado menor:", error)
+    return []
+  }
+}
+
 // Función para exportar el informe a Excel
 export async function exportarInformeBasculaCorralaje(
   tipo: "bovino" | "porcino",
@@ -215,11 +272,26 @@ export async function exportarInformeBasculaCorralaje(
   }
 }
 
-// Función para exportar el boletín a Excel
+// Función para exportar el boletín de ganado mayor a Excel
 export async function exportarBoletinGanadoMayor(fechaInicio: string, fechaFin: string) {
   try {
     // Obtener los datos del boletín
     const datos = await getBoletinGanadoMayor(fechaInicio, fechaFin)
+
+    // Aquí iría la lógica para generar el Excel
+    // Por ahora, solo devolvemos un mensaje de éxito
+    return { success: true, message: "Exportación exitosa", data: datos }
+  } catch (error) {
+    console.error("Error al exportar boletín:", error)
+    return { success: false, message: "Error al exportar boletín" }
+  }
+}
+
+// Función para exportar el boletín de ganado menor a Excel
+export async function exportarBoletinGanadoMenor(fechaInicio: string, fechaFin: string) {
+  try {
+    // Obtener los datos del boletín
+    const datos = await getBoletinGanadoMenor(fechaInicio, fechaFin)
 
     // Aquí iría la lógica para generar el Excel
     // Por ahora, solo devolvemos un mensaje de éxito

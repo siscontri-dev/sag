@@ -156,6 +156,8 @@ export default function GuiaForm({
   const [lineas, setLineas] = useState(
     guia?.transaction_lines?.map((line) => ({
       ...line,
+      // IMPORTANTE: Mantener el ticket exactamente como viene de la base de datos, sin ninguna conversión
+      ticket: line.ticket,
       product_name: products.find((p) => p.id === line.product_id)?.name || `Producto #${line.product_id}`,
       raza_name: razas.find((r) => r.id === line.raza_id)?.nombre || "N/A",
       color_name: colores.find((c) => c.id === line.color_id)?.nombre || "N/A",
@@ -735,8 +737,11 @@ export default function GuiaForm({
       return false // No validamos, pero tampoco permitimos añadir la línea
     }
 
+    // Validar que el ticket sea un número válido
+    const ticketIsValid = nuevaLinea.ticket && !isNaN(Number(nuevaLinea.ticket))
+
     const errors = {
-      ticket: !nuevaLinea.ticket,
+      ticket: !ticketIsValid, // Cambiar para validar que sea un número
       product_id: !nuevaLinea.product_id,
       kilos: !nuevaLinea.kilos,
       raza_id: !nuevaLinea.raza_id,
@@ -788,6 +793,8 @@ export default function GuiaForm({
       valor: precioTicket, // Usar solo el precio del ticket como valor, no multiplicar por kilos
       es_nueva: true,
     }
+
+    console.log("Añadiendo nueva línea con ticket:", nuevaLinea.ticket)
 
     setLineas([...lineas, newLinea])
 
@@ -909,7 +916,7 @@ export default function GuiaForm({
 
     // Crear un array de datos de tickets a partir de las líneas
     const tickets = lineas.map((linea) => ({
-      ticketNumber: Number(linea.ticket), // Código del animal
+      ticketNumber: linea.ticket, // Usar el valor exacto del ticket sin convertir a Number
       ticket2: Number(linea.ticket2 || 0), // Número de báscula
       fecha: new Date().toLocaleString("es-CO"),
       duenioAnterior: duenioAnterior ? `${duenioAnterior.primer_nombre} ${duenioAnterior.primer_apellido}` : "N/A",
@@ -953,7 +960,8 @@ export default function GuiaForm({
         ubication_contact_id: selectedFinca ? Number(selectedFinca) : null, // Ubicación del dueño anterior
         ubication_contact_id2: null, // Ya no se usa
         lineas: lineas.map((linea) => ({
-          ticket: Number(linea.ticket),
+          // IMPORTANTE: Asegurar que el ticket siempre sea un string
+          ticket: linea.ticket !== undefined && linea.ticket !== null ? String(linea.ticket) : "",
           product_id: Number(linea.product_id),
           quantity: Number(linea.kilos || linea.quantity),
           // Asegurar que raza_id y color_id sean valores válidos
@@ -963,6 +971,8 @@ export default function GuiaForm({
           // No incluimos es_macho ya que no existe en la tabla
         })),
       }
+
+      console.log("Datos a enviar:", JSON.stringify(dataToSend, null, 2))
 
       let result
 
@@ -1292,7 +1302,10 @@ export default function GuiaForm({
                 {/* Modificar la sección donde se muestran las líneas existentes: */}
                 {lineas.map((linea, index) => (
                   <tr key={linea.id || index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                    <td className="border p-2">{linea.ticket}</td>
+                    <td className="border p-2">
+                      {/* Mostrar el ticket exactamente como está en el estado */}
+                      {linea.ticket}
+                    </td>
                     <td className="border p-2">{linea.product_name || `Producto #${linea.product_id}`}</td>
                     <td className="border p-2">{linea.quantity || linea.kilos}</td>
                     <td className="border p-2">{linea.raza_name || "N/A"}</td>
@@ -1306,7 +1319,7 @@ export default function GuiaForm({
                         </Button>
                         <TicketPrinter
                           ticketData={{
-                            ticketNumber: Number(linea.ticket),
+                            ticketNumber: linea.ticket, // Usar el valor exacto del ticket sin convertir a Number
                             ticket2: Number(linea.ticket2 || 0),
                             fecha: new Date().toLocaleString("es-CO"),
                             duenioAnterior:

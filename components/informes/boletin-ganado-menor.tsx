@@ -2,13 +2,13 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useState, useEffect } from "react"
-import { type BoletinGanadoItem, getBoletinGanadoMayor } from "@/app/informes/actions"
+import { type BoletinGanadoItem, getBoletinGanadoMenor } from "@/app/informes/actions"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Search, X, FileText, FileSpreadsheet } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { jsPDF } from "jspdf"
+import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import * as XLSX from "xlsx"
 
@@ -23,14 +23,13 @@ function formatNumber(value: number): string {
     .replace(/\./g, ",")
 }
 
-export function BoletinGanadoMayor({
+export function BoletinGanadoMenor({
   fechaInicio,
   fechaFin,
 }: {
   fechaInicio: string
   fechaFin: string
 }) {
-  const { toast } = useToast()
   const [datos, setDatos] = useState<BoletinGanadoItem[]>([])
   const [datosFiltrados, setDatosFiltrados] = useState<BoletinGanadoItem[]>([])
   const [totales, setTotales] = useState({
@@ -40,19 +39,20 @@ export function BoletinGanadoMayor({
     cantidadKilos: 0,
     valorDeguello: 0,
     servicioMatadero: 0,
-    fondoFedegan: 0,
+    fondoPorcicultura: 0,
     total: 0,
   })
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
   const [exporting, setExporting] = useState(false)
+  const { toast } = useToast()
 
   // Cargar datos reales
   useEffect(() => {
     async function cargarDatos() {
       setLoading(true)
       try {
-        const datosInforme = await getBoletinGanadoMayor(fechaInicio, fechaFin)
+        const datosInforme = await getBoletinGanadoMenor(fechaInicio, fechaFin)
         setDatos(datosInforme)
         setDatosFiltrados(datosInforme)
         calcularTotales(datosInforme)
@@ -97,7 +97,7 @@ export function BoletinGanadoMayor({
           cantidadKilos: acc.cantidadKilos + item.cantidadKilos,
           valorDeguello: acc.valorDeguello + item.valorDeguello,
           servicioMatadero: acc.servicioMatadero + item.servicioMatadero,
-          fondoFedegan: acc.fondoFedegan + item.fondoFedegan,
+          fondoPorcicultura: acc.fondoPorcicultura + item.fondoFedegan, // Usamos el mismo campo pero con nombre diferente
           total: acc.total + item.total,
         }
       },
@@ -108,7 +108,7 @@ export function BoletinGanadoMayor({
         cantidadKilos: 0,
         valorDeguello: 0,
         servicioMatadero: 0,
-        fondoFedegan: 0,
+        fondoPorcicultura: 0,
         total: 0,
       },
     )
@@ -126,63 +126,57 @@ export function BoletinGanadoMayor({
     try {
       setExporting(true)
 
-      // Preparar los datos para Excel
-      const datosExcel = datosFiltrados.map((item) => ({
+      // Preparar datos para Excel
+      const excelData = datosFiltrados.map((item) => ({
         Fecha: new Date(item.fecha).toLocaleDateString("es-CO"),
-        "Guía/Deguello": item.numeroGuiaIca,
+        "G/Deguello": item.numeroGuiaIca,
         "Cantidad Total": item.cantidadTotal,
         Machos: item.cantidadMachos,
         Hembras: item.cantidadHembras,
         Kilos: item.cantidadKilos,
         "Valor Deguello": item.valorDeguello,
         "Servicio Matadero": item.servicioMatadero,
-        "Fondo Fedegan": item.fondoFedegan,
+        "Fondo Porcicultura": item.fondoFedegan,
         Total: item.total,
-        "Boletín Nº": item.numeroBoletin || "",
+        "Boletín Nº": item.numeroBoletin,
       }))
 
       // Agregar fila de totales
-      datosExcel.push({
+      excelData.push({
         Fecha: "TOTALES",
-        "Guía/Deguello": "",
+        "G/Deguello": "",
         "Cantidad Total": totales.cantidadTotal,
         Machos: totales.cantidadMachos,
         Hembras: totales.cantidadHembras,
         Kilos: totales.cantidadKilos,
         "Valor Deguello": totales.valorDeguello,
         "Servicio Matadero": totales.servicioMatadero,
-        "Fondo Fedegan": totales.fondoFedegan,
+        "Fondo Porcicultura": totales.fondoPorcicultura,
         Total: totales.total,
         "Boletín Nº": "",
       })
 
-      // Crear una hoja de cálculo
-      const ws = XLSX.utils.json_to_sheet(datosExcel)
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, "Boletín Ganado Mayor")
+      // Crear libro de Excel
+      const worksheet = XLSX.utils.json_to_sheet(excelData)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Boletín Ganado Menor")
 
-      // Convertir el libro a un array buffer
-      const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" })
-
-      // Crear un Blob con el array buffer
+      // Generar archivo Excel en memoria
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
       const blob = new Blob([excelBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       })
 
-      // Crear una URL para el blob
+      // Crear URL para descarga
       const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `boletin-ganado-menor-${new Date().toISOString().split("T")[0]}.xlsx`
+      document.body.appendChild(link)
+      link.click()
 
-      // Crear un elemento de enlace para descargar
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `boletin_ganado_mayor_${new Date().toISOString().split("T")[0]}.xlsx`
-
-      // Agregar el enlace al documento, hacer clic y luego eliminarlo
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-
-      // Liberar la URL del objeto
+      // Limpiar recursos
+      document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
       toast({
@@ -193,7 +187,7 @@ export function BoletinGanadoMayor({
       console.error("Error al exportar a Excel:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al exportar el boletín a Excel.",
+        description: `Error al exportar a Excel: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       })
     } finally {
@@ -206,53 +200,60 @@ export function BoletinGanadoMayor({
     try {
       setExporting(true)
 
-      // Crear un nuevo documento PDF
-      const doc = new jsPDF("landscape")
+      // Crear documento PDF
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      })
 
       // Agregar título
       doc.setFontSize(16)
-      doc.text("CONVENINIO MUNICIPIO DE POPAYAN - SAG CAUCA", 14, 15)
-      doc.text("BOLETIN GANADO MAYOR", 14, 25)
+      doc.text("CONVENIO MUNICIPIO DE POPAYAN - SAG CAUCA", doc.internal.pageSize.getWidth() / 2, 15, {
+        align: "center",
+      })
+      doc.text("BOLETIN GANADO MENOR", doc.internal.pageSize.getWidth() / 2, 22, { align: "center" })
 
-      // Agregar subtítulo con fechas
+      // Agregar período
       doc.setFontSize(12)
       doc.text(
         `Período: ${new Date(fechaInicio).toLocaleDateString("es-CO")} - ${new Date(fechaFin).toLocaleDateString("es-CO")}`,
-        14,
-        35,
+        doc.internal.pageSize.getWidth() / 2,
+        30,
+        { align: "center" },
       )
 
-      // Preparar los datos para la tabla
-      const filas = datosFiltrados.map((item) => [
+      // Preparar datos para la tabla
+      const tableData = datosFiltrados.map((item) => [
         new Date(item.fecha).toLocaleDateString("es-CO"),
         item.numeroGuiaIca,
-        item.cantidadTotal.toString(),
-        item.cantidadMachos.toString(),
-        item.cantidadHembras.toString(),
+        item.cantidadTotal,
+        item.cantidadMachos,
+        item.cantidadHembras,
         formatNumber(item.cantidadKilos),
         formatNumber(item.valorDeguello),
         formatNumber(item.servicioMatadero),
         formatNumber(item.fondoFedegan),
         formatNumber(item.total),
-        item.numeroBoletin || "",
+        item.numeroBoletin,
       ])
 
       // Agregar fila de totales
-      filas.push([
+      tableData.push([
         "TOTALES",
         "",
-        totales.cantidadTotal.toString(),
-        totales.cantidadMachos.toString(),
-        totales.cantidadHembras.toString(),
+        totales.cantidadTotal,
+        totales.cantidadMachos,
+        totales.cantidadHembras,
         formatNumber(totales.cantidadKilos),
         formatNumber(totales.valorDeguello),
         formatNumber(totales.servicioMatadero),
-        formatNumber(totales.fondoFedegan),
+        formatNumber(totales.fondoPorcicultura),
         formatNumber(totales.total),
         "",
       ])
 
-      // Crear la tabla usando autoTable como función importada
+      // Crear tabla
       autoTable(doc, {
         head: [
           [
@@ -264,41 +265,32 @@ export function BoletinGanadoMayor({
             "Kilos",
             "Valor Deguello",
             "Servicio Matadero",
-            "Fondo Fedegan",
+            "Fondo Porcicultura",
             "Total",
             "Boletín Nº",
           ],
         ],
-        body: filas,
-        startY: 45,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [60, 60, 60] },
-        footStyles: { fillColor: [220, 220, 220], fontStyle: "bold" },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
+        body: tableData,
+        startY: 35,
+        theme: "grid",
+        headStyles: { fillColor: [75, 75, 75], textColor: 255, fontStyle: "bold" },
+        footStyles: { fillColor: [220, 220, 220], textColor: 0, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
       })
 
-      // Obtener la posición Y final de la tabla
-      const finalY = (doc as any).lastAutoTable.finalY + 10
-
+      // Agregar sección de distribución del impuesto
+      const finalY = (doc as any).lastAutoTable.finalY || 150
       doc.setFontSize(14)
-      doc.text("Distribución del Impuesto de Deguello", 14, finalY)
+      doc.text("Distribución del Impuesto de Deguello", 14, finalY + 15)
 
-      // Usar autoTable como función importada
-      autoTable(doc, {
-        head: [["Concepto", "Valor"]],
-        body: [
-          ["Valor Total Impuesto Deguello", formatNumber(totales.valorDeguello)],
-          ["Alcaldía (50%)", formatNumber(totales.valorDeguello / 2)],
-          ["Gobernación (50%)", formatNumber(totales.valorDeguello / 2)],
-        ],
-        startY: finalY + 5,
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [60, 60, 60] },
-        alternateRowStyles: { fillColor: [245, 245, 245] },
-      })
+      doc.setFontSize(12)
+      doc.text(`Valor Total Impuesto Deguello: ${formatNumber(totales.valorDeguello)}`, 14, finalY + 25)
+      doc.text(`Alcaldía (50%): ${formatNumber(totales.valorDeguello / 2)}`, 14, finalY + 35)
+      doc.text(`Gobernación (50%): ${formatNumber(totales.valorDeguello / 2)}`, 14, finalY + 45)
 
-      // Guardar el PDF
-      doc.save(`boletin_ganado_mayor_${new Date().toISOString().split("T")[0]}.pdf`)
+      // Guardar PDF
+      const fileName = `boletin-ganado-menor-${new Date().toISOString().split("T")[0]}.pdf`
+      doc.save(fileName)
 
       toast({
         title: "Exportación exitosa",
@@ -308,7 +300,7 @@ export function BoletinGanadoMayor({
       console.error("Error al exportar a PDF:", error)
       toast({
         title: "Error",
-        description: "Ocurrió un error al exportar el boletín a PDF.",
+        description: `Error al exportar a PDF: ${error instanceof Error ? error.message : String(error)}`,
         variant: "destructive",
       })
     } finally {
@@ -328,7 +320,7 @@ export function BoletinGanadoMayor({
   return (
     <div className="space-y-4">
       {/* Filtro de búsqueda */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="flex items-center space-x-2">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -382,7 +374,7 @@ export function BoletinGanadoMayor({
                 <TableHead className="text-center border">Kilos</TableHead>
                 <TableHead className="text-right border">Valor Deguello</TableHead>
                 <TableHead className="text-right border">Servicio Matadero</TableHead>
-                <TableHead className="text-right border">Fondo Fedegan</TableHead>
+                <TableHead className="text-right border">Fondo Porcicultura</TableHead>
                 <TableHead className="text-right border">Total</TableHead>
                 <TableHead className="text-center border">Boletín Nº</TableHead>
               </TableRow>
@@ -415,7 +407,7 @@ export function BoletinGanadoMayor({
                 <TableCell className="text-center border font-bold">{formatNumber(totales.cantidadKilos)}</TableCell>
                 <TableCell className="text-right border font-bold">{formatNumber(totales.valorDeguello)}</TableCell>
                 <TableCell className="text-right border font-bold">{formatNumber(totales.servicioMatadero)}</TableCell>
-                <TableCell className="text-right border font-bold">{formatNumber(totales.fondoFedegan)}</TableCell>
+                <TableCell className="text-right border font-bold">{formatNumber(totales.fondoPorcicultura)}</TableCell>
                 <TableCell className="text-right border font-bold">{formatNumber(totales.total)}</TableCell>
                 <TableCell className="border"></TableCell>
               </TableRow>

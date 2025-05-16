@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart } from "lucide-react"
+import { Users, FileText, Truck, PiggyBank, Ticket, DollarSign, BarChart, PlusCircle } from "lucide-react"
 import { getTransactionStats, getFinancialData } from "@/lib/data"
 import { FinancialDashboard } from "@/components/dashboard/financial-dashboard"
 import { IcaButtons } from "@/components/ica-buttons"
@@ -56,8 +56,13 @@ export default async function Home() {
             <CardDescription>Administración de ganado vacuno</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center justify-between gap-2">
               <img src="/images/vaca.png" alt="Bovino" className="h-16 w-16" />
+              <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-sm">
+                <Link href="/guias/nueva">
+                  <PlusCircle className="h-4 w-4 mr-1" /> Nueva Guía
+                </Link>
+              </Button>
             </div>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
@@ -91,7 +96,14 @@ export default async function Home() {
             <CardDescription>Administración de ganado porcino</CardDescription>
           </CardHeader>
           <CardContent className="flex justify-between items-center p-6">
-            <PiggyBank className="w-16 h-16 text-amber-500" />
+            <div className="flex flex-col items-center justify-between gap-2">
+              <PiggyBank className="w-16 h-16 text-amber-500" />
+              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-full shadow-sm">
+                <Link href="/guias/nueva?tipo=porcino">
+                  <PlusCircle className="h-4 w-4 mr-1" /> Nueva Guía
+                </Link>
+              </Button>
+            </div>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600 text-white rounded-full shadow-sm">

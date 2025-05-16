@@ -23,7 +23,7 @@ interface GuiaData {
 
 // Tipo para los datos de una línea
 interface LineaData {
-  ticket: number
+  ticket: string | number // Cambiado a string | number para aceptar ambos tipos
   product_id: number
   quantity: number
   raza_id: number | null
@@ -81,18 +81,28 @@ export async function createGuia(data: GuiaData) {
 
     const transactionId = transactionResult.rows[0].id
 
-    // Insertar las líneas de la transacción (sin el campo es_macho)
+    // Insertar las líneas de la transacción
     for (const linea of data.lineas) {
       // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
-      // Si son nulos, usar valores predeterminados según el tipo de animal
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
-      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
+      // Convertir el ticket a número para la inserción
+      let ticketValue = 0
+      if (linea.ticket !== null && linea.ticket !== undefined && linea.ticket !== "") {
+        // Intentar convertir a número
+        const ticketNum = Number(linea.ticket)
+        if (!isNaN(ticketNum)) {
+          ticketValue = ticketNum
+        }
+      }
+
+      // Insertar con valores numéricos para ticket y ticket2
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
           ticket,
+          ticket2,
           product_id,
           quantity,
           raza_id,
@@ -100,7 +110,8 @@ export async function createGuia(data: GuiaData) {
           valor
         ) VALUES (
           ${transactionId},
-          ${linea.ticket},
+          ${ticketValue},
+          ${ticketValue},
           ${linea.product_id},
           ${linea.quantity},
           ${raza_id},
@@ -170,17 +181,28 @@ export async function updateGuia(id: number, data: GuiaData) {
     // Eliminar las líneas existentes
     await sql`DELETE FROM transaction_lines WHERE transaction_id = ${id}`
 
-    // Insertar las nuevas líneas (sin el campo es_macho)
+    // Insertar las nuevas líneas
     for (const linea of data.lineas) {
       // Asegurarse de que raza_id y color_id sean valores válidos (no nulos)
       const raza_id = linea.raza_id || 1 // Usar un valor predeterminado si es nulo
       const color_id = linea.color_id || 1 // Usar un valor predeterminado si es nulo
 
-      // No establecemos ticket2 aquí, dejamos que el trigger lo haga automáticamente
+      // Convertir el ticket a número para la inserción
+      let ticketValue = 0
+      if (linea.ticket !== null && linea.ticket !== undefined && linea.ticket !== "") {
+        // Intentar convertir a número
+        const ticketNum = Number(linea.ticket)
+        if (!isNaN(ticketNum)) {
+          ticketValue = ticketNum
+        }
+      }
+
+      // Insertar con valores numéricos para ticket y ticket2
       await sql`
         INSERT INTO transaction_lines (
           transaction_id,
           ticket,
+          ticket2,
           product_id,
           quantity,
           raza_id,
@@ -188,7 +210,8 @@ export async function updateGuia(id: number, data: GuiaData) {
           valor
         ) VALUES (
           ${id},
-          ${linea.ticket},
+          ${ticketValue},
+          ${ticketValue},
           ${linea.product_id},
           ${linea.quantity},
           ${raza_id},

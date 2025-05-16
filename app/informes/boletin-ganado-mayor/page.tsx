@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { DatePickerWithRange } from "@/components/date-range-picker"
 import { Button } from "@/components/ui/button"
-import { Printer, FileSpreadsheet } from "lucide-react"
+import { Printer, FileSpreadsheet, FileText } from "lucide-react"
 import { exportarBoletinGanadoMayor } from "../actions"
 import { useToast } from "@/components/ui/use-toast"
 import { BoletinGanadoMayor } from "@/components/informes/boletin-ganado-mayor"
@@ -48,6 +48,20 @@ export default function BoletinGanadoMayorPage() {
     }
   }
 
+  const handlePrintPDF = () => {
+    // Esto activará la función de exportación a PDF en el componente hijo
+    const exportButton = document.querySelector("[data-export-pdf]") as HTMLButtonElement
+    if (exportButton) {
+      exportButton.click()
+    } else {
+      toast({
+        title: "Error",
+        description: "No se pudo encontrar el botón de exportación a PDF.",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -63,6 +77,10 @@ export default function BoletinGanadoMayorPage() {
           <Button variant="outline" size="sm" onClick={handleExportExcel}>
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Exportar a Excel
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrintPDF}>
+            <FileText className="mr-2 h-4 w-4" />
+            Exportar a PDF
           </Button>
         </div>
       </div>

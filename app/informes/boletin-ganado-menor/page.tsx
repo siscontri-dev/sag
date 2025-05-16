@@ -1,21 +1,21 @@
 "use client"
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { InformeDiarioBasculaCorralaje } from "@/components/informes/informe-diario-bascula-corralaje"
-import { DateRangePicker } from "@/components/date-range-picker"
 import { useState } from "react"
+import { DatePickerWithRange } from "@/components/date-range-picker"
 import { Button } from "@/components/ui/button"
-import { Printer, FileSpreadsheet } from "lucide-react"
-import { exportarInformeBasculaCorralaje } from "../actions"
+import { Printer, FileSpreadsheet, FileText } from "lucide-react"
+import { exportarBoletinGanadoMenor } from "../actions"
 import { useToast } from "@/components/ui/use-toast"
+import { BoletinGanadoMenor } from "@/components/informes/boletin-ganado-menor"
+import React from "react"
 
-export default function InformeBasculaCorralajePage() {
+export default function BoletinGanadoMenorPage() {
   const { toast } = useToast()
   const [fechaInicio, setFechaInicio] = useState<string>(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0],
   )
   const [fechaFin, setFechaFin] = useState<string>(new Date().toISOString().split("T")[0])
-  const [tipo, setTipo] = useState<"bovino" | "porcino">("bovino")
+  const boletinRef = React.useRef<any>(null)
 
   const handleDateRangeChange = (start: Date, end: Date) => {
     setFechaInicio(start.toISOString().split("T")[0])
@@ -28,11 +28,11 @@ export default function InformeBasculaCorralajePage() {
 
   const handleExportExcel = async () => {
     try {
-      const result = await exportarInformeBasculaCorralaje(tipo, fechaInicio, fechaFin)
+      const result = await exportarBoletinGanadoMenor(fechaInicio, fechaFin)
       if (result.success) {
         toast({
           title: "Exportación exitosa",
-          description: "El informe se ha exportado correctamente a Excel.",
+          description: "El boletín se ha exportado correctamente a Excel.",
         })
       } else {
         toast({
@@ -44,9 +44,15 @@ export default function InformeBasculaCorralajePage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Ocurrió un error al exportar el informe.",
+        description: "Ocurrió un error al exportar el boletín.",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleExportPdf = () => {
+    if (boletinRef.current) {
+      boletinRef.current.exportToPdf()
     }
   }
 
@@ -54,8 +60,8 @@ export default function InformeBasculaCorralajePage() {
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Informe Diario Báscula y Corralaje</h1>
-          <p className="text-muted-foreground">Visualiza el uso diario de básculas y corrales por tipo de animal</p>
+          <h1 className="text-2xl font-bold tracking-tight">BOLETÍN MOVIMIENTO DE GANADO MENOR PORCINOS</h1>
+          <p className="text-muted-foreground">Registro de sacrificios de ganado porcino y distribución de impuestos</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handlePrint}>
@@ -66,25 +72,23 @@ export default function InformeBasculaCorralajePage() {
             <FileSpreadsheet className="mr-2 h-4 w-4" />
             Exportar a Excel
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Exportar a PDF
+          </Button>
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <DateRangePicker onRangeChange={handleDateRangeChange} />
+        <DatePickerWithRange onRangeChange={handleDateRangeChange} />
       </div>
 
-      <Tabs defaultValue="bovino" onValueChange={(value) => setTipo(value as "bovino" | "porcino")}>
-        <TabsList>
-          <TabsTrigger value="bovino">Bovinos</TabsTrigger>
-          <TabsTrigger value="porcino">Porcinos</TabsTrigger>
-        </TabsList>
-        <TabsContent value="bovino" className="mt-4">
-          <InformeDiarioBasculaCorralaje tipo="bovino" fechaInicio={fechaInicio} fechaFin={fechaFin} />
-        </TabsContent>
-        <TabsContent value="porcino" className="mt-4">
-          <InformeDiarioBasculaCorralaje tipo="porcino" fechaInicio={fechaInicio} fechaFin={fechaFin} />
-        </TabsContent>
-      </Tabs>
+      <BoletinGanadoMenor fechaInicio={fechaInicio} fechaFin={fechaFin} ref={boletinRef} />
     </div>
   )
 }
