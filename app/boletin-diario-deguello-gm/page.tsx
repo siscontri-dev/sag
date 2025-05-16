@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic"
 import { BoletinDiarioDeguelloClient } from "./boletin-diario-deguello-client"
 
 export const metadata = {
