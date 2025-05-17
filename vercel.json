@@ -6,6 +6,5 @@
   "outputDirectory": ".next",
   "regions": ["bog1"],
   "env": {
-    "TZ": "America/Bogota"
   }
 }
