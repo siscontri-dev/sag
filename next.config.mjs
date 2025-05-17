@@ -1,9 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Configuración para asegurar que las fechas se manejen correctamente
-  env: {
-    TZ: 'America/Bogota',
-  },
   // Asegurarse de que las rutas dinámicas funcionen correctamente
   trailingSlash: false,
   // Configuración para manejar correctamente las rutas dinámicas en producción
